@@ -6,7 +6,7 @@ subagents stay pinned to sonnet/haiku regardless).
 ## 1. Kick off the work
 
 ```
-/build-testbed https://YOUR-TARGET-SITE.example.com/some-content-rich-page
+/build-testbed https://www.hiya.com/products/connect/branded-call
 ```
 
 (Pick a page with a form, gradient/distinctive styling, several sections, links and images —

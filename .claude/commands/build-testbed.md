@@ -5,7 +5,7 @@ argument-hint: <golden-page-url>
 
 Build the local testbed for page-pair-diff, golden page URL: $ARGUMENTS
 
-Read `CLAUDE.md` and `docs/page-pair-diff-spec.md` §12–13 first. Then orchestrate — delegate all
+Read `CLAUDE.md` and `docs/prds/page-pair-diff-spec.md` §12–13 first. Then orchestrate — delegate all
 mechanical work per the routing policy; you personally do only planning, expected-output
 authoring, and review.
 
