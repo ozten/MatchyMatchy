@@ -1345,6 +1345,7 @@ mod tests {
                 full_page: "desktop/old.png".to_string(),
                 viewport: "desktop/old-vp.png".to_string(),
             },
+            style_candidates: Default::default(),
         }
     }
 

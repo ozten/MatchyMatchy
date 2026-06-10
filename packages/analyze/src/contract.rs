@@ -24,6 +24,44 @@ pub struct CaptureBundle {
     /// M4: computed styles per node id. Empty in M1.
     pub computed_styles: BTreeMap<String, BTreeMap<String, String>>,
     pub screenshots: Screenshots,
+    /// M4: ancestor chain metadata + chains map. Absent in pre-M4 bundles (defaults to empty).
+    #[serde(default)]
+    pub style_candidates: StyleCandidates,
+}
+
+// ---------------------------------------------------------------------------
+// M4: StyleCandidates (ancestor chain metadata)
+// ---------------------------------------------------------------------------
+
+/// Ancestor-chain metadata emitted by the capture layer (M4 §2.4).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StyleCandidates {
+    /// Ancestor descriptors sorted by id (document order).
+    pub ancestors: Vec<AncestorDescriptor>,
+    /// Map from node id → ancestor ids in nearest-first order.
+    /// BTreeMap for deterministic iteration.
+    pub chains: BTreeMap<String, Vec<String>>,
+    /// Budget used during capture.
+    pub budget: u32,
+    /// True when the budget was exceeded and some ancestors were dropped.
+    pub truncated: bool,
+    /// Number of ancestor entries dropped due to budget overflow.
+    pub dropped_count: u32,
+}
+
+/// A single ancestor element descriptor (M4 §2.3).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AncestorDescriptor {
+    pub id: String,
+    pub tag: String,
+    /// [x, y, w, h] in CSS pixels.
+    pub bbox: [i32; 4],
+    /// Distance from document root.
+    pub depth: u32,
+    pub css_selector: Option<String>,
+    pub anchors: Anchors,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -659,7 +697,7 @@ pub struct Locator {
     pub seq_index_new: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Anchors {
     pub text: Option<String>,

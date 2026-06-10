@@ -1,0 +1,32 @@
+{
+  "status": [
+    "warn",
+    "fail"
+  ],
+  "required": [
+    {
+      "type": "style_changed",
+      "goal": "G1",
+      "anchors": {
+        "nearestHeadingContains": "TRUSTED BY 1,000+ BUSINESSES"
+      },
+      "evidence": {
+        "property": "gap",
+        "fromContains": "32px 8px",
+        "toContains": "32px"
+      },
+      "note": "The .g2-badge-feature-list grid container (7-column award badge grid) has its column-gap reduced from 2rem to 0.5rem. getComputedStyle(el).getPropertyValue('gap') shifts from '32px' (Chromium collapses the shorthand when row-gap == column-gap) to '32px 8px'. fromContains pins '32px 8px' (the defective new value) and toContains pins '32px' (the correct original value); fix-direction per spec §7.1: from=current/new-page value, to=desired/old-page value. The heading anchor is pinned in rendered (CSS text-transform: uppercase) form because capture extracts rendered text and the checker is case-sensitive. This is an ancestor-channel style diff per docs/design/M4.md §4: the affected element is a grid wrapper, not a SemanticNode leaf."
+    }
+  ],
+  "forbidden": [
+    {
+      "type": "missing_*",
+      "note": "No content changed — all seven G2 badge images and their anchor links remain present. No missing_image or missing_link issues should fire."
+    },
+    {
+      "type": "changed_text",
+      "note": "No text content was modified."
+    }
+  ],
+  "notes": "One CSS rule edited in hiya-shared.min.css: .g2-badge-feature-list grid-column-gap changed 2rem -> 0.5rem. Exercises spec §12 M4 DoD: 'a container flex-direction/gap change is detected' and docs/design/M4.md §4 ancestor-channel style diff. The property captured by M4 is 'gap' (in curated property list §2.2); grid-column-gap is the authoring form but gap is what getComputedStyle reports. Media-query overrides at ≤991px and ≤767px exist in the golden CSS but do not affect the desktop-width base rule being changed. Accepted knock-ons per manifest: visual_region_changed over the G2 badges section. Accepted knock-on: a second style_changed(grid-template-columns) on the same grid element — computed track sizes re-resolve when the column gap changes (same root cause, one CSS edit)."
+}

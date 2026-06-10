@@ -5,8 +5,8 @@
       "type": "background_gradient_lost",
       "goal": "G4",
       "anchors": { "nearestHeadingContains": "Reach more customers" },
-      "evidence": { "property": "background-image", "fromContains": "linear-gradient", "toContains": "none" },
-      "note": "The hero page-section wrapper (selector .page-section:where(.w-variant-56a9f9bb-…), which provably matches the static class attribute) lost linear-gradient(180deg, var(--primary--brand-100), var(--neutral--gray-100) 90%). Spec M4 DoD: background_gradient_lost with from/to; computed 'from' will have vars resolved to rgb stops, hence fromContains only pins 'linear-gradient'."
+      "evidence": { "property": "background-image", "fromContains": "none", "toContains": "linear-gradient" },
+      "note": "The hero page-section wrapper (selector .page-section:where(.w-variant-56a9f9bb-…), which provably matches the static class attribute) lost linear-gradient(180deg, var(--primary--brand-100), var(--neutral--gray-100) 90%). Spec M4 DoD: background_gradient_lost with from/to in fix direction (from = current/new value, to = desired/old value per §7.1); the computed 'to' will have vars resolved to rgb stops, hence toContains only pins 'linear-gradient'."
     }
   ],
   "forbidden": [

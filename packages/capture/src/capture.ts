@@ -299,7 +299,8 @@ async function runCapture(configRaw: unknown): Promise<void> {
         a11y: { violations: [] },
         linkProbes: linkProbeResults,
       },
-      computedStyles: {},
+      computedStyles: pageModelRaw.computedStyles,
+      styleCandidates: pageModelRaw.styleCandidates,
       screenshots: {
         fullPage: `${viewport.name}/${prefix}.png`,
         viewport: `${viewport.name}/${prefix}-vp.png`,

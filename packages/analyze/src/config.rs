@@ -54,7 +54,48 @@ pub mod base_confidence {
     pub const BROKEN_LINK: f64 = 0.98;
     /// broken_image (lazy-load dependent — env multipliers still apply). M3.md §5.3.
     pub const BROKEN_IMAGE: f64 = 0.95;
+    /// Generic style_changed issue. M4.md §3.4.
+    pub const STYLE_CHANGED: f64 = 0.9;
+    /// Background gradient issue. M4.md §3.4.
+    pub const GRADIENT: f64 = 0.95;
 }
+
+/// Minimum style similarity for ancestor pairing (M4.md §3.2).
+pub const ANCESTOR_MIN_SIMILARITY: f64 = 0.6;
+
+/// Diff property list: curated set MINUS the `background` shorthand (M4.md §3.1).
+/// The `background` shorthand is excluded to avoid double-reporting with
+/// `background-color` and `background-image`.
+pub const STYLE_DIFF_PROPERTIES: &[&str] = &[
+    "color",
+    "background-color",
+    "background-image",
+    "border",
+    "border-radius",
+    "box-shadow",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "line-height",
+    "letter-spacing",
+    "text-align",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
+    "display",
+    "position",
+    "opacity",
+    "flex-direction",
+    "justify-content",
+    "align-items",
+    "gap",
+    "grid-template-columns",
+];
 
 // ---------------------------------------------------------------------------
 // M3 matcher thresholds (M3.md §3.6)

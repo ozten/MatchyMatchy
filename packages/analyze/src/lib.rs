@@ -14,6 +14,7 @@ pub mod region_link;
 pub mod report;
 pub mod scoring;
 pub mod semantic_diff;
+pub mod style_diff;
 pub mod visual_diff;
 
 /// Parameters for a single-viewport analysis.
@@ -107,6 +108,17 @@ pub fn analyze_viewport(
         env_mismatch,
     );
     let content_issue_count = content_issues.len();
+
+    // --- Style diff: computed-style issues (M4 §3.5) ---
+    let style_issues_vec = style_diff::style_issues(
+        old_bundle,
+        new_bundle,
+        &match_outcome,
+        viewport_name,
+        profile,
+        env_mismatch,
+    );
+    let style_issue_count = style_issues_vec.len();
 
     let mut issues: Vec<contract::Issue> = Vec::new();
 
@@ -268,8 +280,9 @@ pub fn analyze_viewport(
         });
     }
 
-    // --- Append content issues (visual ++ content ++ hygiene order per M3.md §5.7) ---
+    // --- Append issues: visual ++ content ++ style ++ hygiene (M4 §3.5) ---
     issues.extend(content_issues);
+    issues.extend(style_issues_vec);
 
     // --- Append hygiene issues (non-short-circuit path) ---
     issues.extend(hygiene_outcome.issues.clone());
@@ -283,11 +296,13 @@ pub fn analyze_viewport(
     let visual_score = (1.0 - diff_out.page_changed_ratio).clamp(0.0, 1.0);
     // content score: 1/(1+n) per M3.md §5.7 D11
     let content_score = 1.0 / (1.0 + content_issue_count as f64);
+    // style score: 1/(1+n) per M4.md §3.5
+    let style_score = 1.0 / (1.0 + style_issue_count as f64);
     let scores = contract::Scores {
         visual: visual_score,
         content: content_score,
         structure: 1.0,
-        style: 1.0,
+        style: style_score,
         accessibility: 1.0,
         technical: 1.0,
         hygiene: hygiene_score,

@@ -1,0 +1,17 @@
+{
+  "name": "v19-container-gap",
+  "port": 3019,
+  "change": "Reduce the column gap on the G2 badge grid container (.g2-badge-feature-list) from 2rem to 0.5rem, compressing horizontal spacing between the seven award badge columns.",
+  "edit": "assets/css/hiya-shared.min.css — selector .g2-badge-feature-list: grid-column-gap:2rem -> grid-column-gap:0.5rem (computed gap: \"32px\" -> \"32px 8px\"; Chromium collapses the gap shorthand to a single value when row-gap == column-gap)",
+  "selectorProof": "index.html contains: class=\"g2-badge-feature-list\" — the literal class required by the .g2-badge-feature-list selector is present in the static markup",
+  "affectedElement": "The .g2-badge-feature-list div: a CSS grid container holding seven G2 award badge anchor/image pairs; nearest heading: h6 \"Trusted by 1,000+ businesses globally\"",
+  "goals": [
+    "G1"
+  ],
+  "knockOnEffects": [
+    "Visual region change at the G2 badges section: badge columns are closer together at desktop widths (>991px); no content, text, or link changes",
+    "style_changed(grid-template-columns) on the same grid element: the 1fr tracks re-resolve (109.7px -> 130.3px) when 6 column gaps shrink by 24px each inside the max-width grid — same root cause, same single CSS edit",
+    "Page height reflow (~+23px observed): the grid grows slightly taller, shifting everything below it (FAQ, footer, locale regions), so visual_region_changed issues appear below the grid as pure reflow shifts, not independent defects"
+  ],
+  "diffSummary": "Exactly 1 file differs from golden: assets/css/hiya-shared.min.css. No other files changed."
+}

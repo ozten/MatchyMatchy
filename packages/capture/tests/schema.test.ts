@@ -91,6 +91,13 @@ const KNOWN_GOOD_BUNDLE = {
     linkProbes: [],
   },
   computedStyles: {},
+  styleCandidates: {
+    ancestors: [],
+    chains: {},
+    budget: 2000,
+    truncated: false,
+    droppedCount: 0,
+  },
   screenshots: {
     fullPage: "desktop/old.png",
     viewport: "desktop/old-vp.png",
@@ -469,5 +476,200 @@ describe("CaptureBundleSchema", () => {
     };
     const result = CaptureBundleSchema.safeParse(bundle);
     expect(result.success).toBe(false);
+  });
+
+  // ── M4 StyleCandidates schema tests ───────────────────────────────────────
+
+  it("M4: rejects a bundle missing styleCandidates", () => {
+    const { styleCandidates: _sc, ...bundleWithoutSC } = KNOWN_GOOD_BUNDLE;
+    const result = CaptureBundleSchema.safeParse(bundleWithoutSC);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issues = result.error.issues;
+      const hasSCError = issues.some(
+        (i) =>
+          i.path.includes("styleCandidates") ||
+          i.message.toLowerCase().includes("required")
+      );
+      expect(hasSCError).toBe(true);
+    }
+  });
+
+  it("M4: accepts styleCandidates with empty ancestors and chains", () => {
+    const result = CaptureBundleSchema.safeParse(KNOWN_GOOD_BUNDLE);
+    expect(result.success).toBe(true);
+  });
+
+  it("M4: accepts styleCandidates with a full ancestor descriptor", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      computedStyles: {
+        node_0: { "font-size": "16px", "color": "rgb(0, 0, 0)" },
+        anc_0: { "display": "flex", "gap": "8px" },
+      },
+      styleCandidates: {
+        ancestors: [
+          {
+            id: "anc_0",
+            tag: "div",
+            bbox: [0, 0, 1440, 400] as [number, number, number, number],
+            depth: 4,
+            cssSelector: "main > div:nth-of-type(1)",
+            anchors: {
+              text: null,
+              role: null,
+              href: null,
+              alt: null,
+              ariaLabel: null,
+              nearestHeading: "Welcome",
+              landmark: "main",
+              ordinalInLandmark: 1,
+            },
+          },
+        ],
+        chains: { node_0: ["anc_0"] },
+        budget: 2000,
+        truncated: false,
+        droppedCount: 0,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("M4: accepts styleCandidates with truncated=true and droppedCount > 0", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      styleCandidates: {
+        ancestors: [],
+        chains: {},
+        budget: 2000,
+        truncated: true,
+        droppedCount: 42,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("M4: rejects ancestor descriptor missing required fields", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      styleCandidates: {
+        ancestors: [
+          {
+            // Missing: tag, bbox, depth, cssSelector, anchors
+            id: "anc_0",
+          },
+        ],
+        chains: {},
+        budget: 2000,
+        truncated: false,
+        droppedCount: 0,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("M4: accepts ancestor with inherited text anchor (§4b item 2)", () => {
+    // An ancestor whose subtree contains exactly one text-bearing semantic node
+    // inherits that node's text as anchors.text.
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      styleCandidates: {
+        ancestors: [
+          {
+            id: "anc_0",
+            tag: "div",
+            bbox: [0, 0, 200, 50] as [number, number, number, number],
+            depth: 5,
+            cssSelector: "div:nth-of-type(1)",
+            anchors: {
+              text: "See pricing and sign up", // inherited from single contained text node
+              role: null,
+              href: null,
+              alt: null,
+              ariaLabel: null,
+              nearestHeading: "Reach more customers",
+              landmark: "main",
+              ordinalInLandmark: 1,
+            },
+          },
+        ],
+        chains: { node_0: ["anc_0"] },
+        budget: 2000,
+        truncated: false,
+        droppedCount: 0,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("M4: rejects ancestor with non-null role anchor (role must be null)", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      styleCandidates: {
+        ancestors: [
+          {
+            id: "anc_0",
+            tag: "section",
+            bbox: [0, 0, 1440, 600] as [number, number, number, number],
+            depth: 3,
+            cssSelector: "section:nth-of-type(1)",
+            anchors: {
+              text: null,
+              role: "region", // must be null
+              href: null,
+              alt: null,
+              ariaLabel: null,
+              nearestHeading: null,
+              landmark: "main",
+              ordinalInLandmark: 1,
+            },
+          },
+        ],
+        chains: {},
+        budget: 2000,
+        truncated: false,
+        droppedCount: 0,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("M4: accepts ancestor with all null anchors and no nearestHeading", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      styleCandidates: {
+        ancestors: [
+          {
+            id: "anc_0",
+            tag: "footer",
+            bbox: [0, 800, 1440, 200] as [number, number, number, number],
+            depth: 2,
+            cssSelector: null,
+            anchors: {
+              text: null,
+              role: null,
+              href: null,
+              alt: null,
+              ariaLabel: null,
+              nearestHeading: null,
+              landmark: "contentinfo",
+              ordinalInLandmark: 1,
+            },
+          },
+        ],
+        chains: { node_0: ["anc_0"] },
+        budget: 2000,
+        truncated: false,
+        droppedCount: 0,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
   });
 });

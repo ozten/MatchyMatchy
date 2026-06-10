@@ -160,3 +160,107 @@ require a golden change with audit.
 >
 > CONDITIONS: (1) changelog must cite D13/D14 and give the complete delta incl. seqIndexNew
 > shifts — satisfied above; (2) record the broken-footer-image fixture quirk — satisfied above.
+
+## 2026-06-10 — M4: v04/v06 `fromContains`/`toContains` corrected to fix-direction semantics
+
+**What changed:** In `testbed/variants/v04-font-family/expected-issues.json` (required[0].evidence)
+`fromContains`/`toContains` swapped from `"Nunito Sans"`/`"Georgia"` to `"Georgia"`/`"Nunito Sans"`.
+In `testbed/variants/v06-gradient-removed/expected-issues.json` (required[0].evidence) swapped from
+`"linear-gradient"`/`"none"` to `"none"`/`"linear-gradient"`, and the required[0].note reworded so
+the vars-resolved-to-rgb caveat refers to `toContains` (the old-page gradient now lives in `to`).
+No other matcher fields, no forbidden assertions, and no other files changed.
+
+**Why the old expectation was wrong:** The matchers encoded change-direction (old→new), but the
+spec defines `remediation.from`/`to` in **fix direction**: `from` = current/new-page value,
+`to` = desired/old-page value. `check-fixture.py` maps `fromContains`/`toContains` directly onto
+`remediation.from`/`to`, so the matchers as authored contradicted the spec and were unsatisfiable
+by a spec-conforming implementation. The correction was made before any style-remediation code
+existed; both matchers still pin exactly the same two values with the same anchors, types, and
+goals, so no detection strength was lost.
+
+**Spec justification:** §7.1's canonical example records `evidence.old` = gradient,
+`evidence.new` = `"none"`, yet remediation reads `"from": "none", "to": "linear-gradient(...)"`
+under `restore_css_property`; §10.2 reads `from: "/es_MX/about", to: "/es-MX/about"` (from =
+wrong/current, to = corrected). The shipped M3 code (`semantic_diff.rs`, e.g. changed_title:
+`"from": nt, "to": ot`) already follows fix direction.
+
+**Audit:** golden-auditor verdict pasted verbatim below.
+
+> VERDICT: APPROVE
+>
+> EXPECTATION(S):
+>   /home/admin/MatchyMatchy/testbed/variants/v04-font-family/expected-issues.json (required[0].evidence)
+>   /home/admin/MatchyMatchy/testbed/variants/v06-gradient-removed/expected-issues.json (required[0].evidence + note rewording)
+>
+> REASONING: The spec unambiguously defines remediation from/to in fix direction: §7.1's canonical
+> issue example records evidence.old = gradient, evidence.new = "none" yet remediation reads
+> `"from": "none", "to": "linear-gradient(...)"` under action restore_css_property, and §10.2 reads
+> `from: "/es_MX/about", to: "/es-MX/about"` (from = wrong/current, to = corrected). check-fixture.py
+> (_issue_matches, lines 133-141) maps fromContains/toContains directly onto remediation.from/to, and
+> the shipped M3 code (packages/analyze/src/semantic_diff.rs, e.g. changed_title at lines 212-213:
+> `"from": nt, "to": ot`) already follows fix direction. Per the v04/v06 manifests the old page has
+> Nunito Sans / the gradient and the new page has Georgia / none, so the current matchers encode
+> change-direction (old→new) and contradict §7.1/§10.2 — approval criterion 1. This is not a
+> weakening: both matchers still pin exactly the same two values with the same anchors, types, and
+> goals (G1/G4 still exercised), no forbidden assertion is touched, no v04/v06 byte goldens exist
+> yet, and no style-remediation code exists to "teach to" — the correction precedes implementation,
+> as docs/design/M4.md §1 (lines 24-28) records.
+>
+> CONDITIONS: (1) docs/golden-changelog.md entry must state the old matchers encoded change-direction
+> (old→new) while spec §7.1/§10.2 define remediation in fix-direction (from = current/new value,
+> to = desired/old value), citing both sections, and must note no forbidden assertions or other
+> matcher fields changed. (2) The v06 required[0].note must be reworded so the "computed value will
+> have vars resolved to rgb stops, hence only pins 'linear-gradient'" caveat refers to toContains
+> (the old-page gradient now lives in `to`). (3) M4 implementation must emit style remediation in the
+> same fix direction; any deviation discovered later is a code bug, not grounds to re-flip these
+> matchers.
+
+## 2026-06-10 — M4: initial authorship of `v19-container-gap` expectation (new variant)
+
+**What changed:** New testbed variant `v19-container-gap` (port 3019) added with its
+`manifest.json` and `expected-issues.json`. One deliberate change vs golden:
+`.g2-badge-feature-list { grid-column-gap: 2rem -> 0.5rem }` in `assets/css/hiya-shared.min.css`.
+Required: `style_changed` with `evidence.property = "gap"`, `fromContains "32px 8px"` /
+`toContains "32px"` (fix-direction per spec §7.1: from = current/new value, to = desired/old value),
+anchored by rendered-uppercase `nearestHeadingContains "TRUSTED BY 1,000+ BUSINESSES"`.
+
+**Why:** Spec §12 M4 DoD requires "a container `flex-direction`/`gap` change is detected" and no
+existing variant covered a container layout property; the affected element is a grid wrapper (not a
+SemanticNode leaf), exercising the M4 ancestor-channel style diff (docs/design/M4.md §4).
+Authoring notes: Chromium serializes computed `gap` collapsed to `"32px"` when row == column;
+the heading anchor is pinned in rendered (CSS `text-transform: uppercase`) form because capture
+extracts rendered text and the fixture checker is case-sensitive.
+
+**Audit:** golden-auditor APPROVE (initial authorship). Verdict highlights, pasted from the audit:
+
+> VERDICT: APPROVE
+> REASONING: Independently verified: the variant differs from golden by exactly one file, and a
+> rule-level diff shows a single declaration change — `.g2-badge-feature-list{grid-column-gap:2rem→0.5rem}`
+> — exactly as the manifest declares; the class appears once in the variant's `index.html` on the
+> badge grid `div`, and the only other rules touching it live inside `max-width:991px`/`767px` media
+> blocks, so no desktop-width override masks the edit. The required matcher is genuine and correctly
+> directional per spec §7.1 (`fromContains "32px 8px"` would fail if the tool ever reversed fix
+> direction), and the advisory run confirms `evidence.old.gap = "32px"` (Chromium collapses the
+> shorthand), `evidence.new.gap = "32px 8px"`, and rendered-uppercase `nearestHeading` matching the
+> case-sensitive `_substring` in `testbed/check-fixture.py`. The variant squarely exercises spec §12
+> M4 DoD under G1; the forbidden `missing_*`/`changed_text` assertions are correct for a CSS-only
+> edit, and the sibling `style_changed(grid-template-columns)` knock-on is a real consequence (1fr
+> tracks re-resolve from 109.7px to 130.3px when 6×24px of gap is freed inside the max-width grid).
+> Nothing in this expectation weakens detection or encodes "the code currently produces X".
+> CONDITIONS: (1) fix manifest `edit` field — old computed gap serializes as `"32px"`, not
+> `"32px 32px"`; (2) manifest `knockOnEffects` must declare the `style_changed(grid-template-columns)`
+> knock-on; (3) correct the "confined to the G2 badges section" claim — the ~+23px reflow shifts
+> regions below the grid; (4) changelog entry cites spec §12 M4 DoD and §7.1 fix-direction semantics.
+
+All four conditions applied: manifest `edit` corrected to computed `"32px"`, `knockOnEffects` now
+declares the `grid-template-columns` sibling issue and the below-grid reflow regions, and this entry
+cites §12 / §7.1 as required.
+
+## 2026-06-10 — M4: first recording of v03/v04/v05/v06/v19 byte goldens
+
+**What changed:** First recording of `testbed/goldens/{v03-font-size,v04-font-family,v05-cta-style,
+v06-gradient-removed,v19-container-gap}.diffresult.json`, captured from fresh runs immediately after
+each variant passed its (audited) `expected-issues.json` intent check and the full `make verify`
+gate went green (all 18 fixtures, all 13 pre-existing goldens byte-identical, determinism checks on
+v02/v08/v06). No pre-existing golden was modified. Recorded per spec §13.3 (end-to-end goldens,
+float tolerances, runId/timestamps excluded) and the /implement-milestone promotion step.

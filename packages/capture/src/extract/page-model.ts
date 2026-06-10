@@ -36,10 +36,40 @@ export interface RawSemanticNode {
   headingLevel: number | null;
 }
 
+/** Descriptor for a true ancestor element (not itself a SemanticNode). */
+export interface RawAncestorDescriptor {
+  id: string;
+  tag: string;
+  bbox: [number, number, number, number];
+  depth: number;
+  cssSelector: string | null;
+  anchors: {
+    text: string | null;
+    role: null;
+    href: null;
+    alt: null;
+    ariaLabel: null;
+    nearestHeading: string | null;
+    landmark: string | null;
+    ordinalInLandmark: number | null;
+  };
+}
+
+/** Style candidates metadata emitted alongside computedStyles. */
+export interface RawStyleCandidates {
+  ancestors: RawAncestorDescriptor[];
+  chains: Record<string, string[]>;
+  budget: number;
+  truncated: boolean;
+  droppedCount: number;
+}
+
 export interface RawPageModelResult {
   nodes: RawSemanticNode[];
   pageHeight: number;
   landmarks: string[];
+  computedStyles: Record<string, Record<string, string>>;
+  styleCandidates: RawStyleCandidates;
 }
 
 /**
@@ -52,7 +82,7 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
   function normalizeStr(s: string, maxLen: number): string {
     if (!s) return s;
     // Replace NBSP with space
-    let r = s.replace(/ /g, " ");
+    let r = s.replace(/ /g, " ");
     // Strip C0 control chars (keep whitespace chars for collapse) and C1
     r = r.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x80-\x9f]/g, "");
     // Collapse whitespace
@@ -60,6 +90,117 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     r = r.trim();
     if (r.length > maxLen) r = r.slice(0, maxLen);
     return r;
+  }
+
+  // ── Curated CSS property list ──────────────────────────────────────────────
+  // NOTE: This list is also defined in extract/computed-style.ts (Node.js side).
+  // Keep the two in sync.
+  //
+  // margin-top/right/bottom/left are read via the Typed OM (computedStyleMap)
+  // rather than getComputedStyle — see M4.md §4b item 3 for rationale: Chromium's
+  // getComputedStyle resolved value for `margin: auto` is a used value that proved
+  // unstable (0px / 104px / 120px) across byte-identical captures; computedStyleMap
+  // returns the computed value "auto" (deterministic).
+  const COMPUTED_STYLE_PROPS: string[] = [
+    "color",
+    "background-color",
+    "background-image",
+    "background",
+    "border",
+    "border-radius",
+    "box-shadow",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "line-height",
+    "letter-spacing",
+    "text-align",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
+    "display",
+    "position",
+    "opacity",
+    "flex-direction",
+    "justify-content",
+    "align-items",
+    "gap",
+    "grid-template-columns",
+  ];
+
+  // The four margin properties read via Typed OM instead of getComputedStyle.
+  // See comment above and M4.md §4b item 3.
+  const MARGIN_PROPS: string[] = [
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
+  ];
+
+  // Maximum character length for a computed CSS property value.
+  // NOTE: also defined in extract/computed-style.ts — keep in sync.
+  const COMPUTED_STYLE_VALUE_MAX_LEN = 1000;
+
+  /**
+   * Cap and sanitize a computed CSS value.
+   * NOTE: logic also in extract/computed-style.ts capStyleValue() — keep in sync.
+   */
+  function capStyleValue(value: string): string {
+    let result = value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x80-\x9f]/g, "");
+    if (result.length > COMPUTED_STYLE_VALUE_MAX_LEN) {
+      result = result.slice(0, COMPUTED_STYLE_VALUE_MAX_LEN);
+    }
+    return result;
+  }
+
+  /** Read all curated properties for an element.
+   *
+   * margin-* are read via the Typed OM (computedStyleMap) to get computed values
+   * ("auto" serializes as "auto"); all other properties use getComputedStyle.
+   * Falls back to getComputedStyle for margins if computedStyleMap throws.
+   */
+  function readComputedStyle(el: Element): Record<string, string> {
+    const cs = window.getComputedStyle(el);
+    const out: Record<string, string> = {};
+
+    // Attempt to read margin-* via Typed OM once per element (M4.md §4b item 3).
+    // computedStyleMap() is Chromium-only — the only engine in scope for this tool.
+    const marginValues: Record<string, string> = {};
+    try {
+      // Cast through unknown: TypeScript lib does not always include computedStyleMap.
+      const styleMap = (el as unknown as { computedStyleMap(): StylePropertyMapReadOnly }).computedStyleMap();
+      for (let mi = 0; mi < MARGIN_PROPS.length; mi++) {
+        const prop = MARGIN_PROPS[mi]!;
+        try {
+          const val = styleMap.get(prop);
+          if (val != null) {
+            marginValues[prop] = capStyleValue(val.toString());
+          }
+        } catch {
+          // Property not in map — fall through to getComputedStyle below.
+        }
+      }
+    } catch {
+      // computedStyleMap() not available or threw — margins will fall back to
+      // getComputedStyle via the main loop below.
+    }
+
+    for (let i = 0; i < COMPUTED_STYLE_PROPS.length; i++) {
+      const prop = COMPUTED_STYLE_PROPS[i]!;
+      // Use Typed OM value for margins when available; otherwise getComputedStyle.
+      if (prop in marginValues) {
+        out[prop] = marginValues[prop]!;
+      } else {
+        const raw = cs.getPropertyValue(prop);
+        if (raw) out[prop] = capStyleValue(raw);
+      }
+    }
+    return out;
   }
 
   // ── Landmark detection ─────────────────────────────────────────────────────
@@ -339,6 +480,9 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     NodeFilter.SHOW_ELEMENT
   );
 
+  // Map from element to its assigned node id (node_N or later anc_N)
+  const elementToNodeId = new Map<Element, string>();
+
   let current: Node | null = walker.currentNode;
   while (current) {
     const el = current as Element;
@@ -434,6 +578,7 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
           const nearestHeading = computeNearestHeading(el);
 
           const nodeId = `node_${seqIndex}`;
+          elementToNodeId.set(el, nodeId);
 
           nodes.push({
             id: nodeId,
@@ -482,9 +627,345 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
   });
   const landmarks = Array.from(landmarkSet).sort();
 
+  // ── Build computed-style candidate set (§4.4) ──────────────────────────────
+  //
+  // Candidates = every SemanticNode element + each node's ancestor chain up to
+  // and including its nearest landmark element (body fallback), deduped.
+  // Budget = 2000 total entries; on overflow drop deepest-ancestor entries first
+  // (tie-break: later document order first), never drop SemanticNode entries.
+  //
+  // Step 1: collect all ancestor elements across all node chains.
+  //         If an ancestor IS a node element, reuse its node id.
+  //         True ancestors get temporary placeholder ids resolved in step 3.
+
+  // Set of elements that are SemanticNode elements (for dedup check)
+  // We already have elementToNodeId for O(1) lookup.
+
+  // For each node, walk parentElement up to landmark (or body), collecting
+  // ancestor elements (excluding the node itself). Dedup by element identity.
+
+  // Map from ancestor element -> { element, depth, docOrder } (true ancestors only)
+  // "depth" = distance from documentElement (root), used for budget drop order.
+  const trueAncestorElements = new Map<Element, { depth: number; docOrderIndex: number }>();
+
+  // chains (before anc_N assignment): Map<nodeId, ancestor Element[]> nearest->furthest
+  const rawChains = new Map<string, Element[]>();
+
+  // We need document order index for true ancestors. We'll assign these after
+  // collecting all ancestors by doing a final document-order walk over them.
+
+  // Collect all unique ancestor elements across all nodes:
+  for (let ni = 0; ni < nodes.length; ni++) {
+    const node = nodes[ni]!;
+    const nodeEl = elementToNodeId;
+    // Find the element that maps to this node id
+    // We need the element itself. Since we stored nodeId->element in elementToNodeId,
+    // we need to reverse-look it up. Let's rebuild element lookup.
+    // Actually, elementToNodeId maps element -> nodeId, so we need the inverse.
+    // We'll build an inverse map in the next step. For now, collect all node elements.
+    void nodeEl; // suppress lint
+  }
+
+  // Build nodeId -> element inverse map
+  const nodeIdToElement = new Map<string, Element>();
+  elementToNodeId.forEach((id, el) => {
+    nodeIdToElement.set(id, el);
+  });
+
+  // For each node, collect ancestor chain
+  for (let ni = 0; ni < nodes.length; ni++) {
+    const node = nodes[ni]!;
+    const el = nodeIdToElement.get(node.id);
+    if (!el) continue;
+
+    // Nearest landmark element for this node (boundary)
+    const landmarkBoundary = getNearestLandmarkElement(el);
+    const boundary = landmarkBoundary ?? document.body;
+
+    const chain: Element[] = [];
+
+    let ancestor: Element | null = el.parentElement;
+    while (ancestor && ancestor !== document.documentElement) {
+      // Include boundary (landmark or body) itself
+      const isNodeEl = elementToNodeId.has(ancestor);
+      if (isNodeEl) {
+        // It's a SemanticNode element — reuse its node id, add to chain
+        chain.push(ancestor);
+      } else {
+        // True ancestor — add to chain and to trueAncestorElements
+        chain.push(ancestor);
+        if (!trueAncestorElements.has(ancestor)) {
+          // Compute depth (distance from document root)
+          let depth = 0;
+          let cur: Element | null = ancestor;
+          while (cur && cur !== document.documentElement) {
+            depth++;
+            cur = cur.parentElement;
+          }
+          // docOrderIndex will be assigned later during document-order walk
+          trueAncestorElements.set(ancestor, { depth, docOrderIndex: -1 });
+        }
+      }
+      if (ancestor === boundary) break;
+      ancestor = ancestor.parentElement;
+    }
+
+    rawChains.set(node.id, chain);
+  }
+
+  // Assign docOrderIndex to all true ancestor elements using a document-order walk.
+  // We do a single TreeWalker pass over the body to get stable document ordering.
+  let docOrderCounter = 0;
+  const ancWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+  let ancCurrent: Node | null = ancWalker.currentNode;
+  while (ancCurrent) {
+    const el = ancCurrent as Element;
+    if (trueAncestorElements.has(el)) {
+      const info = trueAncestorElements.get(el)!;
+      info.docOrderIndex = docOrderCounter++;
+    }
+    ancCurrent = ancWalker.nextNode();
+  }
+
+  // Assign anc_N ids to true ancestors in document order (ascending docOrderIndex).
+  // Sort entries by docOrderIndex ascending.
+  const sortedTrueAncestors: Array<{ el: Element; depth: number; docOrderIndex: number }> = [];
+  trueAncestorElements.forEach((info, el) => {
+    sortedTrueAncestors.push({ el, depth: info.depth, docOrderIndex: info.docOrderIndex });
+  });
+  sortedTrueAncestors.sort((a, b) => a.docOrderIndex - b.docOrderIndex);
+
+  // Assign anc_N ids
+  const trueAncestorToId = new Map<Element, string>();
+  for (let i = 0; i < sortedTrueAncestors.length; i++) {
+    const entry = sortedTrueAncestors[i]!;
+    trueAncestorToId.set(entry.el, `anc_${i}`);
+  }
+
+  // Total candidate count = nodes.length + sortedTrueAncestors.length
+  const STYLE_BUDGET = 2000;
+  const totalCandidates = nodes.length + sortedTrueAncestors.length;
+  let truncated = false;
+  let droppedCount = 0;
+
+  // Determine which ancestor elements to drop on budget overflow.
+  // Drop deepest-DOM-depth first, tie-break: later document order first (higher docOrderIndex).
+  const droppedAncestorIds = new Set<string>();
+
+  if (totalCandidates > STYLE_BUDGET) {
+    const excess = totalCandidates - STYLE_BUDGET;
+    truncated = true;
+    droppedCount = excess;
+
+    // Sort candidates to drop: deepest depth first, then higher docOrderIndex first (later doc order)
+    const dropCandidates = sortedTrueAncestors.slice();
+    dropCandidates.sort((a, b) => {
+      if (b.depth !== a.depth) return b.depth - a.depth;
+      // Tie-break: later document order first (higher docOrderIndex)
+      return b.docOrderIndex - a.docOrderIndex;
+    });
+
+    for (let i = 0; i < excess && i < dropCandidates.length; i++) {
+      const entry = dropCandidates[i]!;
+      const id = trueAncestorToId.get(entry.el);
+      if (id) droppedAncestorIds.add(id);
+    }
+  }
+
+  // Build computedStyles: collect styles for all non-dropped candidates
+  const computedStyles: Record<string, Record<string, string>> = {};
+
+  // Node entries (never dropped)
+  for (let ni = 0; ni < nodes.length; ni++) {
+    const node = nodes[ni]!;
+    const el = nodeIdToElement.get(node.id);
+    if (el) {
+      computedStyles[node.id] = readComputedStyle(el);
+    }
+  }
+
+  // Ancestor entries (drop those in droppedAncestorIds)
+  for (let i = 0; i < sortedTrueAncestors.length; i++) {
+    const entry = sortedTrueAncestors[i]!;
+    const id = trueAncestorToId.get(entry.el)!;
+    if (!droppedAncestorIds.has(id)) {
+      computedStyles[id] = readComputedStyle(entry.el);
+    }
+  }
+
+  // ── Build ancestor descriptors ─────────────────────────────────────────────
+  //
+  // For ancestors that are NOT dropped, build the full AncestorDescriptor.
+  // ordinalInLandmark = 1-based document-order index among ancestor candidates
+  // sharing the same landmark.
+
+  // For nearestHeading of an ancestor: text of first heading contained WITHIN it
+  // in document order; if none, fall back to same preceding-heading rule nodes use.
+  function getAncestorNearestHeading(
+    ancEl: Element,
+    _fallbackHeadingText: string | null
+  ): string | null {
+    // First: find first heading element contained within this ancestor
+    const headingsInside = ancEl.querySelectorAll("h1,h2,h3,h4,h5,h6");
+    for (let i = 0; i < headingsInside.length; i++) {
+      const h = headingsInside[i];
+      if (h && isVisible(h)) {
+        const raw = (h as HTMLElement).innerText ?? "";
+        const normalized = normalizeStr(raw, maxTextLength);
+        if (normalized) return normalized;
+      }
+    }
+    // Fallback: use the preceding-heading rule (same as nodes)
+    // Since we walk in document order, _fallbackHeadingText is the lastHeadingText
+    // at the point we reach this ancestor. However, we're building ancestors
+    // after the node walk, so we don't have per-ancestor "preceding" heading.
+    // We'll compute it using a different approach: find the last heading in document
+    // order before this ancestor (using compareDocumentPosition).
+    // For simplicity and correctness, we do a quick scan of headings on the page
+    // that precede this element.
+    let bestHeadingText: string | null = null;
+    const allHeadings = document.querySelectorAll("h1,h2,h3,h4,h5,h6");
+    for (let i = 0; i < allHeadings.length; i++) {
+      const h = allHeadings[i]!;
+      // Check if h comes before ancEl in document order
+      const pos = ancEl.compareDocumentPosition(h);
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) {
+        // h is before ancEl; take the last such heading
+        if (isVisible(h)) {
+          const raw = (h as HTMLElement).innerText ?? "";
+          const normalized = normalizeStr(raw, maxTextLength);
+          if (normalized) bestHeadingText = normalized;
+        }
+      }
+    }
+    return bestHeadingText;
+  }
+
+  // ── Pre-compute text-bearing node elements (for ancestor text inheritance) ─
+  // A "text-bearing semantic node" is any node in `nodes` whose anchors.text
+  // (equivalently .text) is a non-empty string. We collect their elements now
+  // so the per-ancestor containment count is O(ancestors × textNodes).
+  const textBearingNodeElements: Array<{ el: Element; text: string }> = [];
+  for (let ni = 0; ni < nodes.length; ni++) {
+    const node = nodes[ni]!;
+    if (node.anchors.text) {
+      const el = nodeIdToElement.get(node.id);
+      if (el) {
+        textBearingNodeElements.push({ el, text: node.anchors.text });
+      }
+    }
+  }
+
+  // Build ordinalInLandmark counters for ancestors
+  // Key: landmark name, Value: count of ancestors seen so far in that landmark
+  const ancestorOrdinalCounters = new Map<string | null, number>();
+
+  // We need to process ancestors in document order for ordinal assignment
+  const ancestorDescriptors: RawAncestorDescriptor[] = [];
+
+  for (let i = 0; i < sortedTrueAncestors.length; i++) {
+    const entry = sortedTrueAncestors[i]!;
+    const id = trueAncestorToId.get(entry.el)!;
+    if (droppedAncestorIds.has(id)) continue;
+
+    const el = entry.el;
+    const bbox = getPageBbox(el);
+    const bboxVal: [number, number, number, number] = bbox ?? [0, 0, 0, 0];
+    const tag = el.tagName.toLowerCase();
+    const landmarkEl = getNearestLandmarkElement(el);
+    // If el IS a landmark, its own landmark role is its landmark
+    const selfLandmark = getLandmarkRole(el);
+    const landmark = selfLandmark ?? getNearestLandmark(el);
+
+    // ordinalInLandmark: 1-based index among ancestor candidates in same landmark
+    const ordinalKey = landmark ?? "__none__";
+    const prevOrdinal = ancestorOrdinalCounters.get(ordinalKey) ?? 0;
+    const ordinalInLandmark = prevOrdinal + 1;
+    ancestorOrdinalCounters.set(ordinalKey, ordinalInLandmark);
+
+    const cssSelector = buildSelector(el, landmarkEl);
+    const nearestHeading = getAncestorNearestHeading(el, null);
+
+    // Ancestor anchor-text inheritance (§4b item 2):
+    // Count text-bearing semantic nodes whose element is contained within this
+    // ancestor (strict: el.contains(nodeEl) && el !== nodeEl).
+    // If exactly one, inherit its text; zero or >1 → null.
+    let inheritedText: string | null = null;
+    let containedCount = 0;
+    let lastContainedText: string | null = null;
+    for (let ti = 0; ti < textBearingNodeElements.length; ti++) {
+      const entry2 = textBearingNodeElements[ti]!;
+      if (el.contains(entry2.el) && el !== entry2.el) {
+        containedCount++;
+        lastContainedText = entry2.text;
+        if (containedCount > 1) break; // early exit: >1 already decided
+      }
+    }
+    if (containedCount === 1) {
+      inheritedText = lastContainedText;
+    }
+
+    ancestorDescriptors.push({
+      id,
+      tag,
+      bbox: bboxVal,
+      depth: entry.depth,
+      cssSelector,
+      anchors: {
+        text: inheritedText,
+        role: null,
+        href: null,
+        alt: null,
+        ariaLabel: null,
+        nearestHeading,
+        landmark,
+        ordinalInLandmark,
+      },
+    });
+  }
+
+  // ── Build chains (nodeId -> id[]) nearest->furthest ────────────────────────
+  // Chains reference node ids (for SemanticNode ancestors) and anc_N ids.
+  // Drop entries for dropped ancestors from chains.
+
+  const chains: Record<string, string[]> = {};
+  // Build chains in node-id order (nodes are already in seqIndex/document order)
+  for (let ni = 0; ni < nodes.length; ni++) {
+    const node = nodes[ni]!;
+    const rawChain = rawChains.get(node.id) ?? [];
+    const resolvedChain: string[] = [];
+    for (let ci = 0; ci < rawChain.length; ci++) {
+      const ancEl = rawChain[ci]!;
+      const nodeId = elementToNodeId.get(ancEl);
+      if (nodeId) {
+        // Ancestor is a SemanticNode element — use its node id
+        resolvedChain.push(nodeId);
+      } else {
+        const ancId = trueAncestorToId.get(ancEl);
+        if (ancId && !droppedAncestorIds.has(ancId)) {
+          resolvedChain.push(ancId);
+        }
+        // else: dropped, skip
+      }
+    }
+    if (resolvedChain.length > 0) {
+      chains[node.id] = resolvedChain;
+    }
+  }
+
+  const styleCandidates: RawStyleCandidates = {
+    ancestors: ancestorDescriptors,
+    chains,
+    budget: STYLE_BUDGET,
+    truncated,
+    droppedCount,
+  };
+
   return {
     nodes,
     pageHeight: document.documentElement.scrollHeight,
     landmarks,
+    computedStyles,
+    styleCandidates,
   };
 }

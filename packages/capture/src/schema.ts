@@ -192,6 +192,52 @@ export const EnvironmentFingerprintSchema = z.object({
 });
 export type EnvironmentFingerprint = z.infer<typeof EnvironmentFingerprintSchema>;
 
+// ─── M4: AncestorDescriptor ───────────────────────────────────────────────
+//
+// Anchor set for ancestor elements: role/href/alt/ariaLabel are always null
+// (ancestors are container elements, not semantic leaf nodes). text may be
+// inherited from the single text-bearing semantic descendant when there is
+// exactly one (§4b item 2), otherwise null.
+export const AncestorAnchorsSchema = z.object({
+  text: z.string().nullable(),
+  role: z.null(),
+  href: z.null(),
+  alt: z.null(),
+  ariaLabel: z.null(),
+  nearestHeading: z.string().nullable(),
+  landmark: z.string().nullable(),
+  ordinalInLandmark: z.number().int().positive().nullable(),
+});
+export type AncestorAnchors = z.infer<typeof AncestorAnchorsSchema>;
+
+export const AncestorDescriptorSchema = z.object({
+  id: z.string(),
+  tag: z.string(),
+  bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  depth: z.number().int().nonnegative(),
+  cssSelector: z.string().nullable(),
+  anchors: AncestorAnchorsSchema,
+});
+export type AncestorDescriptor = z.infer<typeof AncestorDescriptorSchema>;
+
+// ─── M4: StyleCandidates ──────────────────────────────────────────────────
+export const StyleCandidatesSchema = z.object({
+  /** True ancestor descriptors (not SemanticNode elements), sorted by document order. */
+  ancestors: z.array(AncestorDescriptorSchema),
+  /**
+   * Per node: ordered list of ancestor ids (node_N or anc_N), nearest first.
+   * Entries for dropped ancestors are omitted. Keys in node-id order.
+   */
+  chains: z.record(z.string(), z.array(z.string())),
+  /** Maximum number of computedStyles entries allowed (always 2000). */
+  budget: z.number().int().positive(),
+  /** True if the ancestor set was truncated due to budget overflow. */
+  truncated: z.boolean(),
+  /** Number of ancestor entries dropped due to budget overflow. */
+  droppedCount: z.number().int().nonnegative(),
+});
+export type StyleCandidates = z.infer<typeof StyleCandidatesSchema>;
+
 // ─── CaptureBundle ────────────────────────────────────────────────────────
 export const CaptureBundleSchema = z.object({
   schemaVersion: z.literal("1.0"),
@@ -201,6 +247,7 @@ export const CaptureBundleSchema = z.object({
   determinism: DeterminismRecordSchema,
   page: PageModelSchema,
   computedStyles: z.record(z.string(), z.record(z.string(), z.string())),
+  styleCandidates: StyleCandidatesSchema,
   screenshots: z.object({
     fullPage: z.string(),
     viewport: z.string(),

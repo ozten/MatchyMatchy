@@ -13,6 +13,7 @@
     "determinism",
     "page",
     "computedStyles",
+    "styleCandidates",
     "screenshots"
   ],
   "properties": {
@@ -32,7 +33,12 @@
       "description": "The browser viewport configuration used for this capture.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "width", "height", "dsf"],
+      "required": [
+        "name",
+        "width",
+        "height",
+        "dsf"
+      ],
       "properties": {
         "name": {
           "title": "Viewport name",
@@ -61,7 +67,12 @@
       "description": "Records the rendering environment so cross-machine comparison can be flagged.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["os", "chromiumBuild", "playwright", "dsf"],
+      "required": [
+        "os",
+        "chromiumBuild",
+        "playwright",
+        "dsf"
+      ],
       "properties": {
         "os": {
           "title": "Operating system",
@@ -109,49 +120,81 @@
           "title": "Animations disabled",
           "description": "Status of the animation/transition kill CSS injection step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "reducedMotion": {
           "title": "Reduced motion",
           "description": "Status of the emulateMedia reducedMotion step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "timeFrozen": {
           "title": "Time frozen",
           "description": "Status of the clock.install freezeTime step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "randomStubbed": {
           "title": "Random stubbed",
           "description": "Status of the Math.random LCG seed injection step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "fontsReady": {
           "title": "Fonts ready",
           "description": "Status of the document.fonts.ready wait step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "imagesDecoded": {
           "title": "Images decoded",
           "description": "Status of the visible img decode() pass step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "lazyLoadPass": {
           "title": "Lazy load pass",
           "description": "Status of the scroll-to-bottom lazy load pass step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "settled": {
           "title": "Settled",
           "description": "Status of the clock.runFor(settleMs) settle step.",
           "type": "string",
-          "enum": ["ran", "failed", "skipped"]
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
         },
         "clicked": {
           "title": "Clicked selectors",
@@ -243,7 +286,10 @@
         "canonical": {
           "title": "Canonical URL",
           "description": "Content of <link rel=canonical href=...>, or null if absent.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "lang": {
           "title": "Document language",
@@ -276,7 +322,9 @@
           "description": "Recorded network requests with sensitive data redacted.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["requests"],
+          "required": [
+            "requests"
+          ],
           "properties": {
             "requests": {
               "title": "Requests",
@@ -285,7 +333,12 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["url", "status", "type", "failed"],
+                "required": [
+                  "url",
+                  "status",
+                  "type",
+                  "failed"
+                ],
                 "properties": {
                   "url": {
                     "title": "Request URL",
@@ -319,7 +372,10 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["level", "text"],
+            "required": [
+              "level",
+              "text"
+            ],
             "properties": {
               "level": {
                 "title": "Log level",
@@ -339,7 +395,9 @@
           "description": "Accessibility audit results. Violations array is empty in M1.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["violations"],
+          "required": [
+            "violations"
+          ],
           "properties": {
             "violations": {
               "title": "Violations",
@@ -361,7 +419,7 @@
     },
     "computedStyles": {
       "title": "Computed styles",
-      "description": "Map of node id to computed style properties. Empty object in M1; populated in M4.",
+      "description": "Map of node id (node_N) or ancestor id (anc_N) to computed style properties. Empty object in M1; populated in M4.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
@@ -370,12 +428,20 @@
         }
       }
     },
+    "styleCandidates": {
+      "title": "Style candidates",
+      "description": "Metadata describing the computed-style candidate set: ancestor descriptors, per-node ancestor chains, and budget tracking.",
+      "$ref": "#/$defs/StyleCandidates"
+    },
     "screenshots": {
       "title": "Screenshots",
       "description": "Paths to captured screenshots, relative to the bundle file's parent directory (the outDir).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["fullPage", "viewport"],
+      "required": [
+        "fullPage",
+        "viewport"
+      ],
       "properties": {
         "fullPage": {
           "title": "Full page screenshot",
@@ -391,12 +457,181 @@
     }
   },
   "$defs": {
+    "AncestorDescriptor": {
+      "title": "AncestorDescriptor",
+      "description": "Descriptor for a true ancestor element (a DOM element that is not itself a SemanticNode) included in the computed-style candidate set.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "tag",
+        "bbox",
+        "depth",
+        "cssSelector",
+        "anchors"
+      ],
+      "properties": {
+        "id": {
+          "title": "Ancestor id",
+          "description": "Stable identifier in the form 'anc_<N>', assigned in document order over the deduped true-ancestor set.",
+          "type": "string"
+        },
+        "tag": {
+          "title": "Tag name",
+          "description": "Lowercase HTML tag name of this ancestor element.",
+          "type": "string"
+        },
+        "bbox": {
+          "title": "Bounding box",
+          "description": "Bounding box in page coordinates [x, y, width, height]. x/y floored, w/h ceiled. Same convention as SemanticNode.bbox.",
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "depth": {
+          "title": "DOM depth",
+          "description": "Distance from the document root (documentElement). Used for budget drop order (deepest dropped first).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "cssSelector": {
+          "title": "CSS selector",
+          "description": "Landmark-relative CSS selector for internal re-find use only.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "anchors": {
+          "title": "Anchors",
+          "description": "Anchor set for this ancestor. text may be inherited from a single contained text-bearing semantic node (M4 §4b item 2); role/href/alt/ariaLabel are always null for container elements.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "role",
+            "href",
+            "alt",
+            "ariaLabel",
+            "nearestHeading",
+            "landmark",
+            "ordinalInLandmark"
+          ],
+          "properties": {
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "null"
+            },
+            "href": {
+              "type": "null"
+            },
+            "alt": {
+              "type": "null"
+            },
+            "ariaLabel": {
+              "type": "null"
+            },
+            "nearestHeading": {
+              "title": "Nearest heading",
+              "description": "Text of the first heading element contained within this ancestor in document order; if none, falls back to the preceding-heading rule; else null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "landmark": {
+              "title": "Landmark",
+              "description": "ARIA landmark role of the nearest enclosing landmark (itself if it is a landmark element).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ordinalInLandmark": {
+              "title": "Ordinal in landmark",
+              "description": "1-based document-order index of this ancestor among ancestor candidates sharing the same landmark.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "StyleCandidates": {
+      "title": "StyleCandidates",
+      "description": "Metadata about the computed-style candidate set captured alongside computedStyles.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ancestors",
+        "chains",
+        "budget",
+        "truncated",
+        "droppedCount"
+      ],
+      "properties": {
+        "ancestors": {
+          "title": "Ancestor descriptors",
+          "description": "Descriptors for true ancestor elements (those not already represented as SemanticNodes), sorted by document order (ascending anc_N id).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AncestorDescriptor"
+          }
+        },
+        "chains": {
+          "title": "Ancestor chains",
+          "description": "Per SemanticNode: ordered list of ancestor ids (node_N or anc_N), nearest ancestor first, furthest (landmark or body) last. Dropped ancestor ids are omitted. Keys are in node-id (document) order.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "budget": {
+          "title": "Style budget",
+          "description": "Maximum number of computedStyles entries allowed. Default 2000.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "truncated": {
+          "title": "Truncated",
+          "description": "True if the ancestor set was truncated because the total candidate count exceeded the budget.",
+          "type": "boolean"
+        },
+        "droppedCount": {
+          "title": "Dropped count",
+          "description": "Number of ancestor entries dropped due to budget overflow.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "LinkProbe": {
       "title": "LinkProbe",
       "description": "The result of probing a single same-site link extracted from the page. Records whether the link was fetched, skipped, or errored, along with any redirect chain followed.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "redirectChain", "finalUrl", "status", "skipped", "error"],
+      "required": [
+        "url",
+        "redirectChain",
+        "finalUrl",
+        "status",
+        "skipped",
+        "error"
+      ],
       "properties": {
         "url": {
           "title": "URL",
@@ -414,23 +649,42 @@
         "finalUrl": {
           "title": "Final URL",
           "description": "The URL of the final (non-redirect) response, redacted. Null when the probe was skipped or errored before receiving any response.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "status": {
           "title": "HTTP status code",
           "description": "The HTTP status code of the final response. Null when skipped or errored.",
-          "type": ["integer", "null"]
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "skipped": {
           "title": "Skipped reason",
           "description": "The reason the probe was not fetched, or null when the probe was attempted.",
-          "type": ["string", "null"],
-          "enum": ["scheme", "external-scope", "private-address", "cap-exceeded", "redirect-blocked", null]
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "scheme",
+            "external-scope",
+            "private-address",
+            "cap-exceeded",
+            "redirect-blocked",
+            null
+          ]
         },
         "error": {
           "title": "Error message",
           "description": "Error message when the probe failed (timeout, connection refused, DNS failure, etc.). Null on success or when skipped.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -468,32 +722,57 @@
           "title": "Node kind",
           "description": "Semantic classification of this node.",
           "type": "string",
-          "enum": ["heading", "text", "link", "button", "image", "form", "field", "landmark", "generic"]
+          "enum": [
+            "heading",
+            "text",
+            "link",
+            "button",
+            "image",
+            "form",
+            "field",
+            "landmark",
+            "generic"
+          ]
         },
         "role": {
           "title": "ARIA role",
           "description": "The effective ARIA role of this element, or null.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "text": {
           "title": "Visible text",
           "description": "Normalized innerText of this element, length-capped.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "accName": {
           "title": "Accessible name",
           "description": "Accessible name: aria-label || alt || normalized innerText.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "href": {
           "title": "Href",
           "description": "Absolute resolved href for links, or null.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "imageAlt": {
           "title": "Image alt text",
           "description": "Alt attribute value for images, or null.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "bbox": {
           "title": "Bounding box",
@@ -529,81 +808,126 @@
             "text": {
               "title": "Text anchor",
               "description": "Normalized visible text, strongest grep target when present.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "role": {
               "title": "Role anchor",
               "description": "ARIA role string.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "href": {
               "title": "Href anchor",
               "description": "Absolute resolved href, grep target for links.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "alt": {
               "title": "Alt anchor",
               "description": "Image alt text, grep target for images.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "ariaLabel": {
               "title": "Aria label anchor",
               "description": "aria-label value when present.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "nearestHeading": {
               "title": "Nearest heading",
               "description": "Text of the most recent heading node in document order before this node.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "landmark": {
               "title": "Landmark",
               "description": "ARIA landmark role of the nearest landmark ancestor: banner|navigation|main|contentinfo|complementary|form.",
-              "type": ["string", "null"]
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "ordinalInLandmark": {
               "title": "Ordinal in landmark",
               "description": "1-based count of nodes with the same (kind, anchors.text) in the same landmark including self. Null if no landmark.",
-              "type": ["integer", "null"]
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           }
         },
         "cssSelector": {
           "title": "CSS selector",
           "description": "Landmark-relative CSS selector for internal re-find use only. Not the agent-facing identifier.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "rawHref": {
           "title": "Raw href",
           "description": "For link nodes: the href attribute exactly as authored (control-char-stripped, length-capped). Null for all other kinds.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "src": {
           "title": "Image src",
           "description": "For image nodes: currentSrc or src resolved to an absolute URL. Null for all other kinds.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "naturalWidth": {
           "title": "Natural width",
           "description": "For image nodes: intrinsic width in pixels (img.naturalWidth). Null for all other kinds.",
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "naturalHeight": {
           "title": "Natural height",
           "description": "For image nodes: intrinsic height in pixels (img.naturalHeight). Null for all other kinds.",
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "loaded": {
           "title": "Image loaded",
           "description": "For image nodes: true when img.complete && img.naturalWidth > 0. Null for all other kinds.",
-          "type": ["boolean", "null"]
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "headingLevel": {
           "title": "Heading level",
           "description": "For heading nodes: the numeric level 1–6 parsed from the h1–h6 tag. Null for all other kinds.",
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 1,
           "maximum": 6
         }

@@ -5,7 +5,7 @@
       "type": "style_changed",
       "goal": "G1",
       "anchors": { "textContains": "Spam, robocalls, and scams" },
-      "evidence": { "property": "font-family", "fromContains": "Nunito Sans", "toContains": "Georgia" },
+      "evidence": { "property": "font-family", "fromContains": "Georgia", "toContains": "Nunito Sans" },
       "note": "Body font swapped via the --_typography---fonts--secondary-font variable; main-content paragraphs must report the font-family delta."
     }
   ],

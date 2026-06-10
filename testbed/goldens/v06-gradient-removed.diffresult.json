@@ -1,0 +1,172 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T21-54-20Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3006/",
+  "parityProfile": "content-structure",
+  "status": "warn",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "background_gradient_lost": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_7114fb31c5c9"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 0.5,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "warn",
+      "issues": [
+        "issue_7114fb31c5c9"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_7114fb31c5c9",
+      "type": "background_gradient_lost",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.95,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G4",
+      "message": "Background gradient lost on container near \"Reach more customers with Hiya's Branded Call\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 2
+        },
+        "cssSelectorOld": "div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          0,
+          64,
+          1440,
+          3596
+        ],
+        "bboxNew": [
+          0,
+          64,
+          1440,
+          3596
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "gradient": {
+          "new": [],
+          "old": [
+            {
+              "angle": null,
+              "kind": "linear",
+              "stops": [
+                {
+                  "color": "rgb(249, 245, 255)",
+                  "position": null
+                },
+                {
+                  "color": "rgb(250, 251, 252)",
+                  "position": "90%"
+                }
+              ]
+            }
+          ]
+        },
+        "match": {
+          "score": 1.0,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9643,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "background-image": "none"
+        },
+        "old": {
+          "background-image": "linear-gradient(rgb(249, 245, 255), rgb(250, 251, 252) 90%)"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Reach more customers with Hiya's Branded Call"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": "none",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "background-image",
+        "to": "linear-gradient(rgb(249, 245, 255), rgb(250, 251, 252) 90%)"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}
