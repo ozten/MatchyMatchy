@@ -203,7 +203,8 @@
         "landmarks",
         "network",
         "console",
-        "a11y"
+        "a11y",
+        "linkProbes"
       ],
       "properties": {
         "url": {
@@ -347,6 +348,14 @@
               "items": {}
             }
           }
+        },
+        "linkProbes": {
+          "title": "Link probes",
+          "description": "Results of probing same-site links extracted from the page. Always present; empty array when probing is disabled or no candidates exist. Sorted ascending by 'url' (byte order), deduped.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkProbe"
+          }
         }
       }
     },
@@ -382,6 +391,49 @@
     }
   },
   "$defs": {
+    "LinkProbe": {
+      "title": "LinkProbe",
+      "description": "The result of probing a single same-site link extracted from the page. Records whether the link was fetched, skipped, or errored, along with any redirect chain followed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "redirectChain", "finalUrl", "status", "skipped", "error"],
+      "properties": {
+        "url": {
+          "title": "URL",
+          "description": "The absolute, fragment-stripped, redacted URL that was probed.",
+          "type": "string"
+        },
+        "redirectChain": {
+          "title": "Redirect chain",
+          "description": "One entry per redirect hop (pre-redirect URLs). Empty when no redirects were followed. Same semantics as page.redirectChain.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "finalUrl": {
+          "title": "Final URL",
+          "description": "The URL of the final (non-redirect) response, redacted. Null when the probe was skipped or errored before receiving any response.",
+          "type": ["string", "null"]
+        },
+        "status": {
+          "title": "HTTP status code",
+          "description": "The HTTP status code of the final response. Null when skipped or errored.",
+          "type": ["integer", "null"]
+        },
+        "skipped": {
+          "title": "Skipped reason",
+          "description": "The reason the probe was not fetched, or null when the probe was attempted.",
+          "type": ["string", "null"],
+          "enum": ["scheme", "external-scope", "private-address", "cap-exceeded", "redirect-blocked", null]
+        },
+        "error": {
+          "title": "Error message",
+          "description": "Error message when the probe failed (timeout, connection refused, DNS failure, etc.). Null on success or when skipped.",
+          "type": ["string", "null"]
+        }
+      }
+    },
     "SemanticNode": {
       "title": "SemanticNode",
       "description": "A visible, meaningful element extracted from the page in document order.",

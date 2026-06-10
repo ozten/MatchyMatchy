@@ -332,16 +332,21 @@ def cmd_check() -> int:
         else:
             url = f"http://localhost:{port}/"
 
+        # Optional: manifest may declare a non-200 expected status (e.g. v18-status-mismatch)
+        expected_status = 200
+        if manifest_data is not None and "expectedHttpStatus" in manifest_data:
+            expected_status = int(manifest_data["expectedHttpStatus"])
+
         try:
             req = urllib.request.Request(url)
-            resp = opener.open(req, timeout=10)
-            code = resp.status
-            if code != 200:
+            try:
+                resp = opener.open(req, timeout=10)
+                code = resp.status
+            except urllib.error.HTTPError as exc:
+                code = exc.code
+            if code != expected_status:
                 http_ok = "FAIL"
-                errors.append(f"HTTP {code} from {url}")
-        except urllib.error.HTTPError as exc:
-            http_ok = "FAIL"
-            errors.append(f"HTTP error {exc.code} from {url}")
+                errors.append(f"HTTP {code} (expected {expected_status}) from {url}")
         except urllib.error.URLError as exc:
             http_ok = "FAIL"
             errors.append(f"URL error: {exc.reason}")

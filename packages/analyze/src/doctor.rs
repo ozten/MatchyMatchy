@@ -268,9 +268,7 @@ fn check_capture_doctor(capture_path: &str) -> Vec<Check> {
             remediation: if playwright_ok {
                 None
             } else {
-                Some(
-                    "Run `cd packages/capture && npm ci`".to_string(),
-                )
+                Some("Run `cd packages/capture && npm ci`".to_string())
             },
         },
         Check {

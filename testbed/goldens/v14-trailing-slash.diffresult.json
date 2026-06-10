@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T19-30-32Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3014/products/connect/branded-call/",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "url_trailing_slash": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_d1d813fa5b6b"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 0.5
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_d1d813fa5b6b"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_d1d813fa5b6b",
+      "type": "url_trailing_slash",
+      "category": "hygiene",
+      "severity": "error",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G5",
+      "message": "URL has a trailing slash that should not be present: /products/connect/branded-call/",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": "/products/connect/branded-call/",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "new": {
+          "path": "/products/connect/branded-call/",
+          "url": "http://localhost:3014/products/connect/branded-call/"
+        },
+        "policy": "never"
+      },
+      "remediation": {
+        "action": "rewrite_url",
+        "findBy": {
+          "grep": [
+            "/products/connect/branded-call/"
+          ]
+        },
+        "from": "/products/connect/branded-call/",
+        "note": "Trailing slash policy is 'never'. Rewrite the URL to conform.",
+        "to": "/products/connect/branded-call"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

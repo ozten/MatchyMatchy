@@ -94,10 +94,7 @@ impl CaptureDeterminism {
     /// Merge two determinism reports, taking worst per step.
     pub fn merge_worst(a: &CaptureDeterminism, b: &CaptureDeterminism) -> CaptureDeterminism {
         CaptureDeterminism {
-            animations_disabled: StepStatus::worst(
-                &a.animations_disabled,
-                &b.animations_disabled,
-            ),
+            animations_disabled: StepStatus::worst(&a.animations_disabled, &b.animations_disabled),
             reduced_motion: StepStatus::worst(&a.reduced_motion, &b.reduced_motion),
             time_frozen: StepStatus::worst(&a.time_frozen, &b.time_frozen),
             random_stubbed: StepStatus::worst(&a.random_stubbed, &b.random_stubbed),
@@ -114,15 +111,13 @@ impl CaptureDeterminism {
                 v
             },
             hidden: {
-                let mut v: Vec<String> =
-                    a.hidden.iter().chain(b.hidden.iter()).cloned().collect();
+                let mut v: Vec<String> = a.hidden.iter().chain(b.hidden.iter()).cloned().collect();
                 v.sort();
                 v.dedup();
                 v
             },
             masked: {
-                let mut v: Vec<String> =
-                    a.masked.iter().chain(b.masked.iter()).cloned().collect();
+                let mut v: Vec<String> = a.masked.iter().chain(b.masked.iter()).cloned().collect();
                 v.sort();
                 v.dedup();
                 v
@@ -138,6 +133,26 @@ impl CaptureDeterminism {
             || self.lazy_load_pass != StepStatus::Ran
             || self.fonts_ready != StepStatus::Ran
     }
+}
+
+/// A single link probe result recorded by the capture layer.
+/// Shape emitted by capture (camelCase JSON):
+/// { url, redirectChain, finalUrl, status, skipped, error }
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkProbe {
+    /// Absolute, fragment-stripped, redacted URL that was probed.
+    pub url: String,
+    /// One entry per hop (pre-redirect URLs); empty when no redirect occurred.
+    pub redirect_chain: Vec<String>,
+    /// Final response URL after all redirects; null when skipped or errored before any response.
+    pub final_url: Option<String>,
+    /// Final response status code; null when skipped/errored.
+    pub status: Option<i32>,
+    /// Why the probe was skipped; null when not skipped.
+    pub skipped: Option<String>,
+    /// Error message; null when no error.
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -157,6 +172,10 @@ pub struct PageModel {
     pub network: NetworkInfo,
     pub console: Vec<ConsoleEntry>,
     pub a11y: A11yInfo,
+    /// Link probes recorded by the capture layer (M2).
+    /// Present when CaptureConfig.probeLinks was true; otherwise empty.
+    #[serde(default)]
+    pub link_probes: Vec<LinkProbe>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -180,16 +199,33 @@ impl SemanticNode {
     /// Return the node's distinctive anchor text for region linking.
     /// Priority: text > href > alt > aria_label
     pub fn distinctive_anchor(&self) -> Option<&str> {
-        if self.anchors.text.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
+        if self
+            .anchors
+            .text
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        {
             return self.anchors.text.as_deref();
         }
         if self.href.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
             return self.href.as_deref();
         }
-        if self.image_alt.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
+        if self
+            .image_alt
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        {
             return self.image_alt.as_deref();
         }
-        if self.anchors.aria_label.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
+        if self
+            .anchors
+            .aria_label
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        {
             return self.anchors.aria_label.as_deref();
         }
         None
@@ -308,7 +344,11 @@ impl Status {
     }
 
     pub fn worst(a: Status, b: Status) -> Status {
-        if a.rank() >= b.rank() { a } else { b }
+        if a.rank() >= b.rank() {
+            a
+        } else {
+            b
+        }
     }
 }
 
@@ -352,14 +392,40 @@ impl Scores {
             return Scores::all_pass();
         }
         // Fixed order reduction for determinism.
-        let visual = scores.iter().map(|s| s.visual).fold(f64::INFINITY, f64::min);
-        let content = scores.iter().map(|s| s.content).fold(f64::INFINITY, f64::min);
-        let structure = scores.iter().map(|s| s.structure).fold(f64::INFINITY, f64::min);
+        let visual = scores
+            .iter()
+            .map(|s| s.visual)
+            .fold(f64::INFINITY, f64::min);
+        let content = scores
+            .iter()
+            .map(|s| s.content)
+            .fold(f64::INFINITY, f64::min);
+        let structure = scores
+            .iter()
+            .map(|s| s.structure)
+            .fold(f64::INFINITY, f64::min);
         let style = scores.iter().map(|s| s.style).fold(f64::INFINITY, f64::min);
-        let accessibility = scores.iter().map(|s| s.accessibility).fold(f64::INFINITY, f64::min);
-        let technical = scores.iter().map(|s| s.technical).fold(f64::INFINITY, f64::min);
-        let hygiene = scores.iter().map(|s| s.hygiene).fold(f64::INFINITY, f64::min);
-        Scores { visual, content, structure, style, accessibility, technical, hygiene }
+        let accessibility = scores
+            .iter()
+            .map(|s| s.accessibility)
+            .fold(f64::INFINITY, f64::min);
+        let technical = scores
+            .iter()
+            .map(|s| s.technical)
+            .fold(f64::INFINITY, f64::min);
+        let hygiene = scores
+            .iter()
+            .map(|s| s.hygiene)
+            .fold(f64::INFINITY, f64::min);
+        Scores {
+            visual,
+            content,
+            structure,
+            style,
+            accessibility,
+            technical,
+            hygiene,
+        }
     }
 }
 
@@ -606,12 +672,24 @@ impl Anchors {
         let has_high = self.text.as_deref().map(|s| !s.is_empty()).unwrap_or(false)
             || self.href.as_deref().map(|s| !s.is_empty()).unwrap_or(false)
             || self.alt.as_deref().map(|s| !s.is_empty()).unwrap_or(false)
-            || self.aria_label.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+            || self
+                .aria_label
+                .as_deref()
+                .map(|s| !s.is_empty())
+                .unwrap_or(false);
         if has_high {
             return AnchorStrength::High;
         }
-        let has_medium = self.nearest_heading.as_deref().map(|s| !s.is_empty()).unwrap_or(false)
-            || self.landmark.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+        let has_medium = self
+            .nearest_heading
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+            || self
+                .landmark
+                .as_deref()
+                .map(|s| !s.is_empty())
+                .unwrap_or(false);
         if has_medium {
             return AnchorStrength::Medium;
         }
@@ -685,6 +763,9 @@ pub struct CaptureConfig {
     pub click_before_capture: Vec<String>,
     pub max_text_length: u32,
     pub redact_params: Vec<String>,
+    /// Whether to probe same-site links for redirect chains (M2).
+    /// Set to true only for the "new" side.
+    pub probe_links: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

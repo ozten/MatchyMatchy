@@ -3,7 +3,11 @@
 pub mod config;
 pub mod contract;
 pub mod doctor;
+pub mod egress;
+pub mod hygiene;
 pub mod issue;
+pub mod locale;
+pub mod locale_data;
 pub mod orchestrate;
 pub mod region_link;
 pub mod report;
@@ -47,11 +51,38 @@ pub fn analyze_viewport(
 
     let env_mismatch = orchestrate::env_mismatch(old_bundle, new_bundle);
 
-    // Diff the images
-    let diff_out = diff_images(old_img_path, new_img_path)?;
+    // --- Run hygiene checks FIRST (M2.md §5.5) ---
+    let hygiene_outcome = hygiene::hygiene_issues(old_bundle, new_bundle, viewport_name, profile);
 
-    // Save diff.png
+    // --- Diff the images (always — artifacts stay valid even on short-circuit) ---
+    let diff_out = diff_images(old_img_path, new_img_path)?;
     save_png(&diff_out.diff_image, diff_img_path)?;
+
+    // If hygiene short-circuited: the viewport's issues are exactly the hygiene issues.
+    // Visual score still reflects the diff (advisory); technical = 0.0.
+    if hygiene_outcome.short_circuit {
+        // The decisive issue is status_code_mismatch (category technical), so the
+        // hygiene score counts hygiene-category issues only (M2.md §5.5).
+        let hygiene_count = hygiene_outcome
+            .issues
+            .iter()
+            .filter(|i| i.category == contract::IssueCategory::Hygiene)
+            .count();
+        let hygiene_score = 1.0 / (1.0 + hygiene_count as f64);
+        let visual_score = (1.0 - diff_out.page_changed_ratio).clamp(0.0, 1.0);
+        let mut issues = hygiene_outcome.issues;
+        resolve_id_collisions(&mut issues);
+        let scores = contract::Scores {
+            visual: visual_score,
+            content: 1.0,
+            structure: 1.0,
+            style: 1.0,
+            accessibility: 1.0,
+            technical: 0.0,
+            hygiene: hygiene_score,
+        };
+        return Ok((issues, scores));
+    }
 
     let mut issues: Vec<contract::Issue> = Vec::new();
 
@@ -72,7 +103,8 @@ pub fn analyze_viewport(
                 &new_bundle.determinism,
             );
 
-            let severity = profile.severity_for(&IssueType::VisualRegionChanged, &IssueCategory::Visual);
+            let severity =
+                profile.severity_for(&IssueType::VisualRegionChanged, &IssueCategory::Visual);
 
             let region_changed_ratio = if diff_out.common_height > 0 && diff_out.width > 0 {
                 region.changed_pixels as f64
@@ -212,10 +244,15 @@ pub fn analyze_viewport(
         });
     }
 
+    // --- Append hygiene issues (non-short-circuit path) ---
+    issues.extend(hygiene_outcome.issues.clone());
+
     // Resolve id collisions
     resolve_id_collisions(&mut issues);
 
-    // Compute visual score
+    // Compute scores
+    let hygiene_count = hygiene_outcome.issues.len();
+    let hygiene_score = 1.0 / (1.0 + hygiene_count as f64);
     let visual_score = (1.0 - diff_out.page_changed_ratio).clamp(0.0, 1.0);
     let scores = contract::Scores {
         visual: visual_score,
@@ -224,7 +261,7 @@ pub fn analyze_viewport(
         style: 1.0,
         accessibility: 1.0,
         technical: 1.0,
-        hygiene: 1.0,
+        hygiene: hygiene_score,
     };
 
     Ok((issues, scores))

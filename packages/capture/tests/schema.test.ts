@@ -82,6 +82,7 @@ const KNOWN_GOOD_BUNDLE = {
     a11y: {
       violations: [],
     },
+    linkProbes: [],
   },
   computedStyles: {},
   screenshots: {

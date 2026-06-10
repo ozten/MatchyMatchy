@@ -47,10 +47,15 @@ verify:
 	@echo "=== 3/6  testbed servers ==="
 	python3 testbed/run-all.py check
 
-	@echo "=== 4/6  M1 fixture gate ==="
+	@echo "=== 4/6  M1+M2 fixture gate ==="
 	python3 testbed/check-fixture.py v01-identical
 	python3 testbed/check-fixture.py v02-banner-added
 	python3 testbed/check-fixture.py v13-render-equivalent
+	python3 testbed/check-fixture.py v14-trailing-slash
+	python3 testbed/check-fixture.py v15-locale-underscore
+	python3 testbed/check-fixture.py v16-locale-lowercase
+	python3 testbed/check-fixture.py v17-redirect-chain
+	python3 testbed/check-fixture.py v18-status-mismatch
 
 	@echo "=== 5/6  golden comparisons ==="
 	@if [ -d testbed/goldens ] && [ -n "$$(ls testbed/goldens/*.diffresult.json 2>/dev/null)" ]; then \

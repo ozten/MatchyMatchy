@@ -40,7 +40,25 @@ pub mod base_confidence {
     pub const VISUAL_REGION_CHANGED: f64 = 0.9;
     pub const PAGE_HEIGHT_CHANGED: f64 = 0.95;
     pub const LOAD_ERROR: f64 = 0.99;
+    /// Hygiene issues (HTTP metadata facts — no env/determinism multipliers).
+    pub const HYGIENE: f64 = 0.98;
+    /// Status code mismatch (highest confidence — clear HTTP fact).
+    pub const STATUS_CODE_MISMATCH: f64 = 0.99;
 }
+
+/// Trailing-slash policy (M2.md §5.2 item 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrailingSlashPolicy {
+    /// Paths must NOT have a trailing slash (except root "/").
+    Never,
+    /// Paths must have a trailing slash (except root "/").
+    Always,
+    /// New page slash state must match old page slash state.
+    Preserve,
+}
+
+/// Default trailing-slash policy (Never per M2.md §5.2).
+pub const DEFAULT_TRAILING_SLASH_POLICY: TrailingSlashPolicy = TrailingSlashPolicy::Never;
 
 /// The maxDelta constant from pixelmatch: 35215 is the maximum possible YIQ delta squared sum.
 pub const PIXELMATCH_MAX_DELTA: f64 = 35215.0;

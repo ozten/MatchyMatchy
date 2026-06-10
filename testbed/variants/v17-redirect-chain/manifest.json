@@ -1,0 +1,11 @@
+{
+  "name": "v17-redirect-chain",
+  "port": 3017,
+  "change": "No content change. Custom server introduces a two-hop 301 redirect chain: GET /start returns 301 to /mid, GET /mid returns 301 to /, and / serves site/ — a redirectChain.length > 1 violation under test (spec §10.1: url_redirect_chain).",
+  "edit": "serve.py only — custom handler with deterministic 301 chain /start -> /mid -> / then root serves site/",
+  "goals": ["G5"],
+  "knockOnEffects": [],
+  "diffSummary": "site/ is byte-for-byte identical to golden/site/. Only serve.py differs (custom redirect-chain handler).",
+  "urlUnderTest": "http://localhost:3017/start",
+  "expectedHttpStatus": 301
+}

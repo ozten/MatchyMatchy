@@ -103,10 +103,26 @@ fn strip_collision_suffix(id: &str) -> &str {
 /// Returns a sortable key for collision resolution.
 /// (new_y, new_x, old_y, old_x) with None values as i64::MAX.
 fn collision_sort_key(issue: &Issue) -> (i64, i64, i64, i64) {
-    let new_y = issue.locator.bbox_new.map(|b| b[1] as i64).unwrap_or(i64::MAX);
-    let new_x = issue.locator.bbox_new.map(|b| b[0] as i64).unwrap_or(i64::MAX);
-    let old_y = issue.locator.bbox_old.map(|b| b[1] as i64).unwrap_or(i64::MAX);
-    let old_x = issue.locator.bbox_old.map(|b| b[0] as i64).unwrap_or(i64::MAX);
+    let new_y = issue
+        .locator
+        .bbox_new
+        .map(|b| b[1] as i64)
+        .unwrap_or(i64::MAX);
+    let new_x = issue
+        .locator
+        .bbox_new
+        .map(|b| b[0] as i64)
+        .unwrap_or(i64::MAX);
+    let old_y = issue
+        .locator
+        .bbox_old
+        .map(|b| b[1] as i64)
+        .unwrap_or(i64::MAX);
+    let old_x = issue
+        .locator
+        .bbox_old
+        .map(|b| b[0] as i64)
+        .unwrap_or(i64::MAX);
     (new_y, new_x, old_y, old_x)
 }
 
@@ -117,9 +133,7 @@ fn collision_sort_key(issue: &Issue) -> (i64, i64, i64, i64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::{
-        Anchors, IssueCategory, IssueSeverity, IssueType, Locator,
-    };
+    use crate::contract::{Anchors, IssueCategory, IssueSeverity, IssueType, Locator};
 
     fn make_anchors(text: Option<&str>) -> Anchors {
         Anchors {
@@ -170,36 +184,16 @@ mod tests {
     fn test_issue_id_stability_under_jittered_inputs() {
         // ID must be identical regardless of bbox or confidence jitter
         let anchors = make_anchors(Some("20% off"));
-        let id1 = compute_issue_id(
-            &IssueType::VisualRegionChanged,
-            "desktop",
-            &anchors,
-            None,
-        );
-        let id2 = compute_issue_id(
-            &IssueType::VisualRegionChanged,
-            "desktop",
-            &anchors,
-            None,
-        );
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &anchors, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &anchors, None);
         assert_eq!(id1, id2, "id must be stable across calls");
 
         // Changing bbox has no effect (bbox excluded from hash)
-        let id3 = compute_issue_id(
-            &IssueType::VisualRegionChanged,
-            "desktop",
-            &anchors,
-            None,
-        );
+        let id3 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &anchors, None);
         assert_eq!(id1, id3, "bbox does not affect id");
 
         // Changing a hashable field (type) does change the id
-        let id4 = compute_issue_id(
-            &IssueType::PageHeightChanged,
-            "desktop",
-            &anchors,
-            None,
-        );
+        let id4 = compute_issue_id(&IssueType::PageHeightChanged, "desktop", &anchors, None);
         assert_ne!(id1, id4, "different type must produce different id");
     }
 
@@ -208,7 +202,11 @@ mod tests {
         let anchors = make_anchors(None);
         let id = compute_issue_id(&IssueType::LoadError, "desktop", &anchors, None);
         assert!(id.starts_with("issue_"), "id must start with 'issue_'");
-        assert_eq!(id.len(), 18, "id must be 'issue_' + 12 hex chars = 18 chars");
+        assert_eq!(
+            id.len(),
+            18,
+            "id must be 'issue_' + 12 hex chars = 18 chars"
+        );
         let hex_part = &id[6..];
         assert!(hex_part.chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -229,7 +227,7 @@ mod tests {
                 IssueType::VisualRegionChanged,
                 "desktop",
                 anchors.clone(),
-                Some([100, 50, 50, 50]),  // bbox_new y=50 (sorts first)
+                Some([100, 50, 50, 50]), // bbox_new y=50 (sorts first)
                 Some([100, 50, 50, 50]),
             ),
         ];

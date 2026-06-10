@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T19-30-55Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3017/start",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "url_redirect_chain": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_bac5d61ccae1"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 0.5
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_bac5d61ccae1"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_bac5d61ccae1",
+      "type": "url_redirect_chain",
+      "category": "hygiene",
+      "severity": "error",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G5",
+      "message": "URL redirect chain has 2 hops: http://localhost:3017/start",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": "/start",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "new": {
+          "finalUrl": "http://localhost:3017/",
+          "hops": 2,
+          "redirectChain": [
+            "http://localhost:3017/start",
+            "http://localhost:3017/mid"
+          ],
+          "requestedUrl": "http://localhost:3017/start"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/start"
+          ]
+        },
+        "from": "http://localhost:3017/start",
+        "note": "Update references to point directly to the final URL, avoiding the redirect chain.",
+        "to": "http://localhost:3017/"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T19-31-02Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3018/products/connect/branded-call",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "status_code_mismatch": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_b47aa904d464"
+    ]
+  },
+  "scores": {
+    "visual": 0.8125618055555556,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 0.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_b47aa904d464"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_b47aa904d464",
+      "type": "status_code_mismatch",
+      "category": "technical",
+      "severity": "critical",
+      "confidence": 0.99,
+      "viewport": "desktop",
+      "locale": "en",
+      "goal": null,
+      "message": "Status code mismatch: old=200 new=404",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": "/products/connect/branded-call",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "new": {
+          "statusCode": 404,
+          "url": "http://localhost:3018/products/connect/branded-call"
+        },
+        "old": {
+          "statusCode": 200,
+          "url": "http://localhost:3000/"
+        }
+      },
+      "remediation": {
+        "action": "fix_route",
+        "findBy": {
+          "grep": [
+            "/products/connect/branded-call"
+          ]
+        },
+        "from": "404",
+        "note": "New page returns a non-2xx status while old page returned 2xx. Fix the route or content to return 200.",
+        "to": "200"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

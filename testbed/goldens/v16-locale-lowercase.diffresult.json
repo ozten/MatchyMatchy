@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T19-35-52Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3016/es-mx/products/connect/branded-call",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "locale_case_invalid": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_e277e04591d3"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 0.5
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_e277e04591d3"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_e277e04591d3",
+      "type": "locale_case_invalid",
+      "category": "hygiene",
+      "severity": "error",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G6",
+      "message": "Locale case invalid in segment 'es-mx': expected 'es-MX'",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": "/es-mx/products/connect/branded-call",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "new": {
+          "expected": "es-MX",
+          "localeSegment": "es-mx",
+          "url": "http://localhost:3016/es-mx/products/connect/branded-call"
+        }
+      },
+      "remediation": {
+        "action": "rewrite_url",
+        "findBy": {
+          "grep": [
+            "es-mx"
+          ]
+        },
+        "from": "/es-mx/products/connect/branded-call",
+        "note": "Locale segment case is invalid. Language code must be lowercase, region code must be uppercase (e.g. es-MX).",
+        "to": "/es-MX/products/connect/branded-call"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

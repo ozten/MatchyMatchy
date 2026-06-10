@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T19-35-47Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3015/es_MX/products/connect/branded-call",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "locale_separator_invalid": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_e3d75bf136d1"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 0.5
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_e3d75bf136d1"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_e3d75bf136d1",
+      "type": "locale_separator_invalid",
+      "category": "hygiene",
+      "severity": "error",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G6",
+      "message": "Locale separator invalid in segment 'es_MX': use hyphen not underscore",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": "/es_MX/products/connect/branded-call",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "new": {
+          "expected": "es-MX",
+          "localeSegment": "es_MX",
+          "url": "http://localhost:3015/es_MX/products/connect/branded-call"
+        }
+      },
+      "remediation": {
+        "action": "rewrite_url",
+        "findBy": {
+          "grep": [
+            "es_MX"
+          ]
+        },
+        "from": "/es_MX/products/connect/branded-call",
+        "note": "Locale separator should be a hyphen (-), not underscore (_). Update all references.",
+        "to": "/es-MX/products/connect/branded-call"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

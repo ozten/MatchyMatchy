@@ -31,8 +31,8 @@ impl ParityProfile {
 
     /// Map an issue type + category to severity under this profile.
     pub fn severity_for(&self, issue_type: &IssueType, category: &IssueCategory) -> IssueSeverity {
-        // load_error is always critical regardless of profile
-        if *issue_type == IssueType::LoadError {
+        // load_error and status_code_mismatch are always critical regardless of profile
+        if *issue_type == IssueType::LoadError || *issue_type == IssueType::StatusCodeMismatch {
             return IssueSeverity::Critical;
         }
         match category {
@@ -59,7 +59,11 @@ impl ParityProfile {
 ///
 /// fix_value = severity_weight * confidence * locality_bonus
 /// Ordered descending; tie-break ascending id.
-pub fn fix_value(severity: &IssueSeverity, confidence: f64, anchor_strength: &AnchorStrength) -> f64 {
+pub fn fix_value(
+    severity: &IssueSeverity,
+    confidence: f64,
+    anchor_strength: &AnchorStrength,
+) -> f64 {
     severity.weight() * confidence * anchor_strength.bonus()
 }
 

@@ -17,6 +17,7 @@ hex = "0.4"
 anyhow = "1"
 thiserror = "1"
 chrono = { version = "0.4", features = ["serde"] }
+url = "2"
 
 [dev-dependencies]
 jsonschema = "0.18"

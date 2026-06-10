@@ -1,0 +1,21 @@
+{
+  "status": ["fail"],
+  "maxIssues": 1,
+  "required": [
+    {
+      "type": "status_code_mismatch",
+      "minSeverity": "critical",
+      "evidence": { "oldContains": "200", "newContains": "404" },
+      "note": "Old page responds 200, new responds 404 (rendered error page). Spec §10.1: single critical status_code_mismatch that short-circuits all other diffing — hence maxIssues 1."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_*", "note": "Short-circuit must suppress content diffing against the error page." },
+    { "type": "changed_*" },
+    { "type": "visual_region_changed", "note": "Short-circuit must suppress visual issues." },
+    { "type": "page_height_changed", "note": "Short-circuit must suppress the height delta issue." },
+    { "type": "url_*" },
+    { "type": "locale_*" }
+  ],
+  "notes": "Status-parity fixture (spec §13.1 fixture 14): old 200 vs new rendered 404. The DiffResult must contain exactly the one decisive critical issue; everything else is short-circuited."
+}

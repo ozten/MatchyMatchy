@@ -1,0 +1,23 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "locale_case_invalid",
+      "goal": "G6",
+      "anchors": { "hrefContains": "es-mx" },
+      "evidence": { "fromContains": "/es-mx/", "toContains": "/es-MX/" },
+      "note": "First path segment es-mx has a lowercase region subtag; spec §10.2 requires es-MX. Remediation must carry from '/es-mx/products/connect/branded-call' to '/es-MX/products/connect/branded-call'."
+    }
+  ],
+  "forbidden": [
+    { "type": "locale_separator_invalid", "note": "Separator is a hyphen; only the case is wrong." },
+    { "type": "locale_unknown", "note": "es and MX are valid BCP-47 subtags once case-normalized." },
+    { "type": "url_trailing_slash", "note": "urlUnderTest has no trailing slash and returns 200 directly." },
+    { "type": "url_redirect_chain" },
+    { "type": "missing_*" },
+    { "type": "changed_text" },
+    { "type": "style_changed" },
+    { "type": "visual_region_changed", "note": "site/ is byte-identical to golden." }
+  ],
+  "notes": "Pure locale-hygiene fixture (spec §13.1 fixture 4): same site served under /es-mx/products/connect/branded-call on :3016, no redirect, no content change. urlUnderTest in the manifest is authoritative. No content knock-ons exist."
+}

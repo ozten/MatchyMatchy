@@ -8,7 +8,7 @@ use std::path::Path;
 use anyhow::{bail, Context};
 use image::{ImageBuffer, Rgb, RgbImage};
 
-use crate::config::{GRID_CELL, MIN_REGION_AREA, PIXEL_THRESHOLD, PIXELMATCH_MAX_DELTA};
+use crate::config::{GRID_CELL, MIN_REGION_AREA, PIXELMATCH_MAX_DELTA, PIXEL_THRESHOLD};
 
 /// A rectangle [x, y, w, h].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -175,11 +175,7 @@ pub fn diff_images(old_path: &Path, new_path: &Path) -> anyhow::Result<DiffOutpu
     let new_height = new_rgba.height();
 
     if new_rgba.width() != width {
-        bail!(
-            "PNG width mismatch: old={} new={}",
-            width,
-            new_rgba.width()
-        );
+        bail!("PNG width mismatch: old={} new={}", width, new_rgba.width());
     }
 
     let common_height = old_height.min(new_height);
@@ -288,7 +284,12 @@ pub fn diff_images(old_path: &Path, new_path: &Path) -> anyhow::Result<DiffOutpu
             let area = w as u64 * h as u64;
             if area >= MIN_REGION_AREA {
                 Some(Region {
-                    bbox: Rect { x: min_x, y: min_y, w, h },
+                    bbox: Rect {
+                        x: min_x,
+                        y: min_y,
+                        w,
+                        h,
+                    },
                     changed_pixels: cp,
                 })
             } else {
@@ -533,7 +534,11 @@ mod tests {
         let new_path = save_rgba_png(&new_img, &tmp, "new.png");
 
         let out = diff_images(&old_path, &new_path).unwrap();
-        assert_eq!(out.regions.len(), 1, "adjacent blobs should merge into one region");
+        assert_eq!(
+            out.regions.len(),
+            1,
+            "adjacent blobs should merge into one region"
+        );
     }
 
     #[test]

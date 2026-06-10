@@ -53,8 +53,29 @@ export const CaptureConfigSchema = z.object({
       "apikey",
       "access_token",
     ]),
+  probeLinks: z.boolean().default(false),
 });
 export type CaptureConfig = z.infer<typeof CaptureConfigSchema>;
+
+// ─── LinkProbe ────────────────────────────────────────────────────────────
+export const LinkProbeSkippedReasonSchema = z.enum([
+  "scheme",
+  "external-scope",
+  "private-address",
+  "cap-exceeded",
+  "redirect-blocked",
+]);
+export type LinkProbeSkippedReason = z.infer<typeof LinkProbeSkippedReasonSchema>;
+
+export const LinkProbeSchema = z.object({
+  url: z.string(),
+  redirectChain: z.array(z.string()),
+  finalUrl: z.string().nullable(),
+  status: z.number().int().nullable(),
+  skipped: LinkProbeSkippedReasonSchema.nullable(),
+  error: z.string().nullable(),
+});
+export type LinkProbe = z.infer<typeof LinkProbeSchema>;
 
 // ─── SemanticNode anchors ─────────────────────────────────────────────────
 export const AnchorsSchema = z.object({
@@ -151,6 +172,7 @@ export const PageModelSchema = z.object({
   a11y: z.object({
     violations: z.array(z.unknown()),
   }),
+  linkProbes: z.array(LinkProbeSchema),
 });
 export type PageModel = z.infer<typeof PageModelSchema>;
 

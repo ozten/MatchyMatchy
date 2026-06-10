@@ -7,8 +7,8 @@ use anyhow::Context;
 use chrono::Utc;
 
 use crate::contract::{
-    AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult,
-    Issue, IssueSeverity, Scores, Status, Suppressed, ViewportResult,
+    AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult, Issue,
+    IssueSeverity, Scores, Status, Suppressed, ViewportResult,
 };
 use crate::scoring::{compute_status, count_fixable_now, fix_value, ParityProfile};
 
@@ -52,7 +52,9 @@ pub fn assemble_diff_result(
     // Build byType count (BTreeMap for determinism).
     let mut by_type: BTreeMap<String, u32> = BTreeMap::new();
     for issue in &all_issues {
-        *by_type.entry(issue.issue_type.as_str().to_string()).or_insert(0) += 1;
+        *by_type
+            .entry(issue.issue_type.as_str().to_string())
+            .or_insert(0) += 1;
     }
 
     // topFixes: first 5 issue ids in sorted order.
@@ -126,8 +128,14 @@ pub fn assemble_diff_result(
         viewports: viewport_results,
         issues: all_issues,
         clusters: Vec::<Cluster>::new(),
-        suppressed: Suppressed { count: 0, ids: vec![] },
-        determinism: DeterminismSummary { old: old_det, new: new_det },
+        suppressed: Suppressed {
+            count: 0,
+            ids: vec![],
+        },
+        determinism: DeterminismSummary {
+            old: old_det,
+            new: new_det,
+        },
         artifacts,
     }
 }
@@ -164,4 +172,10 @@ fn make_default_determinism() -> CaptureDeterminism {
         masked: vec![],
         retried_without_time_freeze: false,
     }
+}
+
+/// Exposed for tests in other modules that need a default determinism value.
+#[cfg(test)]
+pub fn make_default_det_for_test() -> CaptureDeterminism {
+    make_default_determinism()
 }

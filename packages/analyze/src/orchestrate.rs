@@ -10,7 +10,9 @@ use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context};
 
-use crate::contract::{CaptureBundle, CaptureConfig, CaptureResponse, StabilizationConfig, ViewportConfig};
+use crate::contract::{
+    CaptureBundle, CaptureConfig, CaptureResponse, StabilizationConfig, ViewportConfig,
+};
 
 /// Resolve the path to capture.cjs.
 pub fn resolve_capture_script() -> anyhow::Result<PathBuf> {
@@ -49,10 +51,7 @@ pub fn resolve_capture_script() -> anyhow::Result<PathBuf> {
 /// Spawn capture.cjs and return the bundle path, or an error.
 ///
 /// Returns Ok(bundle_path) or Err with a structured message.
-pub fn run_capture(
-    capture_script: &Path,
-    config: &CaptureConfig,
-) -> anyhow::Result<PathBuf> {
+pub fn run_capture(capture_script: &Path, config: &CaptureConfig) -> anyhow::Result<PathBuf> {
     let config_json = serde_json::to_string(config).context("failed to serialize CaptureConfig")?;
 
     let mut child = Command::new("node")
@@ -66,11 +65,18 @@ pub fn run_capture(
     // Write config to stdin
     {
         use std::io::Write;
-        let stdin = child.stdin.as_mut().context("failed to get capture stdin")?;
-        stdin.write_all(config_json.as_bytes()).context("failed to write CaptureConfig to stdin")?;
+        let stdin = child
+            .stdin
+            .as_mut()
+            .context("failed to get capture stdin")?;
+        stdin
+            .write_all(config_json.as_bytes())
+            .context("failed to write CaptureConfig to stdin")?;
     }
 
-    let output = child.wait_with_output().context("failed to wait for capture.cjs")?;
+    let output = child
+        .wait_with_output()
+        .context("failed to wait for capture.cjs")?;
 
     if !output.status.success() && output.stdout.is_empty() {
         bail!(
@@ -89,13 +95,14 @@ pub fn run_capture(
         .with_context(|| format!("failed to parse capture.cjs response: {}", line))?;
 
     match response {
-        CaptureResponse::Ok { ok: true, bundle_path } => Ok(PathBuf::from(bundle_path)),
+        CaptureResponse::Ok {
+            ok: true,
+            bundle_path,
+        } => Ok(PathBuf::from(bundle_path)),
         CaptureResponse::Ok { ok: false, .. } => bail!("capture returned ok:false with no error"),
-        CaptureResponse::Err { error, .. } => bail!(
-            "capture failed: [{}] {}",
-            error.code,
-            error.message
-        ),
+        CaptureResponse::Err { error, .. } => {
+            bail!("capture failed: [{}] {}", error.code, error.message)
+        }
     }
 }
 
@@ -108,10 +115,7 @@ pub fn load_bundle(bundle_path: &Path) -> anyhow::Result<CaptureBundle> {
 }
 
 /// Check if two environments have mismatched fingerprints.
-pub fn env_mismatch(
-    old_bundle: &CaptureBundle,
-    new_bundle: &CaptureBundle,
-) -> bool {
+pub fn env_mismatch(old_bundle: &CaptureBundle, new_bundle: &CaptureBundle) -> bool {
     old_bundle.environment.os != new_bundle.environment.os
         || old_bundle.environment.chromium_build != new_bundle.environment.chromium_build
         || old_bundle.environment.dsf != new_bundle.environment.dsf
@@ -167,5 +171,7 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
             "apikey".to_string(),
             "access_token".to_string(),
         ],
+        // Probe links only for the new side (M2.md §2: hygiene is remediation work on new site).
+        probe_links: *prefix == "new",
     }
 }

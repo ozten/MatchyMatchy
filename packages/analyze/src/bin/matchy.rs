@@ -15,7 +15,9 @@ use matchy_analyze::contract::ViewportConfig;
 use matchy_analyze::orchestrate::{
     build_capture_config, load_bundle, resolve_capture_script, run_capture,
 };
-use matchy_analyze::report::json::{assemble_diff_result, make_run_id, write_diff_result, ViewportAnalysis};
+use matchy_analyze::report::json::{
+    assemble_diff_result, make_run_id, write_diff_result, ViewportAnalysis,
+};
 use matchy_analyze::scoring::ParityProfile;
 
 // ---------------------------------------------------------------------------
@@ -110,7 +112,11 @@ fn main() {
     let exit_code = match &cli.command {
         Some(CliCommand::Doctor) => {
             let ok = matchy_analyze::doctor::run_doctor();
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         Some(CliCommand::Analyze(args)) => {
             match run_analyze(&args.old_bundle, &args.new_bundle, &args.out, &cli.profile) {
@@ -148,7 +154,9 @@ fn main() {
                 _ => {
                     eprintln!("Usage: matchy --old URL --new URL --out DIR");
                     eprintln!("       matchy doctor");
-                    eprintln!("       matchy analyze --old-bundle PATH --new-bundle PATH --out DIR");
+                    eprintln!(
+                        "       matchy analyze --old-bundle PATH --new-bundle PATH --out DIR"
+                    );
                     2
                 }
             }
@@ -162,6 +170,7 @@ fn main() {
 // Run from URLs (full capture + analyze)
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn run_full(
     old_url: &str,
     new_url: &str,
@@ -191,36 +200,32 @@ fn run_full(
         std::fs::create_dir_all(&vp_dir)?;
 
         // Capture old
-        let old_config = build_capture_config(
-            &matchy_analyze::orchestrate::CaptureConfigParams {
-                url: old_url,
-                prefix: "old",
-                // capture.cjs appends <viewport.name>/ itself; pass the run root
-                out_dir: &out_path,
-                viewport: vp,
-                freeze_time,
-                stub_random,
-                hide_selectors: hide,
-                mask_selectors: mask,
-                click_selectors: click,
-            },
-        );
+        let old_config = build_capture_config(&matchy_analyze::orchestrate::CaptureConfigParams {
+            url: old_url,
+            prefix: "old",
+            // capture.cjs appends <viewport.name>/ itself; pass the run root
+            out_dir: &out_path,
+            viewport: vp,
+            freeze_time,
+            stub_random,
+            hide_selectors: hide,
+            mask_selectors: mask,
+            click_selectors: click,
+        });
         let old_bundle_path_result = run_capture(&capture_script, &old_config);
 
         // Capture new
-        let new_config = build_capture_config(
-            &matchy_analyze::orchestrate::CaptureConfigParams {
-                url: new_url,
-                prefix: "new",
-                out_dir: &out_path,
-                viewport: vp,
-                freeze_time,
-                stub_random,
-                hide_selectors: hide,
-                mask_selectors: mask,
-                click_selectors: click,
-            },
-        );
+        let new_config = build_capture_config(&matchy_analyze::orchestrate::CaptureConfigParams {
+            url: new_url,
+            prefix: "new",
+            out_dir: &out_path,
+            viewport: vp,
+            freeze_time,
+            stub_random,
+            hide_selectors: hide,
+            mask_selectors: mask,
+            click_selectors: click,
+        });
         let new_bundle_path_result = run_capture(&capture_script, &new_config);
 
         match (old_bundle_path_result, new_bundle_path_result) {
@@ -233,12 +238,8 @@ fn run_full(
             }
             (Err(e), Ok(_)) | (Ok(_), Err(e)) => {
                 // One side failed: emit load_error
-                let vp_analysis = make_load_error_analysis(
-                    &vp.name,
-                    &e.to_string(),
-                    &vp_dir,
-                    &profile,
-                );
+                let vp_analysis =
+                    make_load_error_analysis(&vp.name, &e.to_string(), &vp_dir, &profile);
                 viewport_analyses.push(vp_analysis);
             }
             (Ok(old_bundle_path), Ok(new_bundle_path)) => {
@@ -284,8 +285,8 @@ fn run_analyze(
     // Bundle's parent is <viewport>/, parent's parent is the outDir used during capture.
     // Screenshot paths in bundle are relative to the capture outDir.
     let old_out_dir = old_bundle_path
-        .parent()  // <viewport>/
-        .and_then(|p| p.parent())  // outDir
+        .parent() // <viewport>/
+        .and_then(|p| p.parent()) // outDir
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."));
 
@@ -306,8 +307,8 @@ fn run_analyze(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores) = matchy_analyze::analyze_viewport(
-        &matchy_analyze::ViewportAnalysisParams {
+    let (issues, scores) =
+        matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
             old_img_path: &old_img,
@@ -316,8 +317,7 @@ fn run_analyze(
             issues_dir: &issues_dir,
             viewport_name: &viewport_name,
             profile: &profile,
-        },
-    )?;
+        })?;
 
     let artifacts = make_artifacts(&viewport_name, &old_bundle, &new_bundle);
 
@@ -372,8 +372,8 @@ fn analyze_bundle_pair(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores) = matchy_analyze::analyze_viewport(
-        &matchy_analyze::ViewportAnalysisParams {
+    let (issues, scores) =
+        matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
             old_img_path: &old_img,
@@ -382,8 +382,7 @@ fn analyze_bundle_pair(
             issues_dir: &issues_dir,
             viewport_name,
             profile,
-        },
-    )?;
+        })?;
 
     let artifacts = make_artifacts(viewport_name, &old_bundle, &new_bundle);
 
@@ -415,9 +414,7 @@ fn make_load_error_analysis(
     _vp_dir: &Path,
     profile: &ParityProfile,
 ) -> ViewportAnalysis {
-    use matchy_analyze::contract::{
-        Anchors, IssueCategory, IssueType, Locator,
-    };
+    use matchy_analyze::contract::{Anchors, IssueCategory, IssueType, Locator};
     use matchy_analyze::issue::compute_issue_id;
 
     let null_anchors = Anchors::null();
@@ -483,13 +480,21 @@ fn make_default_determinism() -> matchy_analyze::contract::CaptureDeterminism {
 fn parse_viewports(args: &[String]) -> Vec<ViewportConfig> {
     if args.is_empty() {
         return vec![
-            ViewportConfig { name: "desktop".to_string(), width: 1440, height: 1000, dsf: 1.0 },
-            ViewportConfig { name: "mobile".to_string(), width: 390, height: 844, dsf: 1.0 },
+            ViewportConfig {
+                name: "desktop".to_string(),
+                width: 1440,
+                height: 1000,
+                dsf: 1.0,
+            },
+            ViewportConfig {
+                name: "mobile".to_string(),
+                width: 390,
+                height: 844,
+                dsf: 1.0,
+            },
         ];
     }
-    args.iter()
-        .filter_map(|s| parse_viewport_arg(s))
-        .collect()
+    args.iter().filter_map(|s| parse_viewport_arg(s)).collect()
 }
 
 fn parse_viewport_arg(s: &str) -> Option<ViewportConfig> {
@@ -498,7 +503,12 @@ fn parse_viewport_arg(s: &str) -> Option<ViewportConfig> {
     let (w_str, h_str) = dims.split_once('x')?;
     let width: u32 = w_str.parse().ok()?;
     let height: u32 = h_str.parse().ok()?;
-    Some(ViewportConfig { name: name.to_string(), width, height, dsf: 1.0 })
+    Some(ViewportConfig {
+        name: name.to_string(),
+        width,
+        height,
+        dsf: 1.0,
+    })
 }
 
 fn compute_exit_code(status: &matchy_analyze::contract::Status, fail_on: &str) -> i32 {
@@ -511,7 +521,11 @@ fn compute_exit_code(status: &matchy_analyze::contract::Status, fail_on: &str) -
         },
         "warning" => match status {
             Status::Pass | Status::Warn => {
-                if matches!(status, Status::Warn) { 1 } else { 0 }
+                if matches!(status, Status::Warn) {
+                    1
+                } else {
+                    0
+                }
             }
             _ => 1,
         },

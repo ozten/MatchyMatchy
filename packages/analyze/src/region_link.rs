@@ -20,10 +20,7 @@ pub struct LinkResult {
 
 /// Find the best-matching node for a region bbox from a node list.
 /// Returns the node with minimum seqIndex among candidates; tie-break by node id.
-fn find_candidate<'a>(
-    nodes: &'a [SemanticNode],
-    region: &Rect,
-) -> Option<&'a SemanticNode> {
+fn find_candidate<'a>(nodes: &'a [SemanticNode], region: &Rect) -> Option<&'a SemanticNode> {
     // Collect all candidates in a sorted-by-seqIndex, then id order (total order).
     let mut candidates: Vec<&SemanticNode> = nodes
         .iter()
@@ -159,7 +156,12 @@ mod tests {
 
     #[test]
     fn test_link_picks_minimum_seqindex() {
-        let region = Rect { x: 0, y: 0, w: 200, h: 100 };
+        let region = Rect {
+            x: 0,
+            y: 0,
+            w: 200,
+            h: 100,
+        };
         let nodes = vec![
             make_node("node_5", 5, [10, 10, 100, 50], Some("Later text")),
             make_node("node_1", 1, [20, 20, 80, 40], Some("First text")),
@@ -173,7 +175,12 @@ mod tests {
 
     #[test]
     fn test_link_tie_break_by_id() {
-        let region = Rect { x: 0, y: 0, w: 200, h: 100 };
+        let region = Rect {
+            x: 0,
+            y: 0,
+            w: 200,
+            h: 100,
+        };
         let nodes = vec![
             make_node("node_b", 2, [10, 10, 100, 50], Some("Text B")),
             make_node("node_a", 2, [20, 20, 80, 40], Some("Text A")),
@@ -185,9 +192,19 @@ mod tests {
 
     #[test]
     fn test_link_fallback_to_old_nodes() {
-        let region = Rect { x: 0, y: 0, w: 200, h: 100 };
+        let region = Rect {
+            x: 0,
+            y: 0,
+            w: 200,
+            h: 100,
+        };
         // New nodes don't overlap
-        let new_nodes = vec![make_node("node_1", 1, [500, 500, 100, 100], Some("Far away"))];
+        let new_nodes = vec![make_node(
+            "node_1",
+            1,
+            [500, 500, 100, 100],
+            Some("Far away"),
+        )];
         let old_nodes = vec![make_node("node_2", 2, [10, 10, 100, 50], Some("Old text"))];
         let result = link_region(&region, &new_nodes, &old_nodes);
         assert_eq!(result.anchors.text.as_deref(), Some("Old text"));
@@ -197,7 +214,12 @@ mod tests {
 
     #[test]
     fn test_link_null_anchors_when_no_candidates() {
-        let region = Rect { x: 0, y: 0, w: 50, h: 50 };
+        let region = Rect {
+            x: 0,
+            y: 0,
+            w: 50,
+            h: 50,
+        };
         // Nodes don't overlap with region
         let nodes = vec![make_node("node_1", 1, [500, 500, 100, 100], Some("Far"))];
         let result = link_region(&region, &nodes, &[]);
@@ -207,7 +229,12 @@ mod tests {
 
     #[test]
     fn test_link_node_without_distinctive_anchor_skipped() {
-        let region = Rect { x: 0, y: 0, w: 200, h: 100 };
+        let region = Rect {
+            x: 0,
+            y: 0,
+            w: 200,
+            h: 100,
+        };
         // Node overlaps but has no distinctive anchor
         let mut node = make_node("node_1", 1, [10, 10, 100, 50], None);
         node.anchors.text = None;

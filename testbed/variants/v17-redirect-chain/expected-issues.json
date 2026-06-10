@@ -1,0 +1,20 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "url_redirect_chain",
+      "goal": "G5",
+      "anchors": { "hrefContains": "/start" },
+      "evidence": { "fromContains": "/start", "toContains": "localhost:3017/" },
+      "note": "Navigating to /start traverses two 301 hops (/start → /mid → /); spec §10.1 emits url_redirect_chain when the chain has more than one hop, with the full chain in evidence and remediation collapsing the link to the final URL."
+    }
+  ],
+  "forbidden": [
+    { "type": "url_trailing_slash", "note": "The final URL is the root path, which is exempt from the trailing-slash policy." },
+    { "type": "locale_*", "note": "No path segment is locale-shaped." },
+    { "type": "missing_*" },
+    { "type": "changed_text" },
+    { "type": "visual_region_changed", "note": "site/ is byte-identical to golden and is ultimately served from the root." }
+  ],
+  "notes": "Pure URL-hygiene fixture (spec §13.1: redirect chain): same site served at / on :3017; urlUnderTest /start reaches it through two 301 hops. urlUnderTest in the manifest is authoritative. No content knock-ons exist."
+}

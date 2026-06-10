@@ -3,8 +3,12 @@
 v15-locale-underscore serve script — port 3015.
 Maps URL prefix /es_MX/products/connect/branded-call (no trailing slash) to site/ directory.
 GET /es_MX/products/connect/branded-call          -> site/index.html (200 directly, no redirect)
-GET /es_MX/products/connect/branded-call/assets/... -> site/assets/...
-GET /assets/...                                    -> site/assets/... (fallback)
+GET /es_MX/products/connect/<anything>            -> site/<anything> (assets resolve via parent dir)
+GET /es_MX/products/connect/branded-call/<anything> -> site/<anything> (sub-path form, also handled)
+
+The browser resolves relative asset URLs (e.g. assets/css/x.css) against the parent of the page
+URL (/es_MX/products/connect/), not the page URL itself, so asset requests arrive as
+/es_MX/products/connect/assets/css/x.css. The PARENT_PREFIX branch handles these.
 
 The underscore in es_MX (instead of hyphen es-MX) is the violation under test.
 No trailing-slash redirect is involved for the page URL itself.
@@ -18,6 +22,7 @@ PORT = 3015
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 PAGE_PREFIX = "/es_MX/products/connect/branded-call"
 PAGE_PREFIX_SLASH = PAGE_PREFIX + "/"
+PARENT_PREFIX = "/es_MX/products/connect/"
 
 
 class PrefixHandler(http.server.BaseHTTPRequestHandler):
@@ -29,31 +34,40 @@ class PrefixHandler(http.server.BaseHTTPRequestHandler):
         if path == PAGE_PREFIX or path == PAGE_PREFIX + "/index.html":
             file_path = os.path.join(SITE_DIR, "index.html")
         elif path.startswith(PAGE_PREFIX_SLASH):
+            # Sub-path under branded-call/ (e.g. branded-call/assets/..., though unusual)
             rel = path[len(PAGE_PREFIX_SLASH):]
             if rel == "" or rel == "index.html":
                 file_path = os.path.join(SITE_DIR, "index.html")
             else:
                 rel_decoded = urllib.parse.unquote(rel)
                 file_path = os.path.join(SITE_DIR, rel_decoded)
-        elif path.startswith("/assets/"):
-            # Fallback: bare /assets/... -> site/assets/...
-            rel = path[1:]
+        elif path.startswith(PARENT_PREFIX):
+            # Assets resolve via parent dir: /es_MX/products/connect/assets/css/x.css
+            # -> site/assets/css/x.css
+            rel = path[len(PARENT_PREFIX):]
             rel_decoded = urllib.parse.unquote(rel)
             file_path = os.path.join(SITE_DIR, rel_decoded)
         else:
-            self.send_response(404)
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
+            self._send_404()
             return
 
         # Serve the file
         if not os.path.isfile(file_path):
-            self.send_response(404)
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
+            self._send_404()
             return
 
-        # Determine content type
+        self._serve_file(file_path)
+
+    def _send_404(self):
+        body = b"404 Not Found"
+        self.send_response(404)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_file(self, file_path):
         ext = os.path.splitext(file_path)[1].lower()
         content_types = {
             ".html": "text/html; charset=utf-8",

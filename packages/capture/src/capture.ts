@@ -13,6 +13,7 @@ import { launchBrowser, createContext } from "./browser-runner.js";
 import { stabilize } from "./stabilizer.js";
 import { extractPageModel } from "./extract/page-model.js";
 import { redactUrl, normalizeText } from "./normalize.js";
+import { probeLinks } from "./probe.js";
 
 // Get playwright version from package.json
 function getPlaywrightVersion(): string {
@@ -107,7 +108,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
     process.exit(1);
   }
 
-  const { url, outDir, prefix, viewport, stabilization, hideSelectors, maskSelectors, clickBeforeCapture, maxTextLength, redactParams } = config;
+  const { url, outDir, prefix, viewport, stabilization, hideSelectors, maskSelectors, clickBeforeCapture, maxTextLength, redactParams, probeLinks: configProbeLinks } = config;
 
   // Create output directories
   const viewportDir = path.join(outDir, viewport.name);
@@ -214,6 +215,32 @@ async function runCapture(configRaw: unknown): Promise<void> {
     // Redact redirect chain
     const redactedRedirectChain = redirectChain.map((u) => redactUrl(u, redactParams));
 
+    // Probe links (new-side only, when enabled) — failures must never fail the capture
+    let linkProbeResults: CaptureBundle["page"]["linkProbes"] = [];
+    if (configProbeLinks) {
+      try {
+        linkProbeResults = await probeLinks(
+          pageModelRaw.nodes.map((n) => ({
+            id: n.id,
+            kind: n.kind as CaptureBundle["page"]["nodes"][0]["kind"],
+            role: n.role,
+            text: n.text,
+            accName: n.accName,
+            href: n.href,
+            imageAlt: n.imageAlt,
+            bbox: n.bbox,
+            seqIndex: n.seqIndex,
+            anchors: n.anchors,
+            cssSelector: n.cssSelector,
+          })),
+          url,
+          redactParams
+        );
+      } catch (probeErr) {
+        log(`[capture] probeLinks failed (non-fatal): ${probeErr}`);
+      }
+    }
+
     // Screenshots
     const fullPagePath = path.join(viewportDir, `${prefix}.png`);
     const viewportPath = path.join(viewportDir, `${prefix}-vp.png`);
@@ -258,6 +285,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
         network: { requests: networkRequests },
         console: consoleMessages,
         a11y: { violations: [] },
+        linkProbes: linkProbeResults,
       },
       computedStyles: {},
       screenshots: {
