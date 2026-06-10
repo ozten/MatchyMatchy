@@ -14,6 +14,7 @@ pub mod region_link;
 pub mod report;
 pub mod scoring;
 pub mod semantic_diff;
+pub mod sequence_diff;
 pub mod style_diff;
 pub mod visual_diff;
 
@@ -108,6 +109,15 @@ pub fn analyze_viewport(
         env_mismatch,
     );
     let content_issue_count = content_issues.len();
+
+    // --- Sequence diff: order/reorder issues (M5 §2) ---
+    let sequence_issues_vec = sequence_diff::sequence_issues(
+        &old_bundle.page.nodes,
+        &new_bundle.page.nodes,
+        &match_outcome,
+        viewport_name,
+    );
+    let structure_issue_count = sequence_issues_vec.len();
 
     // --- Style diff: computed-style issues (M4 §3.5) ---
     let style_issues_vec = style_diff::style_issues(
@@ -280,8 +290,9 @@ pub fn analyze_viewport(
         });
     }
 
-    // --- Append issues: visual ++ content ++ style ++ hygiene (M4 §3.5) ---
+    // --- Append issues: visual ++ content ++ sequence ++ style ++ hygiene (M5 §2) ---
     issues.extend(content_issues);
+    issues.extend(sequence_issues_vec);
     issues.extend(style_issues_vec);
 
     // --- Append hygiene issues (non-short-circuit path) ---
@@ -296,12 +307,14 @@ pub fn analyze_viewport(
     let visual_score = (1.0 - diff_out.page_changed_ratio).clamp(0.0, 1.0);
     // content score: 1/(1+n) per M3.md §5.7 D11
     let content_score = 1.0 / (1.0 + content_issue_count as f64);
+    // structure score: 1/(1+n) per M5.md §2
+    let structure_score = 1.0 / (1.0 + structure_issue_count as f64);
     // style score: 1/(1+n) per M4.md §3.5
     let style_score = 1.0 / (1.0 + style_issue_count as f64);
     let scores = contract::Scores {
         visual: visual_score,
         content: content_score,
-        structure: 1.0,
+        structure: structure_score,
         style: style_score,
         accessibility: 1.0,
         technical: 1.0,

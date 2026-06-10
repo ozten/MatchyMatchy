@@ -47,13 +47,14 @@ verify:
 	@echo "=== 3/6  testbed servers ==="
 	python3 testbed/run-all.py check
 
-	@echo "=== 4/6  M1+M2+M3+M4 fixture gate ==="
+	@echo "=== 4/6  M1+M2+M3+M4+M5 fixture gate ==="
 	python3 testbed/check-fixture.py v01-identical
 	python3 testbed/check-fixture.py v02-banner-added
 	python3 testbed/check-fixture.py v03-font-size
 	python3 testbed/check-fixture.py v04-font-family
 	python3 testbed/check-fixture.py v05-cta-style
 	python3 testbed/check-fixture.py v06-gradient-removed
+	python3 testbed/check-fixture.py v07-sections-swapped
 	python3 testbed/check-fixture.py v08-cta-removed
 	python3 testbed/check-fixture.py v09-h1-changed
 	python3 testbed/check-fixture.py v10-paragraph-removed

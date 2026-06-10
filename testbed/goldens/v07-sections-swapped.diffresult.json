@@ -1,0 +1,528 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T23-06-15Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3007/",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "component_swapped": 1,
+      "visual_region_changed": 5
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_5b7b988e2998",
+      "issue_8e8483310c5c",
+      "issue_8e8483310c5c-2",
+      "issue_a3778c41a353",
+      "issue_a3778c41a353-2"
+    ]
+  },
+  "scores": {
+    "visual": 0.9549507906932302,
+    "content": 1.0,
+    "structure": 0.5,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_a3778c41a353",
+        "issue_8e8483310c5c",
+        "issue_a609a79ce17b",
+        "issue_8e8483310c5c-2",
+        "issue_a3778c41a353-2",
+        "issue_5b7b988e2998"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_5b7b988e2998",
+      "type": "component_swapped",
+      "category": "structure",
+      "severity": "error",
+      "confidence": 1.0,
+      "viewport": "desktop",
+      "locale": null,
+      "goal": "G3",
+      "message": "Components swapped: \"Display your company’s name, logo, and call reason on outbound calls\" and \"Branded Call performance analytics\" exchanged document order; \"Branded Call performance analytics\" now renders before \"Display your company’s name, logo, and call reason on outbound calls\".",
+      "locator": {
+        "anchors": {
+          "text": "Display your company’s name, logo, and call reason on outbound calls",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          1773,
+          1199,
+          391
+        ],
+        "bboxNew": [
+          120,
+          2306,
+          1199,
+          391
+        ],
+        "seqIndexOld": 54,
+        "seqIndexNew": 58
+      },
+      "evidence": {
+        "blockA": {
+          "anchors": {
+            "alt": null,
+            "ariaLabel": null,
+            "href": null,
+            "landmark": "main",
+            "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
+            "ordinalInLandmark": 1,
+            "role": "heading",
+            "text": "Display your company’s name, logo, and call reason on outbound calls"
+          },
+          "bboxNew": [
+            120,
+            2306,
+            1199,
+            391
+          ],
+          "bboxOld": [
+            120,
+            1773,
+            1199,
+            391
+          ],
+          "match": {
+            "score": 1.0,
+            "signals": {
+              "exactKey": 1.0
+            },
+            "stage": "identity"
+          },
+          "nodeCount": 5,
+          "seqIndexNewRange": [
+            58,
+            62
+          ],
+          "seqIndexOldRange": [
+            54,
+            58
+          ]
+        },
+        "blockB": {
+          "anchors": {
+            "alt": null,
+            "ariaLabel": null,
+            "href": null,
+            "landmark": "main",
+            "nearestHeading": "Branded Call performance analytics",
+            "ordinalInLandmark": 1,
+            "role": "heading",
+            "text": "Branded Call performance analytics"
+          },
+          "bboxNew": [
+            120,
+            1773,
+            1199,
+            454
+          ],
+          "bboxOld": [
+            120,
+            2243,
+            1199,
+            454
+          ],
+          "match": {
+            "score": 1.0,
+            "signals": {
+              "exactKey": 1.0
+            },
+            "stage": "identity"
+          },
+          "nodeCount": 4,
+          "seqIndexNewRange": [
+            54,
+            57
+          ],
+          "seqIndexOldRange": [
+            59,
+            62
+          ]
+        },
+        "newOrder": [
+          "Branded Call performance analytics",
+          "Display your company’s name, logo, and call reason on outbound calls"
+        ],
+        "oldOrder": [
+          "Display your company’s name, logo, and call reason on outbound calls",
+          "Branded Call performance analytics"
+        ]
+      },
+      "remediation": {
+        "action": "reorder_components",
+        "expectedOrder": [
+          "Display your company’s name, logo, and call reason on outbound calls",
+          "Branded Call performance analytics"
+        ],
+        "findBy": {
+          "grep": [
+            "Display your company’s name, logo, and call reason on outbound calls",
+            "Branded Call performance analytics"
+          ],
+          "near": "Display your company’s name, logo, and call reason on outbound calls"
+        },
+        "note": "Restore original document order: \"Display your company’s name, logo, and call reason on outbound calls\" must precede \"Branded Call performance analytics\". Grep targets may hit repo source or CMS content; the anchors identify the sections either way."
+      }
+    },
+    {
+      "id": "issue_8e8483310c5c",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (121, 1832) 578x316",
+      "locator": {
+        "anchors": {
+          "text": "Display your company’s name, logo, and call reason on outbound calls",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "bboxOld": [
+          121,
+          1832,
+          578,
+          316
+        ],
+        "bboxNew": [
+          121,
+          1832,
+          578,
+          316
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 54
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_8e8483310c5c_diff.png",
+          "newCrop": "desktop/issues/issue_8e8483310c5c_new.png",
+          "oldCrop": "desktop/issues/issue_8e8483310c5c_old.png"
+        },
+        "visual": {
+          "changedPixels": 45851,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            121,
+            1832,
+            578,
+            316
+          ],
+          "regionChangedRatio": 0.004563705349322377
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_8e8483310c5c-2",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (121, 2302) 578x363",
+      "locator": {
+        "anchors": {
+          "text": "Display your company’s name, logo, and call reason on outbound calls",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "cssSelectorNew": null,
+        "bboxOld": [
+          121,
+          2302,
+          578,
+          363
+        ],
+        "bboxNew": [
+          121,
+          2302,
+          578,
+          363
+        ],
+        "seqIndexOld": 58,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_8e8483310c5c_diff.png",
+          "newCrop": "desktop/issues/issue_8e8483310c5c_new.png",
+          "oldCrop": "desktop/issues/issue_8e8483310c5c_old.png"
+        },
+        "visual": {
+          "changedPixels": 47495,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            121,
+            2302,
+            578,
+            363
+          ],
+          "regionChangedRatio": 0.0047273382383386684
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_a3778c41a353",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (742, 1774) 578x389",
+      "locator": {
+        "anchors": {
+          "text": "Branded Call performance analytics",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Branded Call performance analytics",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "cssSelectorNew": null,
+        "bboxOld": [
+          742,
+          1774,
+          578,
+          389
+        ],
+        "bboxNew": [
+          742,
+          1774,
+          578,
+          389
+        ],
+        "seqIndexOld": 55,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_a3778c41a353_diff.png",
+          "newCrop": "desktop/issues/issue_a3778c41a353_new.png",
+          "oldCrop": "desktop/issues/issue_a3778c41a353_old.png"
+        },
+        "visual": {
+          "changedPixels": 178720,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            742,
+            1774,
+            578,
+            389
+          ],
+          "regionChangedRatio": 0.017788607010335546
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_a3778c41a353-2",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (742, 2307) 578x390",
+      "locator": {
+        "anchors": {
+          "text": "Branded Call performance analytics",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Branded Call performance analytics",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "bboxOld": [
+          742,
+          2307,
+          578,
+          390
+        ],
+        "bboxNew": [
+          742,
+          2307,
+          578,
+          390
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 60
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_a3778c41a353_diff.png",
+          "newCrop": "desktop/issues/issue_a3778c41a353_new.png",
+          "oldCrop": "desktop/issues/issue_a3778c41a353_old.png"
+        },
+        "visual": {
+          "changedPixels": 178530,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            742,
+            2307,
+            578,
+            390
+          ],
+          "regionChangedRatio": 0.017769695666714443
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_a609a79ce17b",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (200, 2155) 255x39",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": [
+          200,
+          2155,
+          255,
+          39
+        ],
+        "bboxNew": [
+          200,
+          2155,
+          255,
+          39
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_a609a79ce17b_diff.png",
+          "newCrop": "desktop/issues/issue_a609a79ce17b_new.png",
+          "oldCrop": "desktop/issues/issue_a609a79ce17b_old.png"
+        },
+        "visual": {
+          "changedPixels": 1480,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            200,
+            2155,
+            255,
+            39
+          ],
+          "regionChangedRatio": 0.00014730941346965425
+        }
+      },
+      "remediation": null
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

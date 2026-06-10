@@ -264,3 +264,30 @@ each variant passed its (audited) `expected-issues.json` intent check and the fu
 gate went green (all 18 fixtures, all 13 pre-existing goldens byte-identical, determinism checks on
 v02/v08/v06). No pre-existing golden was modified. Recorded per spec §13.3 (end-to-end goldens,
 float tolerances, runId/timestamps excluded) and the /implement-milestone promotion step.
+
+## 2026-06-10 — M5: first recording of v07-sections-swapped byte golden
+
+**What changed:** First recording of `testbed/goldens/v07-sections-swapped.diffresult.json`,
+captured from a fresh run immediately after v07 passed its (unchanged, hand-authored)
+`expected-issues.json` intent check under the new M5 sequence differ, plus a two-run determinism
+check (byte-identical) and a fully green `make verify` (19-variant fixture gate, all 18
+pre-existing goldens byte-identical, determinism checks on v02/v08/v06). No pre-existing golden
+or expectation was modified. Recorded per spec §13.3 (end-to-end goldens, float tolerances,
+runId/capturedAt excluded) and the /implement-milestone promotion step.
+
+**Why correct:** Spec §12 M5 DoD — swapped-sections fixture yields a single `component_swapped`,
+not missing+added. The golden contains exactly one `component_swapped` (goal G3, structure/error,
+confidence 1.0, identity-stage evidence for both blocks, remediation `reorder_components` with
+`expectedOrder`), zero `missing_*`/`component_reordered`, status `fail`, structure score 0.5 per
+the 1/(1+n) rule (docs/design/M5.md §2). The five info-severity `visual_region_changed` knock-ons
+match the manifest's declared knock-on effects.
+
+**Auditor verdict (golden-auditor): APPROVE.** "This is a first recording, not a weakening — no
+existing expectation is touched, and the hand-authored intent file remains the authoritative gate.
+The recorded output satisfies the intent and the M5 DoD (spec §12): exactly one component_swapped
+(goal G3, category structure, severity error), zero missing_* for either swapped section, zero
+component_reordered, status 'fail' ∈ {warn, fail}. […] No nondeterminism risk: runId and capturedAt
+are the only timestamps and compare-golden.py excludes them; URLs are the fixed testbed ports,
+artifact paths are relative, and the two-run byte-identity check passed." Non-blocking follow-ups
+noted for M6: (a) unify `locale` stamping across emitters (`component_swapped` emits null while
+visual issues emit "en-US"); (b) suffix-aware crop artifact naming for collision-suffixed issue ids.

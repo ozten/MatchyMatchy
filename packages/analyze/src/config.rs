@@ -144,6 +144,13 @@ pub const TIEBREAK_NEARBY: f64 = 0.2;
 /// Minimum per-axis intrinsic dimension ratio to suppress changed_image_dimensions. M3.md §5.3.
 pub const IMAGE_DIM_RATIO_FLOOR: f64 = 0.9;
 
+/// Minimum displacement constant for sequence-diff reorder emission.
+/// A `component_reordered` is emitted only when block displacement (in eligible-pair
+/// rank units) **strictly exceeds** this value; displacement == SEQ_MIN_DISPLACEMENT is
+/// suppressed as extraction jitter or a knock-on shift from a nearby removal.
+/// Swaps (exchanges) are never thresholded.
+pub const SEQ_MIN_DISPLACEMENT: u32 = 2;
+
 /// Trailing-slash policy (M2.md §5.2 item 2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrailingSlashPolicy {
