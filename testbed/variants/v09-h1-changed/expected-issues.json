@@ -1,0 +1,16 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "changed_h1",
+      "goal": "G2",
+      "evidence": { "oldContains": "Reach more customers with", "newContains": "Connect with more customers using" },
+      "note": "H1 edited in place: 'Reach more customers with Hiya's Branded Call' -> 'Connect with more customers using Hiya's Branded Call'. The trailing strong segment is unchanged."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_h1", "note": "The H1 still exists; it changed. missing_h1 means the matcher failed to pair it." },
+    { "type": "missing_text", "anchors": { "textContains": "Reach more customers" }, "note": "Must be reported as a change on the matched H1, not as a deletion." }
+  ],
+  "notes": "Single text-node edit inside the hero H1; no attributes or structure touched. Spec §13.1 fixture 6 (changed H1). No accepted knock-ons beyond a hero-area visual region."
+}

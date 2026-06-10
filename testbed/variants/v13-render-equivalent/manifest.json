@@ -1,0 +1,9 @@
+{
+  "name": "v13-render-equivalent",
+  "port": 3013,
+  "change": "render-equivalent DOM wrap of hero CTA (div wrapper + role=button), must NOT be flagged as missing/added",
+  "edit": "site/index.html pos 75551 — hero primary CTA anchor (class=button_wrap, href=pricing.html, text='See pricing and sign up') wrapped in <div class=\"cta-wrap\" style=\"display:contents\"> and role=\"button\" added to anchor; class, href, and text byte-identical",
+  "goals": [],
+  "knockOnEffects": [],
+  "diffSummary": "67 bytes added to index.html: <div class=\"cta-wrap\" style=\"display:contents\"> wrapper (48 chars) around hero primary CTA anchor + </div> (6 chars) + role=\"button\" attribute on anchor (13 chars). First diff byte 75591, line 921. No other files changed."
+}

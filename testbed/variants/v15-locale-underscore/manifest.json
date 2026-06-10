@@ -1,0 +1,10 @@
+{
+  "name": "v15-locale-underscore",
+  "port": 3015,
+  "change": "No content change. Custom server maps /es_MX/products/connect/branded-call (underscore locale, no trailing slash) to site/; responds 200 directly — no trailing-slash redirect. Underscore in locale tag (es_MX vs es-MX) is the violation under test.",
+  "edit": "serve.py only — custom prefix handler with /es_MX/products/connect/branded-call prefix, 200 on no-trailing-slash URL",
+  "goals": ["G6"],
+  "knockOnEffects": [],
+  "diffSummary": "site/ is byte-for-byte identical to golden/site/. Only serve.py differs (custom locale-underscore path-prefix handler).",
+  "urlUnderTest": "http://localhost:3015/es_MX/products/connect/branded-call"
+}

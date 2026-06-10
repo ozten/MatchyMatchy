@@ -1,0 +1,20 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "url_trailing_slash",
+      "goal": "G5",
+      "note": "newUrl http://localhost:3014/products/connect/branded-call/ carries a trailing slash in violation of the 'never' policy (spec §10.1); remediation must rewrite to the no-slash form."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_*", "note": "site/ is byte-identical to golden; any content issue is a false positive." },
+    { "type": "changed_h1" },
+    { "type": "changed_text" },
+    { "type": "style_changed" },
+    { "type": "visual_region_changed", "note": "Identical bytes must render identically." },
+    { "type": "locale_*", "note": "'products'/'connect' are not locale segments; locale detection must not fire." },
+    { "type": "url_redirect_chain", "note": "The documented urlUnderTest is fetched directly with the slash and returns 200 — no redirect is involved." }
+  ],
+  "notes": "Pure URL-hygiene fixture: same site, served under /products/connect/branded-call/ (trailing slash) on :3014; the no-slash form 301s to it (the violation under test, spec §13.1 fixture 2). urlUnderTest in the manifest is authoritative for the new-page URL. No content knock-ons exist."
+}

@@ -1,0 +1,15 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "anyOfTypes": ["broken_image", "network_error"],
+      "goal": "G7",
+      "anchors": { "nearestHeadingContains": "performance analytics" },
+      "note": "The analytics-dashboard screenshot asset 404s while its <img> element is intact. Detection may surface as broken_image (semantic img load status) and/or network_error (new-only failed request, spec §13.1 fixture 12); at least one, anchored to that section, is required. Emitting both is acceptable. The img has empty alt, so the anchor rides on the nearest heading."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_image", "anchors": { "nearestHeadingContains": "performance analytics" }, "note": "The <img> element still exists in the DOM; it is broken, not missing." }
+  ],
+  "notes": "One asset file deleted (assets/images/673b4d11…_bc_performance-analysis_us.png, 75.7KB); index.html untouched. Accepted knock-ons per manifest: visual_region_changed where the image fails to paint, missing_alt_text noise is NOT expected (alt was already empty in golden on both sides). Goals G7/technical."
+}

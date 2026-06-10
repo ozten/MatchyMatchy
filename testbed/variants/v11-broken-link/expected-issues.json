@@ -1,0 +1,15 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "broken_link",
+      "goal": "G7",
+      "anchors": { "textContains": "Free Call Inspection", "hrefContains": "/free-call-inspection" },
+      "note": "The main-content CTA's href now points at a same-site path that 404s on the variant server; the link probe (egress policy §10.3 allows localhost since input URLs resolve there) must report it broken."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_link", "anchors": { "textContains": "Free Call Inspection" }, "note": "Text/class identity is unchanged; the matcher must pair the link, not report it missing." }
+  ],
+  "notes": "Single href edit: https://www.hiya.com/free-call-inspection -> /free-call-inspection on the main-content Problem-section CTA (the notification-bar anchor to the same URL is untouched). Accepted knock-on: changed_link_target on the same anchor — the target genuinely changed from an external absolute URL to a local relative one; emitting it alongside broken_link is correct. Spec §13.1 fixture 7 / goals G2+G7."
+}

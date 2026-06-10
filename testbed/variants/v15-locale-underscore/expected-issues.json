@@ -1,0 +1,19 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "locale_separator_invalid",
+      "goal": "G6",
+      "note": "First path segment es_MX uses an underscore separator; spec §10.2 requires hyphen (es-MX). Remediation must carry from '/es_MX/products/connect/branded-call' to '/es-MX/products/connect/branded-call'."
+    }
+  ],
+  "forbidden": [
+    { "type": "locale_case_invalid", "note": "Case is correct (es lowercase, MX uppercase); only the separator is wrong." },
+    { "type": "locale_unknown", "note": "Both subtags are valid BCP-47 codes." },
+    { "type": "url_trailing_slash", "note": "urlUnderTest has no trailing slash and returns 200 directly." },
+    { "type": "missing_*" },
+    { "type": "changed_text" },
+    { "type": "visual_region_changed", "note": "site/ is byte-identical to golden." }
+  ],
+  "notes": "Pure locale-hygiene fixture (spec §13.1 fixture 3): same site served under /es_MX/products/connect/branded-call on :3015, no redirect, no content change. urlUnderTest in the manifest is authoritative. No content knock-ons exist."
+}

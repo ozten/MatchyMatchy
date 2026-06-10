@@ -1,0 +1,22 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "background_gradient_lost",
+      "goal": "G4",
+      "anchors": { "nearestHeadingContains": "Reach more customers" },
+      "evidence": { "property": "background-image", "fromContains": "linear-gradient", "toContains": "none" },
+      "note": "The hero page-section wrapper (selector .page-section:where(.w-variant-56a9f9bb-…), which provably matches the static class attribute) lost linear-gradient(180deg, var(--primary--brand-100), var(--neutral--gray-100) 90%). Spec M4 DoD: background_gradient_lost with from/to; computed 'from' will have vars resolved to rgb stops, hence fromContains only pins 'linear-gradient'."
+    }
+  ],
+  "forbidden": [
+    {
+      "type": "style_changed",
+      "anchors": { "nearestHeadingContains": "Reach more customers" },
+      "evidence": { "property": "background-image" },
+      "note": "Gradient removal must be classified as background_gradient_lost, not double-counted or downgraded to a generic style_changed on the same property/element."
+    },
+    { "type": "missing_*", "note": "No content changed." }
+  ],
+  "notes": "One CSS rule edited in hiya-shared.min.css: the hero section wrapper's background-image gradient -> none. Spec §13.1 fixture 8 / goal G4. Accepted knock-on per manifest: visual_region_changed over the hero area where the brand-100 fade used to paint."
+}

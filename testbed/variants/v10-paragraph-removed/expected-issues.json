@@ -1,0 +1,16 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "missing_text",
+      "goal": "G2",
+      "anchors": { "textContains": "Spam, robocalls, and scams", "nearestHeadingContains": "prospects and customers" },
+      "note": "First body paragraph of the main-content Problem section removed; it must be reported missing with an anchor under that section's heading."
+    }
+  ],
+  "forbidden": [
+    { "type": "changed_text", "anchors": { "textContains": "Spam, robocalls, and scams" }, "note": "The paragraph was deleted, not edited — pairing it with some other text block is a matcher false positive." },
+    { "type": "missing_h1" }
+  ],
+  "notes": "Spec §13.1 fixture 6 (missing paragraph) in MAIN content (chrome/nav deliberately avoided so main-content weighting applies). Accepted knock-ons per manifest: small visual region + height delta in the Problem section."
+}

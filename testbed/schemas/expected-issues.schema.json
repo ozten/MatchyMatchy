@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ppd-testbed-expected-issues",
+  "title": "page-pair-diff testbed expected-issues (intent tier)",
+  "description": "Hand-authored intent for one variant: which issues the tool MUST emit (required), which it MUST NOT emit (forbidden), and the acceptable DiffResult.status. Matchers are deliberately minimal — pin the intent, never over-specify scores or pixel counts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "required", "forbidden", "notes"],
+  "properties": {
+    "status": {
+      "description": "Acceptable DiffResult.status value(s). String for exact, array when more than one is acceptable.",
+      "oneOf": [
+        { "$ref": "#/$defs/statusValue" },
+        { "type": "array", "items": { "$ref": "#/$defs/statusValue" }, "minItems": 1, "uniqueItems": true }
+      ]
+    },
+    "required": {
+      "description": "Each entry must be satisfied by at least one distinct emitted issue.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/issueMatcher" }
+    },
+    "forbidden": {
+      "description": "No emitted issue may satisfy any of these matchers.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/issueMatcher" }
+    },
+    "maxIssues": {
+      "description": "Optional hard cap on total emitted issues (after baseline suppression). Use 0 for the identical control.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "notes": {
+      "description": "Intent statement plus any accepted knock-on issues declared in the variant manifest.",
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "statusValue": { "enum": ["pass", "warn", "fail", "error"] },
+    "issueMatcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "type": {
+          "description": "Taxonomy string (spec §7.3). A trailing '*' is a prefix wildcard, e.g. 'missing_*'.",
+          "type": "string",
+          "pattern": "^[a-z0-9_]+\\*?$"
+        },
+        "anyOfTypes": {
+          "description": "Alternative to 'type': matcher satisfied by any one of these taxonomy strings.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+\\*?$" },
+          "minItems": 2
+        },
+        "goal": { "type": "string", "pattern": "^G[1-8]$" },
+        "anchors": {
+          "description": "Substring matchers against the issue's locator.anchors fields.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "textContains": { "type": "string" },
+            "hrefContains": { "type": "string" },
+            "nearestHeadingContains": { "type": "string" },
+            "landmark": { "type": "string" },
+            "role": { "type": "string" },
+            "altContains": { "type": "string" }
+          }
+        },
+        "evidence": {
+          "description": "Matchers against the issue's evidence block (style-category issues mostly).",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "property": { "type": "string" },
+            "fromContains": { "type": "string" },
+            "toContains": { "type": "string" },
+            "oldContains": { "type": "string" },
+            "newContains": { "type": "string" }
+          }
+        },
+        "minSeverity": { "enum": ["info", "warning", "error", "critical"] },
+        "maxSeverity": { "enum": ["info", "warning", "error", "critical"] },
+        "note": { "type": "string" }
+      },
+      "not": { "required": ["type", "anyOfTypes"] }
+    }
+  }
+}

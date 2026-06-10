@@ -1,0 +1,17 @@
+{
+  "status": ["pass", "warn", "fail"],
+  "required": [
+    {
+      "type": "visual_region_changed",
+      "anchors": { "textContains": "20% off" },
+      "minSeverity": "info",
+      "note": "The added promo banner must surface as a visual region linked to the banner's text node."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_*", "note": "Nothing was removed; any missing_* issue is a matcher false positive." },
+    { "type": "changed_h1" },
+    { "type": "changed_text", "anchors": { "nearestHeadingContains": "Reach more customers" }, "note": "Hero content is untouched; the banner must not be mis-paired with existing hero text." }
+  ],
+  "notes": "One promo banner div (text only, no heading) inserted before the first hero section. v1 taxonomy has no added_* types, so the addition is expected to surface via visual_region_changed (info severity per spec §11 unless overlapping an issue-bearing matched node) — status is therefore not pinned beyond 'not error'. Accepted knock-on per manifest: page_height_changed (banner adds vertical height)."
+}

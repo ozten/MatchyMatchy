@@ -1,0 +1,9 @@
+{
+  "name": "v02-banner-added",
+  "port": 3002,
+  "change": "A promo banner div is inserted as the first child of the main slot-placeholder, immediately before the first section.",
+  "edit": "site/index.html: inserted <div class=\"promo-banner\" ...> immediately after <div class=\"slot-placeholder\"> at char 73500 (first occurrence), before the opening <section class=\"section-zero\">",
+  "goals": ["visual"],
+  "knockOnEffects": ["page height increases by banner height (~48px)"],
+  "diffSummary": "index.html: 1 line changed — promo-banner div inserted as first child of slot-placeholder div in main content area"
+}

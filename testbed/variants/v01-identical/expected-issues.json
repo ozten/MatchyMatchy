@@ -1,0 +1,7 @@
+{
+  "status": "pass",
+  "required": [],
+  "forbidden": [],
+  "maxIssues": 0,
+  "notes": "Control: byte-identical copy of golden served on :3001. The tool MUST report status pass with zero issues. Any issue emitted here is a false positive and a bug — this fixture is the noise floor."
+}

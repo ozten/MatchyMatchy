@@ -1,0 +1,17 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "anyOfTypes": ["missing_button", "missing_link"],
+      "goal": "G2",
+      "anchors": { "textContains": "Get a Demo", "hrefContains": "get-a-demo", "nearestHeadingContains": "Reach more customers" },
+      "minSeverity": "warning",
+      "note": "The hero secondary CTA (anchor styled as a button: class button_wrap, data-cta) was removed; it must be reported missing and anchored to the HERO (nearestHeading = H1) — not to the other get-a-demo anchor in the Problem section. With two same-identity nodes on the old page, correct assignment pairs the surviving Problem-section anchor with itself (ordinal tie-break, spec §6) and reports the hero one missing."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_*", "anchors": { "textContains": "See pricing and sign up" }, "note": "The sibling primary CTA is untouched." },
+    { "type": "changed_link_target", "anchors": { "hrefContains": "get-a-demo" }, "note": "Neither remaining get-a-demo anchor changed; this firing would indicate mis-pairing of the deleted node." }
+  ],
+  "notes": "ADAPTED FIXTURE: the spec §13.1 fixture 5 calls for a missing FORM, but the golden page contains no static <form> (HubSpot injects forms at runtime — see golden/CAPTURE-NOTES.md). missing_form coverage therefore needs a future synthetic fixture pair; this variant covers the G2 missing-CTA case instead. One element removed: the hero secondary CTA anchor (346 bytes). Accepted knock-ons per manifest: small hero layout shift (visual region), button-group reflow."
+}

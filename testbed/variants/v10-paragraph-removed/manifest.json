@@ -1,0 +1,9 @@
+{
+  "name": "v10-paragraph-removed",
+  "port": 3010,
+  "change": "The paragraph 'Spam, robocalls, and scams have trained people to ignore calls from unfamiliar numbers.' is removed from the Problem section in main content.",
+  "edit": "site/index.html: removed <p>Spam, robocalls, and scams have trained people to ignore calls from unfamiliar numbers.</p> at char 82397 (single occurrence, inside the rich-text block beneath h3 'When prospects and customers don't know who's calling, they don't pick up.')",
+  "goals": ["G2"],
+  "knockOnEffects": ["small height reduction in the Problem section"],
+  "diffSummary": "index.html: 1 deletion — <p>Spam, robocalls, and scams have trained people to ignore calls from unfamiliar numbers.</p> removed from Problem section; -94 bytes, no other files differ"
+}

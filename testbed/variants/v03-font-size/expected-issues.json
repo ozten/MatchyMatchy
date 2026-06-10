@@ -1,0 +1,18 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "style_changed",
+      "goal": "G1",
+      "anchors": { "textContains": "Reach more customers" },
+      "evidence": { "property": "font-size" },
+      "note": "H1 font-size shrunk ~20% via the --_typography---h1--font-size-* variables; must be reported as a property-level style change on the matched H1. (The .heading-rich-text-fluid-medium override is confined to <=991px media queries, so the desktop viewport computes from the edited chain — verified at audit.)"
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_h1" },
+    { "type": "missing_text", "note": "No content changed; font-size reflow must not be misread as deleted text." },
+    { "type": "changed_h1", "note": "Text is identical; only its computed style changed." }
+  ],
+  "notes": "Six CSS variable definitions edited (h1/h2/body font-size min+max rems) in hiya-shared.min.css — one conceptual change: global type scale reduced. A paragraph-level required matcher was REMOVED at initial audit (golden-auditor REJECT, 2026-06-10): the candidate paragraph is sized by the untouched paragraph-md variable chain, so the requirement was unsatisfiable; paragraph-level G1 coverage rides on v04 instead, whose inheritance chain was audit-verified. Accepted knock-ons per manifest: page_height_changed, widespread visual_region_changed, and additional style_changed(font-size) issues on other headings and on body-tier text inheriting from the body element (future M8 cluster material). Spec §13.1 fixture 9 / goal G1."
+}

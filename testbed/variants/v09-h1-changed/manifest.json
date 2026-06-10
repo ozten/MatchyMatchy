@@ -1,0 +1,9 @@
+{
+  "name": "v09-h1-changed",
+  "port": 3009,
+  "change": "The H1 text node is changed from 'Reach more customers with' to 'Connect with more customers using'; the <strong> tag and its content are untouched.",
+  "edit": "site/index.html: text node inside <h1> at char 74621 changed from 'Reach more customers with ' to 'Connect with more customers using '",
+  "goals": ["G2"],
+  "knockOnEffects": [],
+  "diffSummary": "index.html: 1 line changed — H1 text before <strong> replaced ('Reach more customers with' -> 'Connect with more customers using')"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "v11-broken-link",
+  "port": 3011,
+  "change": "Changed the href of the secondary CTA 'Free Call Inspection' button (first occurrence in main content, inside the problem section) from the absolute external URL to a relative path that 404s against the local server.",
+  "edit": "site/index.html: char 83370 — href attribute of anchor with text 'Free Call Inspection' in section at chars 79891–83925 (the 'When prospects and customers don't know who's calling' section). Old href: https://www.hiya.com/free-call-inspection  New href: /free-call-inspection",
+  "goals": ["G2", "G7"],
+  "knockOnEffects": [
+    "changed_link_target is a legitimate co-detection: the href changed from an absolute external URL to a relative path",
+    "old_href: https://www.hiya.com/free-call-inspection",
+    "new_href: /free-call-inspection"
+  ],
+  "diffSummary": "cmp confirms only index.html differs; diff -rq reports index.html as the sole changed file. Length decreased by 20 bytes (removal of 'https://www.hiya.com' prefix). The notification-bar anchor to the same URL (char 23370, before all <section> elements) is untouched."
+}

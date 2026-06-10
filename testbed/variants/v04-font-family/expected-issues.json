@@ -1,0 +1,23 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "style_changed",
+      "goal": "G1",
+      "anchors": { "textContains": "Spam, robocalls, and scams" },
+      "evidence": { "property": "font-family", "fromContains": "Nunito Sans", "toContains": "Georgia" },
+      "note": "Body font swapped via the --_typography---fonts--secondary-font variable; main-content paragraphs must report the font-family delta."
+    }
+  ],
+  "forbidden": [
+    {
+      "type": "style_changed",
+      "anchors": { "textContains": "Reach more customers" },
+      "evidence": { "property": "font-family" },
+      "note": "Headings use the untouched primary font (Eina); a font-family change reported on the H1 is a false positive."
+    },
+    { "type": "missing_text" },
+    { "type": "changed_text", "note": "Glyph/metric changes must not be misread as content edits." }
+  ],
+  "notes": "One CSS variable edited: --_typography---fonts--secondary-font '\"Nunito Sans\",sans-serif' -> 'Georgia,serif', cascading to all paragraph tiers. Accepted knock-ons per manifest: global visual_region_changed, page_height_changed, many sibling style_changed(font-family) issues — this is the spec §13.1 fixture 15 global-defect/cluster candidate (one cluster expected once M8 clustering lands)."
+}

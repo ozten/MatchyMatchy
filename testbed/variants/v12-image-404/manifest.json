@@ -1,0 +1,15 @@
+{
+  "name": "v12-image-404",
+  "port": 3012,
+  "change": "Deleted the asset file assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png so the <img> tag in index.html references a path that returns 404.",
+  "edit": "Deleted file: site/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png (75.7KB). index.html is untouched — the <img> element at char 87829 still references assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png.",
+  "goals": ["G7", "technical"],
+  "knockOnEffects": [
+    "Page HTML returns 200; the image asset returns 404",
+    "Browser renders a broken image placeholder in the 'Branded Call performance analytics' section"
+  ],
+  "imgElement": "<img alt=\"\" class=\"hero-image\" loading=\"lazy\" src=\"assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png\"/>",
+  "imgAltText": "(empty string)",
+  "nearestSectionHeading": "Branded Call performance analytics",
+  "diffSummary": "diff -rq reports only the deleted image file as the difference; index.html is byte-for-byte identical to golden."
+}

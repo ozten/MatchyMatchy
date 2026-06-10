@@ -1,0 +1,15 @@
+{
+  "status": "pass",
+  "required": [],
+  "forbidden": [
+    { "type": "missing_*", "anchors": { "textContains": "See pricing and sign up" }, "note": "Spec §13.2: the matcher MUST pair the wrapped anchor by identity (same href pricing.html, same text); reporting it missing is the canonical matcher failure." },
+    { "type": "missing_button" },
+    { "type": "missing_link" },
+    { "type": "changed_cta", "anchors": { "textContains": "See pricing and sign up" } },
+    { "type": "changed_link_target", "anchors": { "textContains": "See pricing and sign up" } },
+    { "type": "visual_region_changed", "note": "display:contents wrapper guarantees byte-identical rendering; any visual diff is a false positive." },
+    { "type": "style_changed", "anchors": { "textContains": "See pricing and sign up" }, "note": "Computed styles of the anchor itself are unchanged." }
+  ],
+  "maxIssues": 0,
+  "notes": "Matcher negative test (spec §13.2 / §13.1 fixture 11), evaluated under the DEFAULT profile: hero primary CTA wrapped in <div class=\"cta-wrap\" style=\"display:contents\"> with role=\"button\" added; class/href/text byte-identical. Must produce status pass with zero issues. Spec allows at most an info implementation note ONLY when implementation comparison is explicitly enabled (non-default config) — under default config, zero issues; maxIssues applies to the default profile run."
+}

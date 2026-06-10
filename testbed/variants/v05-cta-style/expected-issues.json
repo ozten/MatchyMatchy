@@ -1,0 +1,17 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "style_changed",
+      "goal": "G1",
+      "anchors": { "textContains": "See pricing and sign up", "nearestHeadingContains": "Reach more customers" },
+      "evidence": { "property": "background-color" },
+      "note": "Hero primary CTA background-color changed var(--primary--brand) -> #d97706 (computed rgb(217,119,6)); must surface as a property-level delta with a greppable anchor and NO component name claimed (spec M4 DoD)."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_button", "anchors": { "textContains": "See pricing and sign up" } },
+    { "type": "changed_cta", "anchors": { "textContains": "See pricing and sign up" }, "note": "CTA text and target are untouched; only its style changed." }
+  ],
+  "notes": "One CSS rule edited (.button_content): background-color and padding (1em 2em -> 1em 1em). The class is shared by 6 buttons (3 bare primary fully affected; 3 variant-suffixed ones only narrowed). Accepted knock-ons per manifest: style_changed issues on the other button instances (padding and/or background-color), small visual regions at each button. Spec §13.1 fixture 9 / goal G1."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "v14-trailing-slash",
+  "port": 3014,
+  "change": "No content change. Custom server maps /products/connect/branded-call/ prefix to site/; GET without trailing slash returns 301 redirect (URL hygiene violation under test).",
+  "edit": "serve.py only — custom prefix handler with 301 redirect for bare /products/connect/branded-call",
+  "goals": ["G5"],
+  "knockOnEffects": [],
+  "diffSummary": "site/ is byte-for-byte identical to golden/site/. Only serve.py differs (custom path-prefix handler).",
+  "urlUnderTest": "http://localhost:3014/products/connect/branded-call/"
+}

@@ -1,0 +1,4 @@
+# testbed runtime artifacts
+testbed/**/serve.log
+testbed/.pids.json
+__pycache__/

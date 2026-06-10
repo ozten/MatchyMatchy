@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ppd-testbed-manifest",
+  "title": "page-pair-diff testbed variant manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["name", "port", "change", "edit", "goals", "knockOnEffects", "diffSummary"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^v[0-9]{2}-[a-z0-9-]+$"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 3001,
+      "maximum": 3099
+    },
+    "change": {
+      "description": "One sentence: the single deliberate change relative to golden.",
+      "type": "string",
+      "minLength": 1
+    },
+    "edit": {
+      "description": "File + rule/selector/element touched, with before/after where applicable.",
+      "type": "string",
+      "minLength": 1
+    },
+    "goals": {
+      "description": "Spec §1 goals this variant exercises; empty for control/negative fixtures. 'visual' and 'technical' are allowed non-G labels.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string", "pattern": "^G[1-8]$" },
+          { "enum": ["visual", "technical"] }
+        ]
+      }
+    },
+    "knockOnEffects": {
+      "description": "Unavoidable side effects of the one deliberate change (e.g. page height delta).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "diffSummary": {
+      "description": "Result of the diff-against-golden verification.",
+      "type": "string",
+      "minLength": 1
+    },
+    "urlUnderTest": {
+      "description": "For URL/locale-hygiene variants: the exact new-page URL to feed the tool.",
+      "type": "string",
+      "pattern": "^http://localhost:[0-9]{4}/"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "v06-gradient-removed",
+  "port": 3006,
+  "change": "Remove the background gradient from the hero page-section by setting background-image to none on the rule that provably matches the static HTML.",
+  "edit": "assets/css/hiya-shared.min.css — selector .page-section:where(.w-variant-56a9f9bb-f508-ed23-b766-cf8eee922a17): background-image: linear-gradient(180deg,var(--primary--brand-100),var(--neutral--gray-100)90%) -> none",
+  "selectorProof": "index.html contains: class=\"page-section w-variant-56a9f9bb-f508-ed23-b766-cf8eee922a17\" — the literal class required by the :where() selector is present in the static markup",
+  "affectedElement": "The outermost page-section div wrapping the hero split-content section; nearest heading: h1 \"Reach more customers with Hiya's Branded Call\"",
+  "goals": ["G4"],
+  "knockOnEffects": [
+    "The hero section background changes from a brand-100-to-neutral-gray-100 vertical gradient to a transparent/inherited background",
+    "Visual region change confined to the hero section at the top of the page"
+  ],
+  "diffSummary": "Exactly 1 file differs from golden: assets/css/hiya-shared.min.css. No other files changed."
+}

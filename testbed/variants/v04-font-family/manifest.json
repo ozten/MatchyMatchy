@@ -1,0 +1,12 @@
+{
+  "name": "v04-font-family",
+  "port": 3004,
+  "change": "Swap the body/paragraph font-family from Nunito Sans (sans-serif) to Georgia (serif) by editing the secondary-font CSS variable definition.",
+  "edit": "assets/css/hiya-shared.min.css — one CSS variable definition: --_typography---fonts--secondary-font: \"Nunito Sans\",sans-serif -> Georgia,serif",
+  "goals": ["G1"],
+  "knockOnEffects": [
+    "Global visual change — all body text, paragraphs, and any element using the secondary font variable renders in Georgia serif",
+    "Possible page height change due to different glyph metrics and line-wrapping behavior"
+  ],
+  "diffSummary": "Exactly 1 file differs from golden: assets/css/hiya-shared.min.css. No other files changed."
+}

@@ -1,0 +1,16 @@
+{
+  "status": ["warn", "fail"],
+  "required": [
+    {
+      "type": "component_swapped",
+      "goal": "G3",
+      "note": "Adjacent sibling feature sections ('Display your company's name…' and 'Branded Call performance analytics') swapped in document order. Spec M5 DoD: a single component_swapped, not missing+added."
+    }
+  ],
+  "forbidden": [
+    { "type": "missing_*", "anchors": { "nearestHeadingContains": "performance analytics" } },
+    { "type": "missing_*", "anchors": { "nearestHeadingContains": "Display your company" } },
+    { "type": "component_reordered", "note": "An adjacent pairwise swap must be classified as one swap, not a generic reorder (spec §8 / M5)." }
+  ],
+  "notes": "Two complete <section> siblings exchanged in-place; file length unchanged, content byte-identical within each section. The identity-first matcher must pair both sections (position can lower a tiebreak score but never veto identity — spec §8) so the sequence differ sees a swap. Accepted knock-ons per manifest: visual_region_changed / page-area movement across the two sections' vertical span."
+}

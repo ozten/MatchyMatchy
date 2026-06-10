@@ -1,0 +1,12 @@
+{
+  "name": "v05-cta-style",
+  "port": 3005,
+  "change": "Change the primary CTA button background-color to orange (#d97706) and halve the horizontal padding from 2em to 1em.",
+  "edit": "assets/css/hiya-shared.min.css — rule .button_content{...}: background-color: var(--primary--brand) -> #d97706; padding: 1em 2em -> 1em 1em",
+  "goals": ["G1"],
+  "knockOnEffects": [
+    "6 elements in index.html carry the class button_content (3 with no variant suffix — these are primary-style buttons — plus 2 with the secondary-variant suffix and 1 with a white-background variant suffix); the background-color change directly styles the 3 bare .button_content elements (primary buttons); the padding change affects all 6",
+    "Buttons are narrower due to reduced horizontal padding"
+  ],
+  "diffSummary": "Exactly 1 file differs from golden: assets/css/hiya-shared.min.css. No other files changed."
+}

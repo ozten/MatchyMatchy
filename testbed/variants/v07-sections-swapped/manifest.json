@@ -1,0 +1,11 @@
+{
+  "name": "v07-sections-swapped",
+  "port": 3007,
+  "change": "Swapped the document order of split-content-section index 2 ('Display your company’s name, logo, and call reason on outbound calls') and index 3 ('Branded Call performance analytics') so the analytics section appears before the display section.",
+  "edit": "site/index.html: chars 85389–88823 — section2 (chars 85389–87176, 1787 bytes) and section3 (chars 87176–88823, 1647 bytes) order swapped; total file length unchanged at 130950 bytes",
+  "goals": ["G3"],
+  "knockOnEffects": [
+    "Visual regions move vertically: 'Branded Call performance analytics' block now renders above 'Display your company’s name, logo, and call reason on outbound calls' block"
+  ],
+  "diffSummary": "Files are one long minified line so line-diff shows no change; binary comparison shows 2809 different characters starting at offset 85746, confined to the 85389–88823 byte range. 'Display your company' moved from offset 86253 to 87900; 'Branded Call performance analytics' moved from offset 88361 to 86574. Order swap confirmed: variant has Branded Call before Display, golden has Display before Branded Call."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "v08-cta-removed",
+  "port": 3008,
+  "change": "Removed the hero secondary CTA anchor ('Get a Demo') that sat beside the H1 'Reach more customers with Hiya's Branded Call' in the hero section. The primary CTA ('See pricing and sign up') and all other elements are untouched.",
+  "edit": "site/index.html: chars 75842–76188 (346 bytes) deleted. The removed element was the second button in the hero button-group-left div, immediately following the primary 'See pricing and sign up' anchor.",
+  "removedElement": {
+    "fullOpeningTag": "<a class=\"button_wrap w-variant-e9eef172-b2ec-557a-cdd3-7ab9f12c3b1f w-inline-block\" data-cta=\"true\" data-wf--cta-button--size=\"medium\" href=\"https://www.hiya.com/get-a-demo\">",
+    "visibleText": "Get a Demo",
+    "style": "secondary (data-wf--cta-button-style--style=\"secondary\")",
+    "location": "Hero section, chars 73530–76592, next to H1 'Reach more customers with Hiya's Branded Call'"
+  },
+  "goals": ["G2"],
+  "knockOnEffects": [
+    "Small layout shift in hero: button-group-left collapses to a single button"
+  ],
+  "diffSummary": "diff -rq reports only index.html as changed. File length: 130950 -> 130604 (-346 bytes, exactly the removed anchor element). The notification-bar anchor (href=see-branded-call-demo, char ~21791) and all other anchors are untouched."
+}

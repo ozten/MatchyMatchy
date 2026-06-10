@@ -1,0 +1,9 @@
+{
+  "name": "v01-identical",
+  "port": 3001,
+  "change": "No change — exact copy of golden.",
+  "edit": "none",
+  "goals": [],
+  "knockOnEffects": [],
+  "diffSummary": "no differences"
+}
