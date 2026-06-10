@@ -3,7 +3,7 @@ description: Implement one milestone of the page-pair-diff spec against the test
 argument-hint: <milestone, e.g. M1>
 ---
 
-Implement milestone $ARGUMENTS of `docs/page-pair-diff-spec.md` for real, verified against the
+Implement milestone $ARGUMENTS of `docs/prds/page-pair-diff-spec.md` for real, verified against the
 testbed. Read `CLAUDE.md` first; follow the model-routing policy and golden discipline strictly.
 
 ## Loop

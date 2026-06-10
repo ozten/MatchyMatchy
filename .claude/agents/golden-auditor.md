@@ -16,7 +16,7 @@ You receive: the proposed expectation/golden/tolerance diff, the proposer's rati
 relevant fixture + spec sections. Read the actual files; do not trust the summary.
 
 ## Approve only if at least one holds
-1. The old expectation contradicted `docs/page-pair-diff-spec.md` (cite section).
+1. The old expectation contradicted `docs/prds/page-pair-diff-spec.md` (cite section).
 2. The old expectation over-specified incidental detail (e.g. exact pixel counts, brittle byte
    equality on float scores) where the spec demands tolerance or where the detail is not
    goal-relevant (G1–G6 traceability table, §1).

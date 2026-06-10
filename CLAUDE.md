@@ -1,6 +1,6 @@
 # page-pair-diff — project memory
 
-Authoritative spec: `docs/page-pair-diff-spec.md`. Where anything conflicts with it, the spec wins.
+Authoritative spec: `docs/prds/page-pair-diff-spec.md`. Where anything conflicts with it, the spec wins.
 Primary deliverable: the `DiffResult` JSON contract (spec §7). Build in milestone order (spec §12); do not advance a milestone until its fixtures pass.
 
 ## Model routing policy (cost control — follow strictly)
