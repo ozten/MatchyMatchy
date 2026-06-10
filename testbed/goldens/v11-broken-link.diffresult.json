@@ -1,0 +1,269 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T20-27-36Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3011/",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 3,
+    "byType": {
+      "broken_link": 1,
+      "changed_link_target": 1,
+      "url_protocol_downgrade": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_4b9058597867",
+      "issue_8f3cdee4603f",
+      "issue_4e86118dfdea"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 0.3333333333333333,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 0.5
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_4e86118dfdea",
+        "issue_4b9058597867",
+        "issue_8f3cdee4603f"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_4b9058597867",
+      "type": "broken_link",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G7",
+      "message": "Broken link: http://localhost:3011/free-call-inspection returned 404",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": "link",
+          "href": "http://localhost:3011/free-call-inspection",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": null,
+        "bboxNew": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 46
+      },
+      "evidence": {
+        "new": {
+          "status": 404,
+          "url": "http://localhost:3011/free-call-inspection"
+        },
+        "old": {
+          "status": null,
+          "url": "https://www.hiya.com/free-call-inspection"
+        }
+      },
+      "remediation": {
+        "action": "fix_broken_link",
+        "findBy": {
+          "grep": [
+            "/free-call-inspection",
+            "Free Call Inspection"
+          ]
+        },
+        "from": "/free-call-inspection",
+        "note": "Link returned status 404",
+        "to": null
+      }
+    },
+    {
+      "id": "issue_8f3cdee4603f",
+      "type": "url_protocol_downgrade",
+      "category": "hygiene",
+      "severity": "error",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G5",
+      "message": "Per-link protocol downgrade: http://localhost:3011/free-call-inspection should be https",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": "link",
+          "href": "http://localhost:3011/free-call-inspection",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": null,
+        "bboxNew": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 46
+      },
+      "evidence": {
+        "new": {
+          "url": "http://localhost:3011/free-call-inspection"
+        },
+        "old": {
+          "url": "https://localhost:3011/free-call-inspection"
+        }
+      },
+      "remediation": {
+        "action": "rewrite_url",
+        "findBy": {
+          "grep": [
+            "localhost:3011/free-call-inspection"
+          ]
+        },
+        "from": "http://localhost:3011/free-call-inspection",
+        "note": "Link uses HTTP where old page had HTTPS for the same path. Update to HTTPS.",
+        "to": "https://localhost:3011/free-call-inspection"
+      }
+    },
+    {
+      "id": "issue_4e86118dfdea",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.95,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'https://www.hiya.com/free-call-inspection' to '/free-call-inspection'",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": "link",
+          "href": "http://localhost:3011/free-call-inspection",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "bboxNew": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "seqIndexOld": 46,
+        "seqIndexNew": 46
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 0.945,
+          "signals": {
+            "accName": 1.0,
+            "href": 0.9,
+            "text": 1.0
+          },
+          "stage": "identity"
+        },
+        "new": {
+          "href": "/free-call-inspection",
+          "resolved": "/free-call-inspection"
+        },
+        "old": {
+          "href": "https://www.hiya.com/free-call-inspection",
+          "resolved": "https://www.hiya.com/free-call-inspection"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/free-call-inspection",
+            "Free Call Inspection"
+          ]
+        },
+        "from": "/free-call-inspection",
+        "to": "https://www.hiya.com/free-call-inspection"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

@@ -44,7 +44,64 @@ pub mod base_confidence {
     pub const HYGIENE: f64 = 0.98;
     /// Status code mismatch (highest confidence — clear HTTP fact).
     pub const STATUS_CODE_MISMATCH: f64 = 0.99;
+    /// Page-level metadata facts (title, meta-description, h1 presence). M3.md §5.2.
+    pub const PAGE_FACT: f64 = 0.97;
+    /// Matched pair attribute diff — stage Identity. M3.md §5.3.
+    pub const CONTENT_IDENTITY: f64 = 0.95;
+    /// Matched pair attribute diff — stage Assignment. M3.md §5.3.
+    pub const CONTENT_ASSIGNMENT: f64 = 0.90;
+    /// broken_link (HTTP fact — no env/determinism multipliers). M3.md §5.4.
+    pub const BROKEN_LINK: f64 = 0.98;
+    /// broken_image (lazy-load dependent — env multipliers still apply). M3.md §5.3.
+    pub const BROKEN_IMAGE: f64 = 0.95;
 }
+
+// ---------------------------------------------------------------------------
+// M3 matcher thresholds (M3.md §3.6)
+// ---------------------------------------------------------------------------
+
+/// Identity score floor: pairs ≥ this and mutual-unique → stage Identity. M3.md §3.6.
+pub const IDENTITY_FLOOR: f64 = 0.85;
+
+/// Both-sides gap required to declare a unique mutual best (stage 1). M3.md §3.6.
+pub const TIE_MARGIN: f64 = 0.05;
+
+/// Combined-score floor: pairs ≥ this after stage 2 → band Matched. M3.md §3.6.
+pub const MATCH_FLOOR: f64 = 0.70;
+
+/// Combined-score ceiling: pairs below this are forbidden (never assigned). M3.md §3.6.
+pub const NO_MATCH_CEIL: f64 = 0.45;
+
+/// Maximum block side-count for Hungarian solver; above this → greedy. M3.md §3.6.
+pub const HUNGARIAN_MAX: usize = 128;
+
+/// Confidence multiplier applied to all issues emitted from Uncertain-band pairs. M3.md §3.6.
+pub const UNCERTAIN_MULTIPLIER: f64 = 0.6;
+
+/// Confidence penalty for issues whose anchor landmark is browser chrome (banner/nav/footer). M3.md §5.3 D9.
+pub const CHROME_PENALTY: f64 = 0.85;
+
+// ---------------------------------------------------------------------------
+// M3 stage-2 combination weights (M3.md §3.5)
+// ---------------------------------------------------------------------------
+
+/// Weight of identity score in combined score: combined = STAGE2_IDENTITY_WEIGHT·id + STAGE2_TIEBREAK_WEIGHT·tb. M3.md §3.5.
+pub const STAGE2_IDENTITY_WEIGHT: f64 = 0.7;
+
+/// Weight of tiebreak score in combined score. M3.md §3.5.
+pub const STAGE2_TIEBREAK_WEIGHT: f64 = 0.3;
+
+/// Tiebreak sub-weight: position (normalised page-y ratio). M3.md §3.5.
+pub const TIEBREAK_POS: f64 = 0.5;
+
+/// Tiebreak sub-weight: size (bbox area ratio). M3.md §3.5.
+pub const TIEBREAK_SIZE: f64 = 0.3;
+
+/// Tiebreak sub-weight: nearby context (nearestHeading + landmark). M3.md §3.5.
+pub const TIEBREAK_NEARBY: f64 = 0.2;
+
+/// Minimum per-axis intrinsic dimension ratio to suppress changed_image_dimensions. M3.md §5.3.
+pub const IMAGE_DIM_RATIO_FLOOR: f64 = 0.9;
 
 /// Trailing-slash policy (M2.md §5.2 item 2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

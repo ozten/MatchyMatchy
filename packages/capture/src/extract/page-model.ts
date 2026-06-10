@@ -27,6 +27,13 @@ export interface RawSemanticNode {
     ordinalInLandmark: number | null;
   };
   cssSelector: string | null;
+  // M3 fields
+  rawHref: string | null;
+  src: string | null;
+  naturalWidth: number | null;
+  naturalHeight: number | null;
+  loaded: boolean | null;
+  headingLevel: number | null;
 }
 
 export interface RawPageModelResult {
@@ -228,11 +235,81 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     return parts.join(" > ") || el.tagName.toLowerCase();
   }
 
+  // Broken images render at zero size when CSS gives them no dimensions, which
+  // the area>0 visibility rule would drop — but the element is still in the DOM
+  // and its load failure is exactly what G7 detects (M3.md D13). Keep an <img>
+  // despite zero area iff it is broken (errored: complete with no intrinsic
+  // width) and not hidden by CSS.
+  function isBrokenVisibleImage(el: Element): boolean {
+    if (!(el instanceof HTMLImageElement)) return false;
+    if (!(el.complete && el.naturalWidth === 0)) return false;
+    return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  }
+
   // ── Document walk ──────────────────────────────────────────────────────────
 
   const nodes: RawSemanticNode[] = [];
   let seqIndex = 0;
   let lastHeadingText: string | null = null;
+  let lastHeadingEl: Element | null = null;
+
+  // Cache for first-visible-heading text per <section> element (D14).
+  const sectionFirstHeadingCache = new Map<Element, string | null>();
+
+  // Find the nearest ancestor <section> element (tag name "section" only).
+  // Always starts from parentElement, for both heading and non-heading nodes.
+  function getNearestSection(el: Element): Element | null {
+    let cur: Element | null = el.parentElement;
+    while (cur && cur !== document.documentElement) {
+      if (cur.tagName.toLowerCase() === "section") return cur;
+      cur = cur.parentElement;
+    }
+    return null;
+  }
+
+  // Return the normalized text of the first visible heading (h1–h6) inside
+  // `container`, lazily computed and cached. Returns null when none found.
+  function getSectionFirstHeadingText(container: Element): string | null {
+    if (sectionFirstHeadingCache.has(container)) {
+      return sectionFirstHeadingCache.get(container)!;
+    }
+    const headings = container.querySelectorAll("h1,h2,h3,h4,h5,h6");
+    let result: string | null = null;
+    for (let i = 0; i < headings.length; i++) {
+      const h = headings[i];
+      if (h && isVisible(h)) {
+        const raw = (h as HTMLElement).innerText ?? "";
+        const normalized = raw ? normalizeStr(raw, maxTextLength) : null;
+        result = normalized || null;
+        break;
+      }
+    }
+    sectionFirstHeadingCache.set(container, result);
+    return result;
+  }
+
+  // D14: compute nearestHeading for a node whose element is `el`.
+  // The `alreadyNormalizedHeadingText` is the post-update lastHeadingText
+  // (already set if this node is a heading, giving self-anchoring behavior).
+  function computeNearestHeading(el: Element): string | null {
+    const container = getNearestSection(el);
+    if (container === null) {
+      // No <section> ancestor: M1 behavior
+      return lastHeadingText;
+    }
+    if (lastHeadingEl !== null && container.contains(lastHeadingEl)) {
+      // Preceding heading is inside the same section: M1 behavior
+      return lastHeadingText;
+    }
+    // Preceding heading is outside the section (or there is no preceding heading).
+    // Use the section's first visible heading.
+    const sectionFirst = getSectionFirstHeadingText(container);
+    if (sectionFirst !== null) {
+      return sectionFirst;
+    }
+    // Section has no visible heading: fall back to M1 behavior
+    return lastHeadingText;
+  }
 
   // Track ordinal counters: Map<landmarkEl, Map<kindText, count>>
   // Using a flat approach: for each (landmarkEl, kind, text) triple
@@ -265,7 +342,7 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
   let current: Node | null = walker.currentNode;
   while (current) {
     const el = current as Element;
-    if (isVisible(el)) {
+    if (isVisible(el) || isBrokenVisibleImage(el)) {
       const classification = classifyElement(el);
       if (classification) {
         const { kind, role } = classification;
@@ -306,9 +383,39 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
               ? normalizeStr(el.alt ?? "", maxTextLength) || null
               : null;
 
-          // Heading tracking
+          // rawHref (link only: un-resolved href attribute)
+          let rawHrefVal: string | null = null;
+          if (kind === "link" && el instanceof HTMLAnchorElement) {
+            const raw = el.getAttribute("href");
+            rawHrefVal = raw ? normalizeStr(raw, maxTextLength) : null;
+          }
+
+          // src, naturalWidth, naturalHeight, loaded (image only)
+          let srcVal: string | null = null;
+          let naturalWidthVal: number | null = null;
+          let naturalHeightVal: number | null = null;
+          let loadedVal: boolean | null = null;
+          if (kind === "image" && el instanceof HTMLImageElement) {
+            srcVal = (el.currentSrc || el.src) || null;
+            naturalWidthVal = el.naturalWidth;
+            naturalHeightVal = el.naturalHeight;
+            loadedVal = el.complete && el.naturalWidth > 0;
+          }
+
+          // headingLevel (heading only)
+          let headingLevelVal: number | null = null;
+          if (kind === "heading") {
+            const match = el.tagName.toLowerCase().match(/^h([1-6])$/);
+            if (match && match[1]) {
+              headingLevelVal = parseInt(match[1], 10);
+            }
+          }
+
+          // Heading tracking (update BEFORE building anchors so heading nodes
+          // self-anchor — D14 point 3).
           if (kind === "heading") {
             lastHeadingText = textVal;
+            lastHeadingEl = el;
           }
 
           // Landmark
@@ -322,6 +429,9 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
 
           // CSS selector
           const cssSelector = buildSelector(el, landmarkEl);
+
+          // D14: compute nearestHeading using section-aware rule
+          const nearestHeading = computeNearestHeading(el);
 
           const nodeId = `node_${seqIndex}`;
 
@@ -341,11 +451,17 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
               href: hrefVal,
               alt: imageAlt,
               ariaLabel: normalizedAriaLabel,
-              nearestHeading: lastHeadingText,
+              nearestHeading,
               landmark,
               ordinalInLandmark,
             },
             cssSelector,
+            rawHref: rawHrefVal,
+            src: srcVal,
+            naturalWidth: naturalWidthVal,
+            naturalHeight: naturalHeightVal,
+            loaded: loadedVal,
+            headingLevel: headingLevelVal,
           });
 
           seqIndex++;

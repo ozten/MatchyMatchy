@@ -90,3 +90,73 @@ re-audit, so the "does not exist yet" note was already discharged when the verdi
 **Carry-forward authoring rule (from the v10 re-audit):** any future matcher touching headings
 containing don't / who's / company's must use the curly (U+2019) form or an apostrophe-free
 substring.
+
+---
+
+## 2026-06-10 — M3: v02 byte-golden re-recorded after approved capture-extraction changes (D13/D14); first recording of v08–v12 goldens
+
+**What:** `testbed/goldens/v02-banner-added.diffresult.json` re-recorded from the M3 run.
+No `expected-issues.json` changed; v02's intent check passes before and after. Also recorded
+(first-time promotions after intent-check pass, per the milestone loop): goldens for
+v08-cta-removed, v09-h1-changed, v10-paragraph-removed, v11-broken-link, v12-image-404, and the
+`make verify` gate extended to v08–v12 plus a v08 determinism spot-check.
+
+**Why the old golden was superseded:** two deliberate, spec-aligned capture-extraction behavior
+changes made during M3, documented as **D13 and D14 in `docs/design/M3.md` §8**:
+- **D13** — broken images (`complete && naturalWidth == 0`, not CSS-hidden) are kept in the
+  SemanticNode stream despite zero rendered area. Required by goal G7 / spec §13.1 fixture 12:
+  without it the v12 broken image vanished from the node stream and the tool emitted the
+  factually wrong (and forbidden) `missing_image`. A narrow, documented exception to §4.3's
+  non-empty-bbox visibility rule.
+- **D14** — `nearestHeading` prefers the enclosing `<section>`'s own first heading when the
+  document-order-preceding heading lies outside that section. Spec §5 defines the anchor set as
+  the element's *locator*; the section's own title is the strictly more local locator (v12's
+  image precedes its section heading in DOM order).
+
+**Complete delta on v02 (per audit):** identical issue count (54), identical type multiset
+(53 `visual_region_changed` + 1 `page_height_changed`), identical severities, confidences, and
+pixel evidence. Exactly 4 issues changed anchors — 3 stat-region issues whose `nearestHeading`
+moved from the hero h1 to the Problem section's own h3 (D14), and the footer ISO-27001 image
+issue's `ordinalInLandmark` 4→5 (D13 surfaced a pre-existing broken footer image on both sides).
+Additionally 4 issues had `seqIndexNew` shift +1 (three with only that change) — the direct
+consequence of D13 adding one node to the new-side stream; `seqIndexNew` is a tool-internal
+locator field explicitly excluded from the issue-id hash (spec §7.1, §5). The id changes follow
+mechanically from anchors being hash inputs (§7.1) and the reordering from the §7.2 fix-value
+tie-breaks.
+
+**Known fixture quirk (recorded per audit condition 2, do NOT silently "fix"):** the golden
+testbed itself contains a broken footer image on BOTH sides — the asset is vendored with a
+literal percent-encoded filename (`5f1a08b8f263c3ef6e879a5b_hiya%20logo.svg`), so the decoded
+request 404s. Renaming that file later would shift footer image ordinals again and would itself
+require a golden change with audit.
+
+**Audit:** golden-auditor verdict pasted verbatim below.
+
+> VERDICT: APPROVE
+>
+> EXPECTATION(S): testbed/goldens/v02-banner-added.diffresult.json (re-recorded from
+> testbed/.runs/v02-banner-added/diff-result.json); no change to any expected-issues.json.
+>
+> REASONING: This falls under approval ground 3 (approved, changelogged behavior change; golden
+> re-recorded to match), with the behavior change itself verified sound. I independently diffed
+> golden vs fresh: identical issue counts (54), identical type multiset (53 visual_region_changed
+> + 1 page_height_changed), identical severities, confidences, and pixel evidence. The substantive
+> deltas are exactly 4 anchor changes — 3 stat-region issues whose nearestHeading moved from the
+> hero h1 to the Problem section's own h3 (I confirmed in testbed/golden/site/index.html that the
+> "86%" stat precedes its section's heading inside <section class="section-zero">, so D14 yields
+> the strictly more local locator that spec §5 defines anchors to be), and 1 footer ISO-27001
+> image ordinalInLandmark 4→5 (confirmed: the first footer image is broken on BOTH sides — the
+> asset is vendored with a literal percent-encoded filename 5f1a08b8f263c3ef6e879a5b_hiya%20logo.svg,
+> so the decoded request 404s — and D13 now keeps it in the node stream). The id and artifact-path
+> changes follow mechanically from anchors being hash inputs per spec §7.1, and the reordering from
+> §7.2 tie-breaks. D13 is a narrow, documented exception to §4.3's non-empty-bbox rule required by
+> G7 (spec §1) and by v12's intent (required broken_image/network_error, forbidden missing_image —
+> testbed/variants/v12-image-404/expected-issues.json); I verified the fresh v12 run emits
+> broken_image (error, 0.95) anchored to "Branded Call performance analytics" with no missing_image.
+> No detection was weakened: v02's intent file is untouched, its required "20% off" anchor is
+> present in both old and new goldens, and its forbidden assertions remain exercisable (hero nodes
+> following the hero h1 keep that heading anchor under D14). Drift spot-check: fresh runs for v01,
+> v13, v14, v15, v16, v17, v18 all match their recorded goldens modulo runId; only v02 differs.
+>
+> CONDITIONS: (1) changelog must cite D13/D14 and give the complete delta incl. seqIndexNew
+> shifts — satisfied above; (2) record the broken-footer-image fixture quirk — satisfied above.

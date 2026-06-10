@@ -171,7 +171,8 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
             "apikey".to_string(),
             "access_token".to_string(),
         ],
-        // Probe links only for the new side (M2.md §2: hygiene is remediation work on new site).
-        probe_links: *prefix == "new",
+        // Probe links for BOTH sides (M3.md D4: old-side probes feed broken_link parity —
+        // pre-existing 404s on both sides are suppressed, keeping v01 at zero issues).
+        probe_links: true,
     }
 }

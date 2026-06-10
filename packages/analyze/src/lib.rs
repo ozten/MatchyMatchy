@@ -8,10 +8,12 @@ pub mod hygiene;
 pub mod issue;
 pub mod locale;
 pub mod locale_data;
+pub mod matching;
 pub mod orchestrate;
 pub mod region_link;
 pub mod report;
 pub mod scoring;
+pub mod semantic_diff;
 pub mod visual_diff;
 
 /// Parameters for a single-viewport analysis.
@@ -83,6 +85,28 @@ pub fn analyze_viewport(
         };
         return Ok((issues, scores));
     }
+
+    // --- Content diff: match nodes then derive semantic issues (M3.md §5.7) ---
+    let page_ctx = matching::PageCtx {
+        old_final_url: old_bundle.page.final_url.clone(),
+        new_final_url: new_bundle.page.final_url.clone(),
+    };
+    let match_outcome = matching::match_nodes(
+        &old_bundle.page.nodes,
+        &new_bundle.page.nodes,
+        &page_ctx,
+        old_bundle.page.page_height,
+        new_bundle.page.page_height,
+    );
+    let content_issues = semantic_diff::semantic_issues(
+        old_bundle,
+        new_bundle,
+        &match_outcome,
+        viewport_name,
+        profile,
+        env_mismatch,
+    );
+    let content_issue_count = content_issues.len();
 
     let mut issues: Vec<contract::Issue> = Vec::new();
 
@@ -244,6 +268,9 @@ pub fn analyze_viewport(
         });
     }
 
+    // --- Append content issues (visual ++ content ++ hygiene order per M3.md §5.7) ---
+    issues.extend(content_issues);
+
     // --- Append hygiene issues (non-short-circuit path) ---
     issues.extend(hygiene_outcome.issues.clone());
 
@@ -254,9 +281,11 @@ pub fn analyze_viewport(
     let hygiene_count = hygiene_outcome.issues.len();
     let hygiene_score = 1.0 / (1.0 + hygiene_count as f64);
     let visual_score = (1.0 - diff_out.page_changed_ratio).clamp(0.0, 1.0);
+    // content score: 1/(1+n) per M3.md §5.7 D11
+    let content_score = 1.0 / (1.0 + content_issue_count as f64);
     let scores = contract::Scores {
         visual: visual_score,
-        content: 1.0,
+        content: content_score,
         structure: 1.0,
         style: 1.0,
         accessibility: 1.0,

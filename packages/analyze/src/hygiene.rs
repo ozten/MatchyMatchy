@@ -1771,6 +1771,7 @@ mod tests {
                 ordinal_in_landmark: None,
             },
             css_selector: None,
+            ..Default::default()
         };
 
         old_b.page.nodes = vec![link_node.clone()];
@@ -2001,6 +2002,7 @@ mod tests {
                 ordinal_in_landmark: None,
             },
             css_selector: None,
+            ..Default::default()
         };
 
         let new_node = SemanticNode {
@@ -2024,6 +2026,7 @@ mod tests {
                 ordinal_in_landmark: None,
             },
             css_selector: None,
+            ..Default::default()
         };
 
         old_b.page.nodes = vec![old_node];
@@ -2074,6 +2077,7 @@ mod tests {
                 ordinal_in_landmark: None,
             },
             css_selector: None,
+            ..Default::default()
         };
 
         old_b.page.nodes = vec![make_link("http://example.com/about")];

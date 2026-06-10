@@ -116,6 +116,13 @@ export const SemanticNodeSchema = z.object({
   seqIndex: z.number().int().nonnegative(),
   anchors: AnchorsSchema,
   cssSelector: z.string().nullable(),
+  // M3 fields
+  rawHref: z.string().nullable(),
+  src: z.string().nullable(),
+  naturalWidth: z.number().int().nonnegative().nullable(),
+  naturalHeight: z.number().int().nonnegative().nullable(),
+  loaded: z.boolean().nullable(),
+  headingLevel: z.number().int().min(1).max(6).nullable(),
 });
 export type SemanticNode = z.infer<typeof SemanticNodeSchema>;
 

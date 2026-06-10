@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T18-26-35Z",
+  "runId": "2026-06-10T20-26-44Z",
   "oldUrl": "http://localhost:3000/",
   "newUrl": "http://localhost:3002/",
   "parityProfile": "content-structure",
@@ -46,11 +46,11 @@
         "issue_a609a79ce17b-7",
         "issue_29f91687cd9f",
         "issue_29f91687cd9f-2",
-        "issue_6e706f899232",
+        "issue_f0e510bdf857",
         "issue_340d6574b60d",
-        "issue_6e706f899232-2",
+        "issue_f0e510bdf857-2",
         "issue_a609a79ce17b-8",
-        "issue_6904e3bc718f",
+        "issue_f08c7c176c92",
         "issue_139e304de043",
         "issue_a609a79ce17b-9",
         "issue_a609a79ce17b-10",
@@ -86,7 +86,7 @@
         "issue_77fb14aa331f",
         "issue_2c9867de75c6",
         "issue_8c1393568931",
-        "issue_6a06259eaaa1",
+        "issue_1f138e296ba5",
         "issue_b0f78d9544e4",
         "issue_2c8595b75643"
       ],
@@ -384,6 +384,64 @@
             29
           ],
           "regionChangedRatio": 0.0004798504610386508
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_1f138e296ba5",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (1080, 6833) 240x117",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": "ISO 27001",
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 5
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > img:nth-of-type(2)",
+        "bboxOld": [
+          1080,
+          6833,
+          240,
+          117
+        ],
+        "bboxNew": [
+          1080,
+          6833,
+          240,
+          117
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 192
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_1f138e296ba5_diff.png",
+          "newCrop": "desktop/issues/issue_1f138e296ba5_new.png",
+          "oldCrop": "desktop/issues/issue_1f138e296ba5_old.png"
+        },
+        "visual": {
+          "changedPixels": 7681,
+          "pageChangedRatio": 0.15043575717038524,
+          "regionBbox": [
+            1080,
+            6833,
+            240,
+            117
+          ],
+          "regionChangedRatio": 0.0007645159492300097
         }
       },
       "remediation": null
@@ -714,7 +772,7 @@
           385
         ],
         "seqIndexOld": null,
-        "seqIndexNew": 153
+        "seqIndexNew": 154
       },
       "evidence": {
         "artifacts": {
@@ -911,238 +969,6 @@
       "remediation": null
     },
     {
-      "id": "issue_6904e3bc718f",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (120, 1210) 580x115",
-      "locator": {
-        "anchors": {
-          "text": "* Source: Hiya State of the Call 2026.",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2)",
-        "bboxOld": [
-          120,
-          1210,
-          580,
-          115
-        ],
-        "bboxNew": [
-          120,
-          1210,
-          580,
-          115
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 39
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_6904e3bc718f_diff.png",
-          "newCrop": "desktop/issues/issue_6904e3bc718f_new.png",
-          "oldCrop": "desktop/issues/issue_6904e3bc718f_old.png"
-        },
-        "visual": {
-          "changedPixels": 33155,
-          "pageChangedRatio": 0.15043575717038524,
-          "regionBbox": [
-            120,
-            1210,
-            580,
-            115
-          ],
-          "regionChangedRatio": 0.003300029461882694
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_6a06259eaaa1",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (1080, 6833) 240x117",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "img",
-          "href": null,
-          "alt": "ISO 27001",
-          "ariaLabel": null,
-          "nearestHeading": "RESOURCES",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 4
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > img:nth-of-type(2)",
-        "bboxOld": [
-          1080,
-          6833,
-          240,
-          117
-        ],
-        "bboxNew": [
-          1080,
-          6833,
-          240,
-          117
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 191
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_6a06259eaaa1_diff.png",
-          "newCrop": "desktop/issues/issue_6a06259eaaa1_new.png",
-          "oldCrop": "desktop/issues/issue_6a06259eaaa1_old.png"
-        },
-        "visual": {
-          "changedPixels": 7681,
-          "pageChangedRatio": 0.15043575717038524,
-          "regionBbox": [
-            1080,
-            6833,
-            240,
-            117
-          ],
-          "regionChangedRatio": 0.0007645159492300097
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_6e706f899232",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (120, 907) 580x180",
-      "locator": {
-        "anchors": {
-          "text": "86%",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          907,
-          580,
-          180
-        ],
-        "bboxNew": [
-          120,
-          907,
-          580,
-          180
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 36
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_6e706f899232_diff.png",
-          "newCrop": "desktop/issues/issue_6e706f899232_new.png",
-          "oldCrop": "desktop/issues/issue_6e706f899232_old.png"
-        },
-        "visual": {
-          "changedPixels": 44514,
-          "pageChangedRatio": 0.15043575717038524,
-          "regionBbox": [
-            120,
-            907,
-            580,
-            180
-          ],
-          "regionChangedRatio": 0.00443062921026229
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_6e706f899232-2",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (426, 1027) 203x185",
-      "locator": {
-        "anchors": {
-          "text": "86%",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          426,
-          1027,
-          203,
-          185
-        ],
-        "bboxNew": [
-          426,
-          1027,
-          203,
-          185
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 36
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_6e706f899232_diff.png",
-          "newCrop": "desktop/issues/issue_6e706f899232_new.png",
-          "oldCrop": "desktop/issues/issue_6e706f899232_old.png"
-        },
-        "visual": {
-          "changedPixels": 13601,
-          "pageChangedRatio": 0.15043575717038524,
-          "regionBbox": [
-            426,
-            1027,
-            203,
-            185
-          ],
-          "regionChangedRatio": 0.0013537536031086267
-        }
-      },
-      "remediation": null
-    },
-    {
       "id": "issue_77fb14aa331f",
       "type": "visual_region_changed",
       "category": "visual",
@@ -1236,7 +1062,7 @@
           84
         ],
         "seqIndexOld": null,
-        "seqIndexNew": 149
+        "seqIndexNew": 150
       },
       "evidence": {
         "artifacts": {
@@ -1468,7 +1294,7 @@
           14
         ],
         "seqIndexOld": null,
-        "seqIndexNew": 194
+        "seqIndexNew": 195
       },
       "evidence": {
         "artifacts": {
@@ -2008,6 +1834,180 @@
             445
           ],
           "regionChangedRatio": 0.009528530250187123
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_f08c7c176c92",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (120, 1210) 580x115",
+      "locator": {
+        "anchors": {
+          "text": "* Source: Hiya State of the Call 2026.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2)",
+        "bboxOld": [
+          120,
+          1210,
+          580,
+          115
+        ],
+        "bboxNew": [
+          120,
+          1210,
+          580,
+          115
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 39
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_f08c7c176c92_diff.png",
+          "newCrop": "desktop/issues/issue_f08c7c176c92_new.png",
+          "oldCrop": "desktop/issues/issue_f08c7c176c92_old.png"
+        },
+        "visual": {
+          "changedPixels": 33155,
+          "pageChangedRatio": 0.15043575717038524,
+          "regionBbox": [
+            120,
+            1210,
+            580,
+            115
+          ],
+          "regionChangedRatio": 0.003300029461882694
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_f0e510bdf857",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (120, 907) 580x180",
+      "locator": {
+        "anchors": {
+          "text": "86%",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          907,
+          580,
+          180
+        ],
+        "bboxNew": [
+          120,
+          907,
+          580,
+          180
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 36
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_f0e510bdf857_diff.png",
+          "newCrop": "desktop/issues/issue_f0e510bdf857_new.png",
+          "oldCrop": "desktop/issues/issue_f0e510bdf857_old.png"
+        },
+        "visual": {
+          "changedPixels": 44514,
+          "pageChangedRatio": 0.15043575717038524,
+          "regionBbox": [
+            120,
+            907,
+            580,
+            180
+          ],
+          "regionChangedRatio": 0.00443062921026229
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_f0e510bdf857-2",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (426, 1027) 203x185",
+      "locator": {
+        "anchors": {
+          "text": "86%",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          426,
+          1027,
+          203,
+          185
+        ],
+        "bboxNew": [
+          426,
+          1027,
+          203,
+          185
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 36
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_f0e510bdf857_diff.png",
+          "newCrop": "desktop/issues/issue_f0e510bdf857_new.png",
+          "oldCrop": "desktop/issues/issue_f0e510bdf857_old.png"
+        },
+        "visual": {
+          "changedPixels": 13601,
+          "pageChangedRatio": 0.15043575717038524,
+          "regionBbox": [
+            426,
+            1027,
+            203,
+            185
+          ],
+          "regionChangedRatio": 0.0013537536031086267
         }
       },
       "remediation": null

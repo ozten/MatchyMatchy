@@ -178,7 +178,7 @@ pub struct PageModel {
     pub link_probes: Vec<LinkProbe>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticNode {
     pub id: String,
@@ -193,6 +193,25 @@ pub struct SemanticNode {
     pub seq_index: u32,
     pub anchors: NodeAnchors,
     pub css_selector: Option<String>,
+    // --- M3 fields (all default to None so pre-M3 bundles still parse) ---
+    /// Links: href attribute exactly as authored in HTML (un-resolved). M3 §2.
+    #[serde(default)]
+    pub raw_href: Option<String>,
+    /// Images: currentSrc||src resolved to absolute URL. M3 §2.
+    #[serde(default)]
+    pub src: Option<String>,
+    /// Images: intrinsic pixel width. M3 §2.
+    #[serde(default)]
+    pub natural_width: Option<u32>,
+    /// Images: intrinsic pixel height. M3 §2.
+    #[serde(default)]
+    pub natural_height: Option<u32>,
+    /// Images: complete && naturalWidth > 0. M3 §2.
+    #[serde(default)]
+    pub loaded: Option<bool>,
+    /// Headings: level 1–6 parsed from tag name. M3 §2.
+    #[serde(default)]
+    pub heading_level: Option<u8>,
 }
 
 impl SemanticNode {
@@ -237,7 +256,7 @@ impl SemanticNode {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeAnchors {
     pub text: Option<String>,

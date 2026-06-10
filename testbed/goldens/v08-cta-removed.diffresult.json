@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T20-27-19Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3008/",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 2,
+    "byType": {
+      "missing_link": 1,
+      "missing_text": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_289f0009bd4c",
+      "issue_2a38225dffb3"
+    ]
+  },
+  "scores": {
+    "visual": 0.9992956022168076,
+    "content": 0.3333333333333333,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_289f0009bd4c",
+        "issue_2a38225dffb3"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_289f0009bd4c",
+      "type": "missing_link",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link removed: 'Get a Demo'",
+      "locator": {
+        "anchors": {
+          "text": "Get a Demo",
+          "role": "link",
+          "href": "https://www.hiya.com/get-a-demo",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2)",
+        "cssSelectorNew": null,
+        "bboxOld": [
+          366,
+          583,
+          151,
+          48
+        ],
+        "bboxNew": null,
+        "seqIndexOld": 21,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "band": "unmatched",
+          "bestScore": 1.0,
+          "stage": "assignment"
+        },
+        "old": {
+          "href": "https://www.hiya.com/get-a-demo",
+          "text": "Get a Demo"
+        }
+      },
+      "remediation": {
+        "action": "restore_content",
+        "findBy": {
+          "grep": [
+            "Get a Demo",
+            "https://www.hiya.com/get-a-demo"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": null,
+        "to": "Get a Demo"
+      }
+    },
+    {
+      "id": "issue_2a38225dffb3",
+      "type": "missing_text",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Content removed: 'Get a Demo'",
+      "locator": {
+        "anchors": {
+          "text": "Get a Demo",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": null,
+        "bboxOld": [
+          398,
+          599,
+          87,
+          16
+        ],
+        "bboxNew": null,
+        "seqIndexOld": 22,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "band": "unmatched",
+          "bestScore": 0.9123,
+          "stage": "assignment"
+        },
+        "old": {
+          "text": "Get a Demo"
+        }
+      },
+      "remediation": {
+        "action": "restore_content",
+        "findBy": {
+          "grep": [
+            "Get a Demo"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": null,
+        "to": "Get a Demo"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

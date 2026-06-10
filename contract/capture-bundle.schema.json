@@ -450,7 +450,13 @@
         "bbox",
         "seqIndex",
         "anchors",
-        "cssSelector"
+        "cssSelector",
+        "rawHref",
+        "src",
+        "naturalWidth",
+        "naturalHeight",
+        "loaded",
+        "headingLevel"
       ],
       "properties": {
         "id": {
@@ -566,6 +572,40 @@
           "title": "CSS selector",
           "description": "Landmark-relative CSS selector for internal re-find use only. Not the agent-facing identifier.",
           "type": ["string", "null"]
+        },
+        "rawHref": {
+          "title": "Raw href",
+          "description": "For link nodes: the href attribute exactly as authored (control-char-stripped, length-capped). Null for all other kinds.",
+          "type": ["string", "null"]
+        },
+        "src": {
+          "title": "Image src",
+          "description": "For image nodes: currentSrc or src resolved to an absolute URL. Null for all other kinds.",
+          "type": ["string", "null"]
+        },
+        "naturalWidth": {
+          "title": "Natural width",
+          "description": "For image nodes: intrinsic width in pixels (img.naturalWidth). Null for all other kinds.",
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "naturalHeight": {
+          "title": "Natural height",
+          "description": "For image nodes: intrinsic height in pixels (img.naturalHeight). Null for all other kinds.",
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "loaded": {
+          "title": "Image loaded",
+          "description": "For image nodes: true when img.complete && img.naturalWidth > 0. Null for all other kinds.",
+          "type": ["boolean", "null"]
+        },
+        "headingLevel": {
+          "title": "Heading level",
+          "description": "For heading nodes: the numeric level 1–6 parsed from the h1–h6 tag. Null for all other kinds.",
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 6
         }
       }
     }

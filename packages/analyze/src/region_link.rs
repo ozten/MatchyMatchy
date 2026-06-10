@@ -151,6 +151,7 @@ mod tests {
                 ordinal_in_landmark: None,
             },
             css_selector: Some(format!("span#{}", id)),
+            ..Default::default()
         }
     }
 

@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-10T20-27-25Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3009/",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 1,
+    "byType": {
+      "changed_h1": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_6b88aeb2436e"
+    ]
+  },
+  "scores": {
+    "visual": 0.9969451212714793,
+    "content": 0.5,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_6b88aeb2436e"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_6b88aeb2436e",
+      "type": "changed_h1",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Heading text changed from 'Reach more customers with Hiya's Branded Call' to 'Connect with more customers using Hiya's Branded Call'",
+      "locator": {
+        "anchors": {
+          "text": "Connect with more customers using Hiya's Branded Call",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Connect with more customers using Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > h1:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > h1:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          232,
+          580,
+          198
+        ],
+        "bboxNew": [
+          120,
+          232,
+          580,
+          198
+        ],
+        "seqIndexOld": 16,
+        "seqIndexNew": 16
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 0.7783,
+          "signals": {
+            "identityScore": 0.7013,
+            "text": 0.7013,
+            "tiebreakNearby": 0.7909,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "text": "Connect with more customers using Hiya's Branded Call"
+        },
+        "old": {
+          "text": "Reach more customers with Hiya's Branded Call"
+        }
+      },
+      "remediation": {
+        "action": "restore_text",
+        "findBy": {
+          "grep": [
+            "Connect with more customers using Hiya's Branded Call"
+          ],
+          "near": "Connect with more customers using Hiya's Branded Call"
+        },
+        "from": "Connect with more customers using Hiya's Branded Call",
+        "to": "Reach more customers with Hiya's Branded Call"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

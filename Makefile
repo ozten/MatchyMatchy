@@ -47,9 +47,14 @@ verify:
 	@echo "=== 3/6  testbed servers ==="
 	python3 testbed/run-all.py check
 
-	@echo "=== 4/6  M1+M2 fixture gate ==="
+	@echo "=== 4/6  M1+M2+M3 fixture gate ==="
 	python3 testbed/check-fixture.py v01-identical
 	python3 testbed/check-fixture.py v02-banner-added
+	python3 testbed/check-fixture.py v08-cta-removed
+	python3 testbed/check-fixture.py v09-h1-changed
+	python3 testbed/check-fixture.py v10-paragraph-removed
+	python3 testbed/check-fixture.py v11-broken-link
+	python3 testbed/check-fixture.py v12-image-404
 	python3 testbed/check-fixture.py v13-render-equivalent
 	python3 testbed/check-fixture.py v14-trailing-slash
 	python3 testbed/check-fixture.py v15-locale-underscore
@@ -71,6 +76,7 @@ verify:
 
 	@echo "=== 6/6  determinism spot-check ==="
 	python3 testbed/determinism-check.py v02-banner-added
+	python3 testbed/determinism-check.py v08-cta-removed
 
 	@echo ""
 	@echo "=== verify: PASS ==="

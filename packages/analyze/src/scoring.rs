@@ -35,6 +35,10 @@ impl ParityProfile {
         if *issue_type == IssueType::LoadError || *issue_type == IssueType::StatusCodeMismatch {
             return IssueSeverity::Critical;
         }
+        // missing_form is always critical: spec §13.1 fixture 5
+        if *issue_type == IssueType::MissingForm {
+            return IssueSeverity::Critical;
+        }
         match category {
             IssueCategory::Visual => match self {
                 ParityProfile::ContentStructure => IssueSeverity::Info,
