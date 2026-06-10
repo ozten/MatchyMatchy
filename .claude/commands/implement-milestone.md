@@ -26,6 +26,9 @@ testbed. Read `CLAUDE.md` first; follow the model-routing policy and golden disc
    tolerances on scores) and wire it into `make verify`.
 6. **Report.** Summarize: what shipped, fixture pass table, any golden-changelog entries, open
    risks, and whether the milestone's DoD from spec §12 is met verbatim.
+7. **Clean up scheduling.** If you used ScheduleWakeup/cron fallback timers while background
+   agents ran, run CronList and CronDelete any pending entries before reporting — completion
+   notifications make the timers redundant, and stale ones outlive the task.
 
 Do not start the next milestone. Do not mark $ARGUMENTS done while any mapped fixture is red or
 any expectation change lacks an APPROVE.
