@@ -1,4 +1,10 @@
 # testbed runtime artifacts
 testbed/**/serve.log
 testbed/.pids.json
+testbed/.runs/
 __pycache__/
+
+# build outputs
+target/
+node_modules/
+packages/capture/dist/

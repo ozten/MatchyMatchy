@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://matchy.dev/contract/capture-bundle.schema.json",
+  "title": "CaptureBundle",
+  "description": "The output of a single Playwright capture run: screenshots, page model, and environment fingerprint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "capturedAt",
+    "viewport",
+    "environment",
+    "determinism",
+    "page",
+    "computedStyles",
+    "screenshots"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "title": "Schema version",
+      "description": "Semver-like schema version. Always '1.0' for this revision.",
+      "type": "string",
+      "const": "1.0"
+    },
+    "capturedAt": {
+      "title": "Captured at",
+      "description": "ISO 8601 UTC timestamp of when the bundle was written. Excluded from golden comparisons.",
+      "type": "string"
+    },
+    "viewport": {
+      "title": "Viewport",
+      "description": "The browser viewport configuration used for this capture.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "width", "height", "dsf"],
+      "properties": {
+        "name": {
+          "title": "Viewport name",
+          "description": "Logical name for this viewport, e.g. 'desktop' or 'mobile'.",
+          "type": "string"
+        },
+        "width": {
+          "title": "Viewport width",
+          "description": "Width in CSS pixels.",
+          "type": "integer"
+        },
+        "height": {
+          "title": "Viewport height",
+          "description": "Height in CSS pixels.",
+          "type": "integer"
+        },
+        "dsf": {
+          "title": "Device scale factor",
+          "description": "Device pixel ratio. 1 means CSS px == PNG px.",
+          "type": "number"
+        }
+      }
+    },
+    "environment": {
+      "title": "Environment fingerprint",
+      "description": "Records the rendering environment so cross-machine comparison can be flagged.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "chromiumBuild", "playwright", "dsf"],
+      "properties": {
+        "os": {
+          "title": "Operating system",
+          "description": "Value of process.platform at capture time (e.g. 'linux', 'darwin', 'win32').",
+          "type": "string"
+        },
+        "chromiumBuild": {
+          "title": "Chromium build string",
+          "description": "The string returned by browser.version().",
+          "type": "string"
+        },
+        "playwright": {
+          "title": "Playwright version",
+          "description": "The exact Playwright package version used.",
+          "type": "string"
+        },
+        "dsf": {
+          "title": "Device scale factor",
+          "description": "Device pixel ratio recorded in the environment fingerprint.",
+          "type": "number"
+        }
+      }
+    },
+    "determinism": {
+      "title": "Determinism record",
+      "description": "Records the status of every stabilization step so analyze can lower confidence for failed/skipped steps.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "animationsDisabled",
+        "reducedMotion",
+        "timeFrozen",
+        "randomStubbed",
+        "fontsReady",
+        "imagesDecoded",
+        "lazyLoadPass",
+        "settled",
+        "clicked",
+        "hidden",
+        "masked",
+        "retriedWithoutTimeFreeze"
+      ],
+      "properties": {
+        "animationsDisabled": {
+          "title": "Animations disabled",
+          "description": "Status of the animation/transition kill CSS injection step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "reducedMotion": {
+          "title": "Reduced motion",
+          "description": "Status of the emulateMedia reducedMotion step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "timeFrozen": {
+          "title": "Time frozen",
+          "description": "Status of the clock.install freezeTime step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "randomStubbed": {
+          "title": "Random stubbed",
+          "description": "Status of the Math.random LCG seed injection step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "fontsReady": {
+          "title": "Fonts ready",
+          "description": "Status of the document.fonts.ready wait step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "imagesDecoded": {
+          "title": "Images decoded",
+          "description": "Status of the visible img decode() pass step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "lazyLoadPass": {
+          "title": "Lazy load pass",
+          "description": "Status of the scroll-to-bottom lazy load pass step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "settled": {
+          "title": "Settled",
+          "description": "Status of the clock.runFor(settleMs) settle step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "clicked": {
+          "title": "Clicked selectors",
+          "description": "List of clickBeforeCapture selectors that were successfully clicked.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hidden": {
+          "title": "Hidden selectors",
+          "description": "List of hideSelectors that were applied.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "masked": {
+          "title": "Masked selectors",
+          "description": "List of maskSelectors that were applied.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "retriedWithoutTimeFreeze": {
+          "title": "Retried without time freeze",
+          "description": "True if networkidle timed out with freezeTime on and the page was retried without it.",
+          "type": "boolean"
+        }
+      }
+    },
+    "page": {
+      "title": "Page model",
+      "description": "Extracted page content, metadata, network log, and console output.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "finalUrl",
+        "redirectChain",
+        "statusCode",
+        "title",
+        "metaDescription",
+        "canonical",
+        "lang",
+        "pageHeight",
+        "nodes",
+        "landmarks",
+        "network",
+        "console",
+        "a11y"
+      ],
+      "properties": {
+        "url": {
+          "title": "Input URL",
+          "description": "The URL passed to goto().",
+          "type": "string"
+        },
+        "finalUrl": {
+          "title": "Final URL",
+          "description": "The URL after all redirects.",
+          "type": "string"
+        },
+        "redirectChain": {
+          "title": "Redirect chain",
+          "description": "List of intermediate redirect URLs, with sensitive params redacted.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "statusCode": {
+          "title": "HTTP status code",
+          "description": "The HTTP status code of the main document response.",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Page title",
+          "description": "The document title, length-capped and control-char-stripped.",
+          "type": "string"
+        },
+        "metaDescription": {
+          "title": "Meta description",
+          "description": "Content of <meta name=description>, or empty string if absent.",
+          "type": "string"
+        },
+        "canonical": {
+          "title": "Canonical URL",
+          "description": "Content of <link rel=canonical href=...>, or null if absent.",
+          "type": ["string", "null"]
+        },
+        "lang": {
+          "title": "Document language",
+          "description": "Value of <html lang>, or empty string if absent.",
+          "type": "string"
+        },
+        "pageHeight": {
+          "title": "Page height",
+          "description": "document.documentElement.scrollHeight post-stabilization.",
+          "type": "integer"
+        },
+        "nodes": {
+          "title": "Semantic node stream",
+          "description": "Ordered list of visible, meaningful elements extracted in document order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SemanticNode"
+          }
+        },
+        "landmarks": {
+          "title": "Landmarks",
+          "description": "List of ARIA landmark roles present on the page.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "network": {
+          "title": "Network log",
+          "description": "Recorded network requests with sensitive data redacted.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requests"],
+          "properties": {
+            "requests": {
+              "title": "Requests",
+              "description": "List of network requests made during page load.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["url", "status", "type", "failed"],
+                "properties": {
+                  "url": {
+                    "title": "Request URL",
+                    "description": "The request URL with sensitive query params redacted.",
+                    "type": "string"
+                  },
+                  "status": {
+                    "title": "HTTP status",
+                    "description": "HTTP response status code, or 0 if failed/no response.",
+                    "type": "integer"
+                  },
+                  "type": {
+                    "title": "Resource type",
+                    "description": "Playwright resource type string (e.g. 'document', 'image', 'script').",
+                    "type": "string"
+                  },
+                  "failed": {
+                    "title": "Failed",
+                    "description": "True if the request failed at the network level.",
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "console": {
+          "title": "Console messages",
+          "description": "Browser console messages captured during page load.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "text"],
+            "properties": {
+              "level": {
+                "title": "Log level",
+                "description": "Console message level: log, info, warn, error, debug.",
+                "type": "string"
+              },
+              "text": {
+                "title": "Message text",
+                "description": "The console message text, length-capped.",
+                "type": "string"
+              }
+            }
+          }
+        },
+        "a11y": {
+          "title": "Accessibility",
+          "description": "Accessibility audit results. Violations array is empty in M1.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["violations"],
+          "properties": {
+            "violations": {
+              "title": "Violations",
+              "description": "Array of axe-core violations. Empty in M1.",
+              "type": "array",
+              "items": {}
+            }
+          }
+        }
+      }
+    },
+    "computedStyles": {
+      "title": "Computed styles",
+      "description": "Map of node id to computed style properties. Empty object in M1; populated in M4.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    },
+    "screenshots": {
+      "title": "Screenshots",
+      "description": "Paths to captured screenshots, relative to the bundle file's parent directory (the outDir).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fullPage", "viewport"],
+      "properties": {
+        "fullPage": {
+          "title": "Full page screenshot",
+          "description": "Path to the full-page PNG, relative to outDir. E.g. 'desktop/old.png'.",
+          "type": "string"
+        },
+        "viewport": {
+          "title": "Viewport screenshot",
+          "description": "Path to the viewport-only PNG, relative to outDir. E.g. 'desktop/old-vp.png'.",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "SemanticNode": {
+      "title": "SemanticNode",
+      "description": "A visible, meaningful element extracted from the page in document order.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "role",
+        "text",
+        "accName",
+        "href",
+        "imageAlt",
+        "bbox",
+        "seqIndex",
+        "anchors",
+        "cssSelector"
+      ],
+      "properties": {
+        "id": {
+          "title": "Node id",
+          "description": "Stable identifier in the form 'node_<seqIndex>'.",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Node kind",
+          "description": "Semantic classification of this node.",
+          "type": "string",
+          "enum": ["heading", "text", "link", "button", "image", "form", "field", "landmark", "generic"]
+        },
+        "role": {
+          "title": "ARIA role",
+          "description": "The effective ARIA role of this element, or null.",
+          "type": ["string", "null"]
+        },
+        "text": {
+          "title": "Visible text",
+          "description": "Normalized innerText of this element, length-capped.",
+          "type": ["string", "null"]
+        },
+        "accName": {
+          "title": "Accessible name",
+          "description": "Accessible name: aria-label || alt || normalized innerText.",
+          "type": ["string", "null"]
+        },
+        "href": {
+          "title": "Href",
+          "description": "Absolute resolved href for links, or null.",
+          "type": ["string", "null"]
+        },
+        "imageAlt": {
+          "title": "Image alt text",
+          "description": "Alt attribute value for images, or null.",
+          "type": ["string", "null"]
+        },
+        "bbox": {
+          "title": "Bounding box",
+          "description": "Bounding box in page coordinates [x, y, width, height] with scroll offsets added. x/y floored, w/h ceiled.",
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "seqIndex": {
+          "title": "Sequence index",
+          "description": "0-based document order index.",
+          "type": "integer"
+        },
+        "anchors": {
+          "title": "Anchor set",
+          "description": "The agent-facing locator fingerprint for this node.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "role",
+            "href",
+            "alt",
+            "ariaLabel",
+            "nearestHeading",
+            "landmark",
+            "ordinalInLandmark"
+          ],
+          "properties": {
+            "text": {
+              "title": "Text anchor",
+              "description": "Normalized visible text, strongest grep target when present.",
+              "type": ["string", "null"]
+            },
+            "role": {
+              "title": "Role anchor",
+              "description": "ARIA role string.",
+              "type": ["string", "null"]
+            },
+            "href": {
+              "title": "Href anchor",
+              "description": "Absolute resolved href, grep target for links.",
+              "type": ["string", "null"]
+            },
+            "alt": {
+              "title": "Alt anchor",
+              "description": "Image alt text, grep target for images.",
+              "type": ["string", "null"]
+            },
+            "ariaLabel": {
+              "title": "Aria label anchor",
+              "description": "aria-label value when present.",
+              "type": ["string", "null"]
+            },
+            "nearestHeading": {
+              "title": "Nearest heading",
+              "description": "Text of the most recent heading node in document order before this node.",
+              "type": ["string", "null"]
+            },
+            "landmark": {
+              "title": "Landmark",
+              "description": "ARIA landmark role of the nearest landmark ancestor: banner|navigation|main|contentinfo|complementary|form.",
+              "type": ["string", "null"]
+            },
+            "ordinalInLandmark": {
+              "title": "Ordinal in landmark",
+              "description": "1-based count of nodes with the same (kind, anchors.text) in the same landmark including self. Null if no landmark.",
+              "type": ["integer", "null"]
+            }
+          }
+        },
+        "cssSelector": {
+          "title": "CSS selector",
+          "description": "Landmark-relative CSS selector for internal re-find use only. Not the agent-facing identifier.",
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}

@@ -141,6 +141,30 @@ A few properties worth knowing:
 
 The full specification lives at [`docs/prds/page-pair-diff-spec.md`](docs/prds/page-pair-diff-spec.md). The codebase is a two-language workspace: `packages/capture` (TypeScript, Playwright) and `packages/analyze` (Rust, the core and the `matchy` binary), joined by the `CaptureBundle` JSON seam defined in `/contract`. Local HTML fixture pairs in `/fixtures` back the golden test suites.
 
+### Runtime requirements
+
+The `matchy` binary delegates page capture to `capture.cjs` (Node.js + Playwright). These must be present on the host:
+
+| Requirement | Version | Notes |
+|---|---|---|
+| Node.js | ≥ 20 (tested on 24.x) | runs `capture.cjs` |
+| Playwright | pinned exactly 1.60.0 | bundled into `capture.cjs`; version recorded in every capture bundle |
+| Chromium | build matching pinned Playwright | install with `npx playwright install chromium` |
+| Rust | ≥ 1.85 (build only) | not required to run a pre-built binary |
+
+Run `matchy doctor` after installing — it checks each requirement and prints the exact command to fix anything missing.
+
+### Make targets
+
+| Target | What it does |
+|---|---|
+| `make build` | `cargo build --release` + `packages/capture` npm install and bundle |
+| `make verify` | Full CI gate: build, unit tests, testbed servers, M1 fixture checks, golden comparisons, determinism spot-check |
+| `make fixture VARIANT=vNN` | Run `check-fixture.py` for one variant (e.g. `VARIANT=v02-banner-added`) |
+| `make testbed-up` | Start all testbed HTTP servers (golden + variants) |
+| `make testbed-down` | Stop all testbed servers |
+| `make testbed-check` | Verify all servers respond HTTP 200 and manifests validate |
+
 ## License
 
 [MIT](LICENSE) © ozten

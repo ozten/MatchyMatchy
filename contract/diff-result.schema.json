@@ -1,0 +1,689 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://matchy.tools/contract/diff-result.schema.json",
+  "title": "DiffResult",
+  "description": "The primary deliverable of the matchy tool: a deterministic, machine-actionable diff between two rendered pages.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "toolVersion",
+    "runId",
+    "oldUrl",
+    "newUrl",
+    "parityProfile",
+    "status",
+    "agentSummary",
+    "scores",
+    "viewports",
+    "issues",
+    "clusters",
+    "suppressed",
+    "determinism",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "title": "Schema version",
+      "description": "Version of the DiffResult schema. Always '1.0' in v1.",
+      "type": "string",
+      "const": "1.0"
+    },
+    "toolVersion": {
+      "title": "Tool version",
+      "description": "Version of the matchy binary that produced this result (from CARGO_PKG_VERSION).",
+      "type": "string"
+    },
+    "runId": {
+      "title": "Run identifier",
+      "description": "ISO 8601 UTC timestamp of the run start. Excluded from golden comparisons.",
+      "type": "string"
+    },
+    "oldUrl": {
+      "title": "Old URL",
+      "description": "The URL of the old (baseline) page.",
+      "type": "string"
+    },
+    "newUrl": {
+      "title": "New URL",
+      "description": "The URL of the new (candidate) page.",
+      "type": "string"
+    },
+    "parityProfile": {
+      "title": "Parity profile",
+      "description": "The parity profile used to map issue categories to severities.",
+      "type": "string",
+      "enum": ["content-structure", "strict-visual"]
+    },
+    "status": {
+      "title": "Overall status",
+      "description": "Aggregate pass/warn/fail/error status for the entire run.",
+      "type": "string",
+      "enum": ["pass", "warn", "fail", "error"]
+    },
+    "agentSummary": {
+      "title": "Agent summary",
+      "description": "Machine-first triage block. First in file for fast agent consumption.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixableNow", "byType", "clusterCount", "topFixes"],
+      "properties": {
+        "fixableNow": {
+          "title": "Fixable now count",
+          "description": "Count of issues with severity >= warning AND anchor strength >= medium AND non-null remediation.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "byType": {
+          "title": "Issues by type",
+          "description": "Count of issues per issue type, sorted by type key (BTreeMap order).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "clusterCount": {
+          "title": "Cluster count",
+          "description": "Number of issue clusters in this result.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "topFixes": {
+          "title": "Top fixes",
+          "description": "First N (default 5) issue or cluster IDs ordered by descending fix value.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "scores": {
+      "title": "Scores",
+      "description": "Per-category parity scores in [0, 1]. 1.0 = identical, 0.0 = completely different.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visual", "content", "structure", "style", "accessibility", "technical", "hygiene"],
+      "properties": {
+        "visual": {
+          "title": "Visual score",
+          "description": "1 - pageChangedRatio over common height, clamped to [0, 1].",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "content": {
+          "title": "Content score",
+          "description": "Content parity score (1.0 in M1).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "structure": {
+          "title": "Structure score",
+          "description": "Structure parity score (1.0 in M1).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "style": {
+          "title": "Style score",
+          "description": "Style parity score (1.0 in M1).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "accessibility": {
+          "title": "Accessibility score",
+          "description": "Accessibility parity score (1.0 in M1).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "technical": {
+          "title": "Technical score",
+          "description": "Technical parity score (1.0 in M1).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hygiene": {
+          "title": "Hygiene score",
+          "description": "URL/locale hygiene score (1.0 in M1).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "viewports": {
+      "title": "Per-viewport results",
+      "description": "One entry per configured viewport, in configuration order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ViewportResult"
+      }
+    },
+    "issues": {
+      "title": "Issues",
+      "description": "All emitted issues, sorted by descending fix value (severityWeight * confidence * localityBonus), tie-broken ascending by id.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Issue"
+      }
+    },
+    "clusters": {
+      "title": "Clusters",
+      "description": "Deterministic issue clusters. Empty in M1.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Cluster"
+      }
+    },
+    "suppressed": {
+      "title": "Suppressed issues",
+      "description": "Issues suppressed by the --baseline accept-list.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "ids"],
+      "properties": {
+        "count": {
+          "title": "Suppressed count",
+          "description": "Number of suppressed issues.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "ids": {
+          "title": "Suppressed IDs",
+          "description": "IDs of suppressed issues.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "determinism": {
+      "title": "Determinism report",
+      "description": "Worst-across-viewports determinism step status for old and new pages.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["old", "new"],
+      "properties": {
+        "old": {
+          "$ref": "#/$defs/DeterminismReport"
+        },
+        "new": {
+          "$ref": "#/$defs/DeterminismReport"
+        }
+      }
+    },
+    "artifacts": {
+      "title": "Top-level artifacts",
+      "description": "Paths to the primary viewport's screenshots and diff image (relative to the output directory).",
+      "$ref": "#/$defs/Artifacts"
+    }
+  },
+  "$defs": {
+    "IssueType": {
+      "title": "Issue type",
+      "description": "Stable string taxonomy for all issue types (spec §7.3).",
+      "type": "string",
+      "enum": [
+        "visual_region_changed",
+        "page_height_changed",
+        "missing_title",
+        "changed_title",
+        "missing_meta_description",
+        "changed_meta_description",
+        "missing_h1",
+        "changed_h1",
+        "heading_structure_changed",
+        "missing_text",
+        "changed_text",
+        "duplicate_text",
+        "missing_link",
+        "changed_link_target",
+        "broken_link",
+        "changed_link_text",
+        "missing_image",
+        "broken_image",
+        "changed_alt_text",
+        "missing_alt_text",
+        "changed_image_dimensions",
+        "missing_form",
+        "changed_form",
+        "missing_form_field",
+        "changed_required_field",
+        "missing_submit",
+        "changed_cta",
+        "missing_button",
+        "component_reordered",
+        "component_swapped",
+        "style_changed",
+        "background_gradient_lost",
+        "background_gradient_changed",
+        "accessibility_regression",
+        "accessibility_improved",
+        "status_code_mismatch",
+        "network_error",
+        "console_error",
+        "load_error",
+        "url_trailing_slash",
+        "url_redirect_chain",
+        "url_protocol_downgrade",
+        "canonical_mismatch",
+        "locale_case_invalid",
+        "locale_separator_invalid",
+        "locale_unknown"
+      ]
+    },
+    "IssueSeverity": {
+      "title": "Issue severity",
+      "description": "Severity level of an issue.",
+      "type": "string",
+      "enum": ["info", "warning", "error", "critical"]
+    },
+    "IssueCategory": {
+      "title": "Issue category",
+      "description": "High-level category of an issue.",
+      "type": "string",
+      "enum": ["visual", "content", "structure", "style", "accessibility", "technical", "hygiene"]
+    },
+    "Anchors": {
+      "title": "Anchor set",
+      "description": "Semantic fingerprint of the element — the agent-facing locator. All string fields are nullable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "role", "href", "alt", "ariaLabel", "nearestHeading", "landmark", "ordinalInLandmark"],
+      "properties": {
+        "text": {
+          "title": "Visible text",
+          "description": "Normalized visible text of the element. Strongest grep target when present.",
+          "type": ["string", "null"]
+        },
+        "role": {
+          "title": "ARIA role",
+          "description": "ARIA role or implicit HTML role.",
+          "type": ["string", "null"]
+        },
+        "href": {
+          "title": "Resolved href",
+          "description": "Absolute resolved href for links and CTAs.",
+          "type": ["string", "null"]
+        },
+        "alt": {
+          "title": "Image alt text",
+          "description": "Alt text for images.",
+          "type": ["string", "null"]
+        },
+        "ariaLabel": {
+          "title": "ARIA label",
+          "description": "aria-label attribute value.",
+          "type": ["string", "null"]
+        },
+        "nearestHeading": {
+          "title": "Nearest heading",
+          "description": "Text of the most recent heading node in document order before this element.",
+          "type": ["string", "null"]
+        },
+        "landmark": {
+          "title": "Landmark",
+          "description": "Nearest ancestor landmark role (banner, navigation, main, contentinfo, complementary, form).",
+          "type": ["string", "null"]
+        },
+        "ordinalInLandmark": {
+          "title": "Ordinal in landmark",
+          "description": "1-based count of prior nodes with the same (kind, text) in the same landmark, including self.",
+          "type": ["integer", "null"],
+          "minimum": 1
+        }
+      }
+    },
+    "Locator": {
+      "title": "Issue locator",
+      "description": "Locates the element involved in the issue. anchors are agent-facing; other fields are tool-internal.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchors", "cssSelectorOld", "cssSelectorNew", "bboxOld", "bboxNew", "seqIndexOld", "seqIndexNew"],
+      "properties": {
+        "anchors": {
+          "$ref": "#/$defs/Anchors"
+        },
+        "cssSelectorOld": {
+          "title": "CSS selector (old page)",
+          "description": "Internal tool-use only: landmark-relative CSS selector on the old page.",
+          "type": ["string", "null"]
+        },
+        "cssSelectorNew": {
+          "title": "CSS selector (new page)",
+          "description": "Internal tool-use only: landmark-relative CSS selector on the new page.",
+          "type": ["string", "null"]
+        },
+        "bboxOld": {
+          "title": "Bounding box (old page)",
+          "description": "Bounding box [x, y, w, h] in CSS pixels on the old page.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "bboxNew": {
+          "title": "Bounding box (new page)",
+          "description": "Bounding box [x, y, w, h] in CSS pixels on the new page.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "seqIndexOld": {
+          "title": "Sequence index (old page)",
+          "description": "Document-order index of the matched node on the old page.",
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "seqIndexNew": {
+          "title": "Sequence index (new page)",
+          "description": "Document-order index of the matched node on the new page.",
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "Remediation": {
+      "title": "Remediation",
+      "description": "Structured fix description. Deterministic, no AI inference.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "action": {
+          "title": "Action",
+          "description": "The type of fix to apply.",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "description": "Human-readable note about the remediation.",
+          "type": "string"
+        }
+      }
+    },
+    "Issue": {
+      "title": "Issue",
+      "description": "A single actionable diff finding.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "category",
+        "severity",
+        "confidence",
+        "viewport",
+        "locale",
+        "goal",
+        "message",
+        "locator",
+        "evidence",
+        "remediation"
+      ],
+      "properties": {
+        "id": {
+          "title": "Issue ID",
+          "description": "Content-addressed stable ID: 'issue_' + first 12 hex chars of SHA-256 over canonical fields.",
+          "type": "string",
+          "pattern": "^issue_[0-9a-f]{12}(-[0-9]+)?$"
+        },
+        "type": {
+          "$ref": "#/$defs/IssueType"
+        },
+        "category": {
+          "$ref": "#/$defs/IssueCategory"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "description": "Confidence score in [0, 1], rounded to 4 decimal places.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "viewport": {
+          "title": "Viewport name",
+          "description": "Name of the viewport this issue was detected in.",
+          "type": "string"
+        },
+        "locale": {
+          "title": "Locale",
+          "description": "Page locale from <html lang>.",
+          "type": ["string", "null"]
+        },
+        "goal": {
+          "title": "User goal",
+          "description": "Which user goal (G1-G8) this issue serves, when applicable.",
+          "type": ["string", "null"]
+        },
+        "message": {
+          "title": "Message",
+          "description": "Human-readable description of the issue.",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/Locator"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "description": "Type-specific evidence payload. Shape varies by issue type.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "remediation": {
+          "title": "Remediation",
+          "description": "Structured fix description, or null when no deterministic fix is known.",
+          "oneOf": [
+            { "$ref": "#/$defs/Remediation" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "Cluster": {
+      "title": "Cluster",
+      "description": "A group of related issues sharing a common root cause.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "issueIds"],
+      "properties": {
+        "id": {
+          "title": "Cluster ID",
+          "description": "Stable cluster identifier.",
+          "type": "string"
+        },
+        "issueIds": {
+          "title": "Issue IDs",
+          "description": "IDs of issues in this cluster.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sharedProperty": {
+          "title": "Shared property",
+          "description": "CSS property shared by all issues in this cluster (for style clusters).",
+          "type": ["string", "null"]
+        },
+        "sharedLandmark": {
+          "title": "Shared landmark",
+          "description": "Landmark shared by all issues in this cluster (for landmark clusters).",
+          "type": ["string", "null"]
+        },
+        "summary": {
+          "title": "Summary",
+          "description": "Human-readable summary of the cluster.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "DeterminismReport": {
+      "title": "Determinism report",
+      "description": "Per-page determinism step statuses (worst-across-viewports).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "animationsDisabled",
+        "reducedMotion",
+        "timeFrozen",
+        "randomStubbed",
+        "fontsReady",
+        "imagesDecoded",
+        "lazyLoadPass",
+        "settled",
+        "clicked",
+        "hidden",
+        "masked",
+        "retriedWithoutTimeFreeze"
+      ],
+      "properties": {
+        "animationsDisabled": {
+          "title": "Animations disabled",
+          "description": "Status of the animations-disabled stabilization step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "reducedMotion": {
+          "title": "Reduced motion",
+          "description": "Status of the reduced-motion emulation step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "timeFrozen": {
+          "title": "Time frozen",
+          "description": "Status of the time-freeze stabilization step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "randomStubbed": {
+          "title": "Random stubbed",
+          "description": "Status of the Math.random stubbing step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "fontsReady": {
+          "title": "Fonts ready",
+          "description": "Status of the document.fonts.ready wait step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "imagesDecoded": {
+          "title": "Images decoded",
+          "description": "Status of the image decode wait step.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "lazyLoadPass": {
+          "title": "Lazy load pass",
+          "description": "Status of the lazy-load scroll pass.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "settled": {
+          "title": "Settled",
+          "description": "Status of the final settle wait.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "clicked": {
+          "title": "Clicked selectors",
+          "description": "Selectors that were clicked before capture.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hidden": {
+          "title": "Hidden selectors",
+          "description": "Selectors that were hidden before capture.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "masked": {
+          "title": "Masked selectors",
+          "description": "Selectors that were masked before capture.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "retriedWithoutTimeFreeze": {
+          "title": "Retried without time freeze",
+          "description": "True if the capture was retried after networkidle timeout with time freeze disabled.",
+          "type": "boolean"
+        }
+      }
+    },
+    "ViewportResult": {
+      "title": "Viewport result",
+      "description": "Per-viewport status, issues, and artifacts.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "issues", "artifacts"],
+      "properties": {
+        "name": {
+          "title": "Viewport name",
+          "description": "Name of the viewport (e.g. 'desktop', 'mobile').",
+          "type": "string"
+        },
+        "status": {
+          "title": "Viewport status",
+          "description": "Pass/warn/fail/error status for this viewport.",
+          "type": "string",
+          "enum": ["pass", "warn", "fail", "error"]
+        },
+        "issues": {
+          "title": "Issue IDs",
+          "description": "IDs of issues detected in this viewport.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artifacts": {
+          "$ref": "#/$defs/Artifacts"
+        }
+      }
+    },
+    "Artifacts": {
+      "title": "Artifacts",
+      "description": "Paths to screenshot and diff PNG artifacts (relative to output directory).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["old", "new", "diff"],
+      "properties": {
+        "old": {
+          "title": "Old screenshot path",
+          "description": "Path to the old page full-page screenshot.",
+          "type": "string"
+        },
+        "new": {
+          "title": "New screenshot path",
+          "description": "Path to the new page full-page screenshot.",
+          "type": "string"
+        },
+        "diff": {
+          "title": "Diff image path",
+          "description": "Path to the visual diff PNG.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
