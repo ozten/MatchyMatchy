@@ -26,7 +26,7 @@ matchy is **pure deterministic code end to end**. There is no AI/LLM layer, no h
 ## Installation
 
 ```bash
-curl -fsSL https://example.com/matchy/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ozten/MatchyMatchy/main/scripts/install.sh | bash
 ```
 
 The installer delivers two artifacts: the `matchy` binary and a bundled `capture.cjs`. It does **not** install Node or browsers — those are host requirements:
@@ -34,7 +34,7 @@ The installer delivers two artifacts: the `matchy` binary and a bundled `capture
 | Requirement | Version |
 |---|---|
 | Node.js | ≥ 20 |
-| Playwright | the exact version pinned in the release (recorded in every capture) |
+| Playwright | the version pinned in the release; install **globally** (`npm install -g playwright`) so `capture.cjs` can resolve it |
 | Chromium | the build matching that Playwright version (`npx playwright install chromium`) |
 
 Run `matchy doctor` after installing — it checks every requirement and prints the exact command to fix anything missing.

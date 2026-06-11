@@ -665,7 +665,7 @@ The curl installer (`install.sh`) delivers exactly two artifacts: the `matchy` b
 | Requirement | Version | Notes |
 |---|---|---|
 | Node.js | ≥ 20 (tested on 24.x) | runs `capture.cjs` |
-| Playwright | pinned exactly in `packages/capture/package.json` (1.60.x at time of writing) | bundled into `capture.cjs`; version recorded in the environment fingerprint |
+| Playwright | pinned exactly in `packages/capture/package.json` (1.60.x at time of writing) | a **host dependency**, not bundled: `playwright-core` resolves its driver/`browsers.json` via `__dirname`, so it cannot be flattened into `capture.cjs`. Install globally (`npm install -g playwright`); `matchy` spawns `node capture.cjs` with `NODE_PATH=$(npm root -g)` so the `require("playwright")` resolves. Version recorded in the environment fingerprint. |
 | Chromium | the build matching the pinned Playwright (`npx playwright install chromium`) | `matchy doctor` checks for it |
 | (build only) Rust | ≥ 1.85 | building from source |
 
