@@ -1,6 +1,6 @@
 # Issue: `report.md` issues section is a flat table with per-viewport duplicate rows; triage requires loading `diff-result.json` and grouping manually
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P2 — on a real page the flat table runs to 1700+ rows; identical findings
 repeat once per viewport, making the report nearly unusable for triage without external tooling

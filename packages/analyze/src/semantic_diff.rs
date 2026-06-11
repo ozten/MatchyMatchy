@@ -15,11 +15,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use url::Url;
 
 use crate::config::{
-    base_confidence, CHROME_PENALTY, DUP_LABEL_BBOX_TOLERANCE_PX, IMAGE_DIM_RATIO_FLOOR,
-    UNCERTAIN_MULTIPLIER,
+    base_confidence, ASPECT_RATIO_TOLERANCE, CHROME_PENALTY, DUP_LABEL_BBOX_TOLERANCE_PX,
+    IMAGE_DIM_RATIO_FLOOR, UNCERTAIN_MULTIPLIER,
 };
+use crate::config::ImageDimensionsMode;
 use crate::contract::{
-    Anchors, CaptureBundle, Issue, IssueCategory, IssueType, Locator, SemanticNode,
+    Anchors, CaptureBundle, Issue, IssueCategory, IssueSeverity, IssueType, Locator, SemanticNode,
 };
 use crate::issue::compute_issue_id;
 use crate::matching::{norm_href, MatchBand, MatchOutcome, MatchStage, MissRecord};
@@ -113,6 +114,7 @@ pub fn semantic_issues(
     viewport: &str,
     profile: &ParityProfile,
     env_mismatch: bool,
+    image_dims_mode: ImageDimensionsMode,
 ) -> Vec<Issue> {
     let new_lang = new.page.lang.clone();
     let old_nodes = &old.page.nodes;
@@ -176,6 +178,7 @@ pub fn semantic_issues(
             &anchors,
             pair.band == MatchBand::Uncertain,
             matches!(pair.stage, MatchStage::Assignment),
+            image_dims_mode,
         );
 
         issues.append(&mut pair_issues);
@@ -480,6 +483,7 @@ fn pair_attribute_issues(
     anchors: &Anchors,
     is_uncertain: bool,
     is_assignment: bool,
+    image_dims_mode: ImageDimensionsMode,
 ) -> Vec<Issue> {
     let mut issues = Vec::new();
 
@@ -542,6 +546,7 @@ fn pair_attribute_issues(
                 anchors,
                 is_uncertain,
                 is_assignment,
+                image_dims_mode,
                 &mut issues,
             );
         }
@@ -841,6 +846,7 @@ fn image_pair_issues(
     anchors: &Anchors,
     is_uncertain: bool,
     _is_assignment: bool,
+    image_dims_mode: ImageDimensionsMode,
     issues: &mut Vec<Issue>,
 ) {
     let old_loaded = old_node.loaded.unwrap_or(true);
@@ -1004,39 +1010,196 @@ fn image_pair_issues(
                 let w_ratio = f64::min(ow as f64, nw as f64) / f64::max(ow as f64, nw as f64);
                 let h_ratio = f64::min(oh as f64, nh as f64) / f64::max(oh as f64, nh as f64);
 
-                if w_ratio < IMAGE_DIM_RATIO_FLOOR || h_ratio < IMAGE_DIM_RATIO_FLOOR {
-                    let id = compute_issue_id(
-                        &IssueType::ChangedImageDimensions,
-                        viewport,
-                        anchors,
-                        None,
-                    );
-                    let severity = profile
-                        .severity_for(&IssueType::ChangedImageDimensions, &IssueCategory::Content);
+                let strict_fires =
+                    w_ratio < IMAGE_DIM_RATIO_FLOOR || h_ratio < IMAGE_DIM_RATIO_FLOOR;
 
-                    let evidence = serde_json::json!({
-                        "match": match_evidence,
-                        "old": { "naturalWidth": ow, "naturalHeight": oh },
-                        "new": { "naturalWidth": nw, "naturalHeight": nh }
-                    });
+                if strict_fires {
+                    match image_dims_mode {
+                        ImageDimensionsMode::Strict => {
+                            // Byte-identical to the pre-WP-I behaviour.
+                            let id = compute_issue_id(
+                                &IssueType::ChangedImageDimensions,
+                                viewport,
+                                anchors,
+                                None,
+                            );
+                            let severity = profile.severity_for(
+                                &IssueType::ChangedImageDimensions,
+                                &IssueCategory::Content,
+                            );
 
-                    issues.push(Issue {
-                        id,
-                        issue_type: IssueType::ChangedImageDimensions,
-                        category: IssueCategory::Content,
-                        severity,
-                        confidence,
-                        viewport: viewport.to_string(),
-                        locale: new_lang.clone(),
-                        goal: Some("G7".to_string()),
-                        message: format!(
-                            "Image dimensions changed from {}x{} to {}x{}",
-                            ow, oh, nw, nh
-                        ),
-                        locator: node_pair_locator(anchors.clone(), old_node, new_node),
-                        evidence,
-                        remediation: None,
-                    });
+                            let evidence = serde_json::json!({
+                                "match": match_evidence,
+                                "old": { "naturalWidth": ow, "naturalHeight": oh },
+                                "new": { "naturalWidth": nw, "naturalHeight": nh }
+                            });
+
+                            issues.push(Issue {
+                                id,
+                                issue_type: IssueType::ChangedImageDimensions,
+                                category: IssueCategory::Content,
+                                severity,
+                                confidence,
+                                viewport: viewport.to_string(),
+                                locale: new_lang.clone(),
+                                goal: Some("G7".to_string()),
+                                message: format!(
+                                    "Image dimensions changed from {}x{} to {}x{}",
+                                    ow, oh, nw, nh
+                                ),
+                                locator: node_pair_locator(anchors.clone(), old_node, new_node),
+                                evidence,
+                                remediation: None,
+                            });
+                        }
+                        ImageDimensionsMode::Responsive => {
+                            // Step 1: upscale — new is larger on either axis.
+                            let is_upscale = nw > ow || nh > oh;
+                            if is_upscale {
+                                let id = compute_issue_id(
+                                    &IssueType::ChangedImageDimensions,
+                                    viewport,
+                                    anchors,
+                                    None,
+                                );
+                                let severity = profile.severity_for(
+                                    &IssueType::ChangedImageDimensions,
+                                    &IssueCategory::Content,
+                                );
+                                let evidence = serde_json::json!({
+                                    "match": match_evidence,
+                                    "old": { "naturalWidth": ow, "naturalHeight": oh },
+                                    "new": { "naturalWidth": nw, "naturalHeight": nh },
+                                    "responsive": { "verdict": "upscale" }
+                                });
+                                issues.push(Issue {
+                                    id,
+                                    issue_type: IssueType::ChangedImageDimensions,
+                                    category: IssueCategory::Content,
+                                    severity,
+                                    confidence,
+                                    viewport: viewport.to_string(),
+                                    locale: new_lang.clone(),
+                                    goal: Some("G7".to_string()),
+                                    message: format!(
+                                        "Image dimensions changed from {}x{} to {}x{}",
+                                        ow, oh, nw, nh
+                                    ),
+                                    locator: node_pair_locator(anchors.clone(), old_node, new_node),
+                                    evidence,
+                                    remediation: None,
+                                });
+                                return;
+                            }
+
+                            // Step 2: aspect change — |old_ar - new_ar| / old_ar > tolerance.
+                            let old_ar = ow as f64 / oh as f64;
+                            let new_ar = nw as f64 / nh as f64;
+                            let ar_frac_diff = (old_ar - new_ar).abs() / old_ar;
+                            let is_aspect_changed = ar_frac_diff > ASPECT_RATIO_TOLERANCE;
+                            if is_aspect_changed {
+                                let id = compute_issue_id(
+                                    &IssueType::ChangedImageDimensions,
+                                    viewport,
+                                    anchors,
+                                    None,
+                                );
+                                let severity = profile.severity_for(
+                                    &IssueType::ChangedImageDimensions,
+                                    &IssueCategory::Content,
+                                );
+                                let evidence = serde_json::json!({
+                                    "match": match_evidence,
+                                    "old": { "naturalWidth": ow, "naturalHeight": oh },
+                                    "new": { "naturalWidth": nw, "naturalHeight": nh },
+                                    "responsive": { "verdict": "aspect_changed" }
+                                });
+                                issues.push(Issue {
+                                    id,
+                                    issue_type: IssueType::ChangedImageDimensions,
+                                    category: IssueCategory::Content,
+                                    severity,
+                                    confidence,
+                                    viewport: viewport.to_string(),
+                                    locale: new_lang.clone(),
+                                    goal: Some("G7".to_string()),
+                                    message: format!(
+                                        "Image dimensions changed from {}x{} to {}x{}",
+                                        ow, oh, nw, nh
+                                    ),
+                                    locator: node_pair_locator(anchors.clone(), old_node, new_node),
+                                    evidence,
+                                    remediation: None,
+                                });
+                                return;
+                            }
+
+                            // Step 3: undersized — nw < rendered width of new node's bbox.
+                            // bbox[2] is the rendered CSS width. Skip when bbox is missing or
+                            // zero (treat as covering).
+                            let rendered_w = new_node.bbox[2];
+                            let is_undersized =
+                                rendered_w > 0 && (nw as i32) < rendered_w;
+
+                            let (final_severity, verdict, rendered_w_evidence) = if is_undersized {
+                                let severity = profile.severity_for(
+                                    &IssueType::ChangedImageDimensions,
+                                    &IssueCategory::Content,
+                                );
+                                (
+                                    severity,
+                                    "undersized",
+                                    Some(rendered_w),
+                                )
+                            } else {
+                                // Step 4: aspect-preserving downscale that covers the box → Info.
+                                (IssueSeverity::Info, "intentional_downscale", if rendered_w > 0 { Some(rendered_w) } else { None })
+                            };
+
+                            let id = compute_issue_id(
+                                &IssueType::ChangedImageDimensions,
+                                viewport,
+                                anchors,
+                                None,
+                            );
+
+                            let responsive_evidence = match rendered_w_evidence {
+                                Some(rw) => serde_json::json!({
+                                    "verdict": verdict,
+                                    "renderedWidth": rw
+                                }),
+                                None => serde_json::json!({
+                                    "verdict": verdict,
+                                    "renderedWidth": null
+                                }),
+                            };
+
+                            let evidence = serde_json::json!({
+                                "match": match_evidence,
+                                "old": { "naturalWidth": ow, "naturalHeight": oh },
+                                "new": { "naturalWidth": nw, "naturalHeight": nh },
+                                "responsive": responsive_evidence
+                            });
+
+                            issues.push(Issue {
+                                id,
+                                issue_type: IssueType::ChangedImageDimensions,
+                                category: IssueCategory::Content,
+                                severity: final_severity,
+                                confidence,
+                                viewport: viewport.to_string(),
+                                locale: new_lang.clone(),
+                                goal: Some("G7".to_string()),
+                                message: format!(
+                                    "Image dimensions changed from {}x{} to {}x{}",
+                                    ow, oh, nw, nh
+                                ),
+                                locator: node_pair_locator(anchors.clone(), old_node, new_node),
+                                evidence,
+                                remediation: None,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -1538,6 +1701,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         }
     }
 
@@ -1572,6 +1736,7 @@ mod tests {
             page_height: 4000,
             nodes,
             landmarks: vec![],
+            landmark_rects: None,
             network: NetworkInfo { requests: vec![] },
             console: vec![],
             a11y: A11yInfo { violations: vec![] },
@@ -1713,7 +1878,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let h1_issues: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ChangedH1)
@@ -1760,7 +1925,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             issues
                 .iter()
@@ -1812,7 +1977,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             issues
                 .iter()
@@ -1860,7 +2025,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedText));
@@ -1905,7 +2070,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedLinkTarget));
@@ -1955,7 +2120,7 @@ mod tests {
             vec![new_node.clone()],
         );
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             !issues
                 .iter()
@@ -2003,7 +2168,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedLinkText));
@@ -2049,7 +2214,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         // broken_image fires
         assert!(
             issues
@@ -2117,7 +2282,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedAltText));
@@ -2162,7 +2327,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             !issues
                 .iter()
@@ -2216,7 +2381,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingAltText));
@@ -2261,7 +2426,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedImageDimensions));
@@ -2281,7 +2446,7 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingTitle));
@@ -2298,7 +2463,7 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedTitle));
@@ -2314,7 +2479,7 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingMetaDescription));
@@ -2346,7 +2511,7 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             issues.iter().any(|i| i.issue_type == IssueType::MissingH1),
             "missing_h1 should fire"
@@ -2392,7 +2557,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_h1.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_h1.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             !issues.iter().any(|i| i.issue_type == IssueType::MissingH1),
             "missing_h1 must NOT fire when both pages have h1"
@@ -2433,7 +2598,7 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             issues
                 .iter()
@@ -2471,7 +2636,7 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(
             issues
                 .iter()
@@ -2509,7 +2674,7 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingButton));
@@ -2544,7 +2709,7 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let form_issue: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::MissingForm)
@@ -2600,7 +2765,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -2654,7 +2819,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -2711,7 +2876,7 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -2753,7 +2918,7 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::MissingLink)
@@ -2835,7 +3000,7 @@ mod tests {
             new_final_url: "http://new.com/".to_string(),
         };
         let outcome = match_nodes(&old_b.page.nodes, &new_b.page.nodes, &ctx, 4000, 4000);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let broken: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::BrokenLink)
@@ -2909,7 +3074,7 @@ mod tests {
             new_final_url: "http://new.com/".to_string(),
         };
         let outcome = match_nodes(&old_b.page.nodes, &new_b.page.nodes, &ctx, 4000, 4000);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let broken: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::BrokenLink)
@@ -2981,7 +3146,7 @@ mod tests {
             new_final_url: "http://localhost:3011/".to_string(),
         };
         let outcome = match_nodes(&old_b.page.nodes, &new_b.page.nodes, &ctx, 4000, 4000);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let broken: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::BrokenLink)
@@ -3037,7 +3202,7 @@ mod tests {
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome =
             make_outcome_from_pair(0, 0, MatchStage::Assignment, MatchBand::Uncertain, 0.55);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -3182,7 +3347,7 @@ mod tests {
             "old-text must be missing_old in unfiltered match"
         );
 
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
 
         let missing_text: Vec<_> = issues
             .iter()
@@ -3245,11 +3410,11 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let mut issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let mut issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
         crate::issue::resolve_id_collisions(&mut issues);
 
         let result = DiffResult {
-            schema_version: "1.0".to_string(),
+            schema_version: "1.1".to_string(),
             tool_version: "0.1.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "http://old.com/".to_string(),
@@ -3276,6 +3441,12 @@ mod tests {
             issues,
             clusters: vec![],
             suppressed: Suppressed {
+                count: 0,
+                ids: vec![],
+            },
+            warnings: vec![],
+            scoped_to: None,
+            out_of_scope: crate::contract::OutOfScope {
                 count: 0,
                 ids: vec![],
             },
@@ -3308,5 +3479,214 @@ mod tests {
                 msgs.join("\n")
             );
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // WP-I: ImageDimensionsMode tests
+    // -----------------------------------------------------------------------
+
+    /// Helper: make a minimal image SemanticNode with given natural dimensions and rendered bbox.
+    fn make_img_node(
+        id: &str,
+        nw: u32,
+        nh: u32,
+        rendered_w: i32,
+    ) -> SemanticNode {
+        make_node(
+            id,
+            "image",
+            None,
+            None,
+            None,
+            None,
+            Some("alt"),
+            Some("http://example.com/img.jpg"),
+            Some(nw),
+            Some(nh),
+            Some(true),
+            [0, 100, rendered_w, 400],
+            0,
+            None,
+            None,
+        )
+    }
+
+    /// Run semantic_issues with the given mode for a single matched image pair and return the
+    /// changed_image_dimensions issue(s), if any.
+    fn run_img_dim_issues(
+        old_nw: u32, old_nh: u32, old_rw: i32,
+        new_nw: u32, new_nh: u32, new_rw: i32,
+        mode: ImageDimensionsMode,
+    ) -> Vec<crate::contract::Issue> {
+        let old_node = make_img_node("o1", old_nw, old_nh, old_rw);
+        let new_node = make_img_node("n1", new_nw, new_nh, new_rw);
+        let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node]);
+        let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node]);
+        let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, mode);
+        issues
+            .into_iter()
+            .filter(|i| i.issue_type == IssueType::ChangedImageDimensions)
+            .collect()
+    }
+
+    /// WP-I-strict-existing: strict mode passes through the old behaviour — an aspect-preserving
+    /// downscale still emits an error-severity issue.
+    #[test]
+    fn test_wpi_strict_aspect_preserving_downscale_still_errors() {
+        // 1600x1067 → 800x533 (approx. same ratio): strict_fires = true (w_ratio=0.5 < 0.9)
+        // Strict mode must still emit it.
+        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 533, 600, ImageDimensionsMode::Strict);
+        assert_eq!(
+            dim_issues.len(),
+            1,
+            "strict: aspect-preserving downscale must still emit 1 issue"
+        );
+        assert_eq!(
+            dim_issues[0].severity,
+            crate::contract::IssueSeverity::Error,
+            "strict: severity must be Error"
+        );
+        // No 'responsive' key in evidence in strict mode.
+        assert!(
+            dim_issues[0].evidence.get("responsive").is_none(),
+            "strict: evidence must not contain 'responsive'"
+        );
+    }
+
+    /// WP-I-responsive-intentional-downscale: 1600x1067 → 800x534, rendered width 600.
+    /// nw(800) >= rendered_w(600): aspect-preserving downscale → Info severity, intentional_downscale.
+    #[test]
+    fn test_wpi_responsive_intentional_downscale_info() {
+        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 534, 600, ImageDimensionsMode::Responsive);
+        assert_eq!(
+            dim_issues.len(),
+            1,
+            "responsive intentional_downscale: must emit exactly 1 issue"
+        );
+        let issue = &dim_issues[0];
+        assert_eq!(
+            issue.severity,
+            crate::contract::IssueSeverity::Info,
+            "responsive intentional_downscale: severity must be Info"
+        );
+        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        assert_eq!(
+            resp.get("verdict").and_then(|v| v.as_str()),
+            Some("intentional_downscale"),
+            "verdict must be 'intentional_downscale'"
+        );
+        assert_eq!(
+            resp.get("renderedWidth").and_then(|v| v.as_i64()),
+            Some(600),
+            "renderedWidth must be 600"
+        );
+    }
+
+    /// WP-I-responsive-upscale: 800x534 → 1600x1067.
+    /// new is larger → upscale → Error severity, verdict "upscale".
+    #[test]
+    fn test_wpi_responsive_upscale_errors() {
+        let dim_issues = run_img_dim_issues(800, 534, 800, 1600, 1067, 1000, ImageDimensionsMode::Responsive);
+        assert_eq!(
+            dim_issues.len(),
+            1,
+            "responsive upscale: must emit exactly 1 issue"
+        );
+        let issue = &dim_issues[0];
+        assert_eq!(
+            issue.severity,
+            crate::contract::IssueSeverity::Error,
+            "responsive upscale: severity must be Error"
+        );
+        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        assert_eq!(
+            resp.get("verdict").and_then(|v| v.as_str()),
+            Some("upscale"),
+            "verdict must be 'upscale'"
+        );
+    }
+
+    /// WP-I-responsive-aspect-changed: 1600x1067 → 1200x900.
+    /// old aspect ratio: 1600/1067 ≈ 1.4994; new: 1200/900 ≈ 1.3333.
+    /// |1.4994 - 1.3333| / 1.4994 ≈ 0.111 >> 0.02 → aspect_changed, Error severity.
+    #[test]
+    fn test_wpi_responsive_aspect_changed_errors() {
+        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 1200, 900, 800, ImageDimensionsMode::Responsive);
+        assert_eq!(
+            dim_issues.len(),
+            1,
+            "responsive aspect_changed: must emit exactly 1 issue"
+        );
+        let issue = &dim_issues[0];
+        assert_eq!(
+            issue.severity,
+            crate::contract::IssueSeverity::Error,
+            "responsive aspect_changed: severity must be Error"
+        );
+        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        assert_eq!(
+            resp.get("verdict").and_then(|v| v.as_str()),
+            Some("aspect_changed"),
+            "verdict must be 'aspect_changed'"
+        );
+    }
+
+    /// WP-I-responsive-undersized: 1600x1067 → 800x534, but rendered width is 900.
+    /// nw(800) < rendered_w(900) → undersized, Error severity, renderedWidth 900.
+    #[test]
+    fn test_wpi_responsive_undersized_errors() {
+        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 534, 900, ImageDimensionsMode::Responsive);
+        assert_eq!(
+            dim_issues.len(),
+            1,
+            "responsive undersized: must emit exactly 1 issue"
+        );
+        let issue = &dim_issues[0];
+        assert_eq!(
+            issue.severity,
+            crate::contract::IssueSeverity::Error,
+            "responsive undersized: severity must be Error"
+        );
+        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        assert_eq!(
+            resp.get("verdict").and_then(|v| v.as_str()),
+            Some("undersized"),
+            "verdict must be 'undersized'"
+        );
+        assert_eq!(
+            resp.get("renderedWidth").and_then(|v| v.as_i64()),
+            Some(900),
+            "renderedWidth must be 900"
+        );
+    }
+
+    /// WP-I-responsive-bbox-zero: bbox rendered width = 0 → step 3 skipped, intentional_downscale.
+    #[test]
+    fn test_wpi_responsive_bbox_zero_intentional_downscale() {
+        // rendered_w = 0 → skip undersized check, land on intentional_downscale
+        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 534, 0, ImageDimensionsMode::Responsive);
+        assert_eq!(
+            dim_issues.len(),
+            1,
+            "responsive bbox=0: must emit exactly 1 issue"
+        );
+        let issue = &dim_issues[0];
+        assert_eq!(
+            issue.severity,
+            crate::contract::IssueSeverity::Info,
+            "responsive bbox=0: severity must be Info (intentional_downscale)"
+        );
+        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        assert_eq!(
+            resp.get("verdict").and_then(|v| v.as_str()),
+            Some("intentional_downscale"),
+            "verdict must be 'intentional_downscale' when rendered_w=0"
+        );
+        // renderedWidth should be null when rendered_w is 0 (treated as missing)
+        assert!(
+            resp.get("renderedWidth").map(|v| v.is_null()).unwrap_or(false),
+            "renderedWidth must be null when bbox width is 0"
+        );
     }
 }

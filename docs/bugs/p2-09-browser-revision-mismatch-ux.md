@@ -1,6 +1,6 @@
 # Issue: Browser-revision mismatch prints Playwright banner three times; `doctor` does not check pinned revision or surface `PLAYWRIGHT_BROWSERS_PATH`
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P2 — the triple banner is noise that obscures the real error; the doctor check passes without verifying the revision that capture actually needs, leaving the user with no actionable guidance
 **Area:** `packages/analyze/src/doctor.rs` — `check_capture_doctor()`; `packages/analyze/src/orchestrate.rs` — capture retry loop

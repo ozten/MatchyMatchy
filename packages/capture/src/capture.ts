@@ -6,6 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
+import { chromium } from "playwright";
 import type { Browser, BrowserContext, Page, Request, Response, ConsoleMessage as PwConsoleMessage } from "playwright";
 import { CaptureConfigSchema } from "./schema.js";
 import type { CaptureBundle, NetworkRequest, ConsoleMessage } from "./schema.js";
@@ -66,13 +67,24 @@ async function readStdin(): Promise<string> {
 
 async function runDoctor(): Promise<void> {
   const pwVersion = getPlaywrightVersion();
-  let chromiumOk = false;
+  let launchSucceeded = false;
   let chromiumVersion = "";
   let browser: Browser | null = null;
+
+  // Get the path Playwright would use for chromium, even before launching.
+  let executablePath = "";
+  try {
+    executablePath = chromium.executablePath();
+  } catch (err) {
+    log(`[doctor] chromium.executablePath() failed: ${err}`);
+  }
+
+  const executableExists = executablePath !== "" && fs.existsSync(executablePath);
+
   try {
     browser = await launchBrowser();
     chromiumVersion = browser.version();
-    chromiumOk = true;
+    launchSucceeded = true;
   } catch (err) {
     log(`[doctor] Chromium launch failed: ${err}`);
   } finally {
@@ -81,18 +93,33 @@ async function runDoctor(): Promise<void> {
     }
   }
 
+  // chromium.ok requires both a successful launch AND the executable existing on disk.
+  const chromiumOk = launchSucceeded && executableExists;
+
+  // browsersPath: the env var that controls where Playwright looks for browsers.
+  const browsersPath: string | null = process.env["PLAYWRIGHT_BROWSERS_PATH"] ?? null;
+
+  const chromiumInfo = {
+    ok: chromiumOk,
+    version: chromiumVersion,
+    executablePath,
+    exists: executableExists,
+  };
+
   if (chromiumOk) {
     printOk({
       node: process.version,
       playwright: pwVersion,
-      chromium: { ok: true, version: chromiumVersion },
+      chromium: chromiumInfo,
+      browsersPath,
     });
     process.exit(0);
   } else {
     printOk({
       node: process.version,
       playwright: pwVersion,
-      chromium: { ok: false, version: "" },
+      chromium: chromiumInfo,
+      browsersPath,
     });
     process.exit(1);
   }
@@ -333,6 +360,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
           headingLevel: n.headingLevel,
         })),
         landmarks: pageModelRaw.landmarks,
+        landmarkRects: pageModelRaw.landmarkRects,
         network: { requests: networkRequests },
         console: consoleMessages,
         a11y: { violations },

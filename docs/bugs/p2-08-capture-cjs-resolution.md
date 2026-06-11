@@ -1,6 +1,6 @@
 # Issue: `capture.cjs` not found when the binary runs outside its repo
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P2 — any invocation of the installed binary from a directory other than the repo root fails immediately before capturing a single page
 **Area:** `packages/analyze/src/orchestrate.rs` — `resolve_capture_script()`

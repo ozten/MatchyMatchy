@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T01-01-26Z",
+  "runId": "2026-06-11T22-08-07Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47008/",
   "parityProfile": "content-structure",
@@ -23,7 +23,17 @@
     "style": 1.0,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 1.0
+    "hygiene": 1.0,
+    "byLandmark": {
+      "main": {
+        "content": 0.5,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      }
+    }
   },
   "viewports": [
     {
@@ -103,6 +113,12 @@
     "count": 0,
     "ids": []
   },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
+    "count": 0,
+    "ids": []
+  },
   "determinism": {
     "old": {
       "animationsDisabled": "ran",
@@ -116,7 +132,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     },
     "new": {
       "animationsDisabled": "ran",
@@ -130,7 +158,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     }
   },
   "artifacts": {

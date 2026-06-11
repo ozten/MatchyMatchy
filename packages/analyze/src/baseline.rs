@@ -33,6 +33,11 @@ impl Baseline {
             ids: ids.into_iter().collect(),
         }
     }
+
+    /// Iterate over all baseline ids in sorted order.
+    pub fn iter_ids(&self) -> impl Iterator<Item = &String> {
+        self.ids.iter()
+    }
 }
 
 /// Parse the inner JSON bytes; factored out to allow unit-testing without fs.

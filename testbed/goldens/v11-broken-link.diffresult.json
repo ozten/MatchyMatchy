@@ -1,13 +1,13 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T15-49-11Z",
+  "runId": "2026-06-11T22-08-24Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47011/",
   "parityProfile": "content-structure",
   "status": "fail",
   "agentSummary": {
-    "fixableNow": 3,
+    "fixableNow": 2,
     "byType": {
       "broken_link": 1,
       "changed_link_target": 1,
@@ -16,8 +16,8 @@
     "clusterCount": 0,
     "topFixes": [
       "issue_97d291f9bb0d",
-      "issue_eb914dfb7592",
-      "issue_bb5b728ea168"
+      "issue_bb5b728ea168",
+      "issue_eb914dfb7592"
     ]
   },
   "scores": {
@@ -27,7 +27,17 @@
     "style": 1.0,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 0.5
+    "hygiene": 1.0,
+    "byLandmark": {
+      "main": {
+        "content": 0.3333333333333333,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      }
+    }
   },
   "viewports": [
     {
@@ -103,59 +113,6 @@
       }
     },
     {
-      "id": "issue_eb914dfb7592",
-      "type": "url_protocol_downgrade",
-      "category": "hygiene",
-      "severity": "error",
-      "confidence": 0.98,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G5",
-      "message": "Per-link protocol downgrade: http://localhost:47011/free-call-inspection should be https",
-      "locator": {
-        "anchors": {
-          "text": "Free Call Inspection",
-          "role": "link",
-          "href": "http://localhost:47011/free-call-inspection",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": null,
-        "bboxNew": [
-          739,
-          1226,
-          192,
-          40
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 46
-      },
-      "evidence": {
-        "new": {
-          "url": "http://localhost:47011/free-call-inspection"
-        },
-        "old": {
-          "url": "https://localhost:47011/free-call-inspection"
-        }
-      },
-      "remediation": {
-        "action": "rewrite_url",
-        "findBy": {
-          "grep": [
-            "localhost:47011/free-call-inspection"
-          ]
-        },
-        "from": "http://localhost:47011/free-call-inspection",
-        "note": "Link uses HTTP where old page had HTTPS for the same path. Update to HTTPS.",
-        "to": "https://localhost:47011/free-call-inspection"
-      }
-    },
-    {
       "id": "issue_bb5b728ea168",
       "type": "changed_link_target",
       "category": "content",
@@ -224,10 +181,62 @@
         "from": "/free-call-inspection",
         "to": "https://www.hiya.com/free-call-inspection"
       }
+    },
+    {
+      "id": "issue_eb914dfb7592",
+      "type": "url_protocol_downgrade",
+      "category": "hygiene",
+      "severity": "info",
+      "confidence": 0.98,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G5",
+      "message": "Per-link protocol downgrade: http://localhost:47011/free-call-inspection should be https (expected for a local development server)",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": "link",
+          "href": "http://localhost:47011/free-call-inspection",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": null,
+        "bboxNew": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 46
+      },
+      "evidence": {
+        "new": {
+          "url": "http://localhost:47011/free-call-inspection"
+        },
+        "old": {
+          "url": "https://localhost:47011/free-call-inspection"
+        }
+      },
+      "remediation": {
+        "action": "none",
+        "note": "HTTP is expected for a local dev server; HTTPS on localhost would require a self-signed certificate. This issue will not appear once the candidate is served from a real HTTPS host."
+      }
     }
   ],
   "clusters": [],
   "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
     "count": 0,
     "ids": []
   },
@@ -244,7 +253,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     },
     "new": {
       "animationsDisabled": "ran",
@@ -258,7 +279,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     }
   },
   "artifacts": {

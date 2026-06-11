@@ -374,6 +374,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         }
     }
 
@@ -406,6 +407,7 @@ mod tests {
                 page_height: 2000,
                 nodes: vec![],
                 landmarks: vec![],
+                landmark_rects: None,
                 network: NetworkInfo { requests: vec![] },
                 console: vec![],
                 a11y: A11yInfo { violations },

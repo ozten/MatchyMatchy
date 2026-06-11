@@ -1,6 +1,6 @@
 # Issue: changed_image_dimensions flags intentional responsive downscaling; add a srcset/DPR-aware mode
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P2 — current strict mode produces actionable true-positive findings for strict-parity migrations; the noise class only becomes a problem when evaluating responsive-first frontends where same-asset downscaling is intentional
 **Area:** diff engine / scoring (enhancement)

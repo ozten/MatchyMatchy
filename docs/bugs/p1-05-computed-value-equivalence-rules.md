@@ -1,6 +1,6 @@
 # Issue: Diff lacks computed-value equivalence rules: invisible zero-width border colors and text-align start/left noise dominate style counts
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P1 — two canonicalization rules alone would eliminate 15–26% of all style_changed issues across tested runs, making the style score effectively meaningless until implemented
 **Area:** diff engine / scoring

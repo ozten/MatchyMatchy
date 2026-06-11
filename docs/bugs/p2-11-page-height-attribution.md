@@ -1,6 +1,6 @@
 # Issue: `page_height_changed` reports the aggregate delta but does not attribute it per landmark or section
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P2 — the issue tells you the page shrank by ~400 px but not where; locating the responsible section requires external bbox measurement outside matchy
 **Area:** `packages/analyze/src/visual_diff.rs` (page height detector); `packages/analyze/src/contract.rs` (Issue/Locator shape)

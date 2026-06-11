@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T05-56-39Z",
+  "runId": "2026-06-11T22-07-19Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47002/",
   "parityProfile": "content-structure",
@@ -28,7 +28,33 @@
     "style": 1.0,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 1.0
+    "hygiene": 1.0,
+    "byLandmark": {
+      "(none)": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "contentinfo": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "main": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      }
+    }
   },
   "viewports": [
     {
@@ -2093,8 +2119,18 @@
         },
         "cssSelectorOld": null,
         "cssSelectorNew": null,
-        "bboxOld": null,
-        "bboxNew": null,
+        "bboxOld": [
+          0,
+          64,
+          1440,
+          6381
+        ],
+        "bboxNew": [
+          0,
+          64,
+          1440,
+          6437
+        ],
         "seqIndexOld": null,
         "seqIndexNew": null
       },
@@ -2105,7 +2141,17 @@
         },
         "old": {
           "pageHeight": 6977
-        }
+        },
+        "sectionDeltas": [
+          {
+            "delta": 56,
+            "heading": "Reach more customers with Hiya's Branded Call",
+            "newHeight": 6437,
+            "oldHeight": 6381,
+            "path": "main",
+            "role": "main"
+          }
+        ]
       },
       "remediation": null
     },
@@ -3268,6 +3314,12 @@
     "count": 0,
     "ids": []
   },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
+    "count": 0,
+    "ids": []
+  },
   "determinism": {
     "old": {
       "animationsDisabled": "ran",
@@ -3281,7 +3333,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     },
     "new": {
       "animationsDisabled": "ran",
@@ -3295,7 +3359,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     }
   },
   "artifacts": {

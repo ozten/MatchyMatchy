@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T16-07-06Z",
+  "runId": "2026-06-11T22-07-40Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47004/",
   "parityProfile": "content-structure",
@@ -9,7 +9,7 @@
   "agentSummary": {
     "fixableNow": 454,
     "byType": {
-      "style_changed": 454,
+      "style_changed": 463,
       "visual_region_changed": 32
     },
     "clusterCount": 3,
@@ -28,7 +28,49 @@
     "style": 0.002197802197802198,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 1.0
+    "hygiene": 1.0,
+    "byLandmark": {
+      "(none)": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "banner": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.09090909090909091,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "contentinfo": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.009523809523809525,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "main": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.003048780487804878,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "navigation": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.07142857142857142,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      }
+    }
   },
   "viewports": [
     {
@@ -67,7 +109,8 @@
         "issue_eeea4945cbaf",
         "issue_b7cd2312dd48",
         "issue_b0f78d9544e4",
-        "issue_c23acbc5bbb7",
+        "issue_44845c567e0d",
+        "issue_220ec0abaaaa",
         "issue_e04d9a41c7e0",
         "issue_28e233213e84",
         "issue_e40e9a827a63",
@@ -159,15 +202,23 @@
         "issue_10387ca650d8",
         "issue_de113872c86f",
         "issue_3ef678ad9078",
+        "issue_78f7b4f38388",
         "issue_72335ef3d97a",
+        "issue_d191bdddb4cc",
         "issue_4fae515b29a0",
+        "issue_9374514df41f",
         "issue_262e8f32d977",
+        "issue_3662bc99cccf",
         "issue_022e02e95f4f",
+        "issue_ac8e26b139db",
         "issue_ca8e30cdea54",
+        "issue_4e142b0a374b",
         "issue_90c05097a782",
+        "issue_c996fdc01694",
         "issue_a5a21ee7e18c",
         "issue_51895f1bd6a9",
         "issue_5074f6e3ac4c",
+        "issue_d28b3cd14b80",
         "issue_6d4f7686a4f1",
         "issue_b235ee0400d2",
         "issue_2cf47382dfac",
@@ -204,7 +255,7 @@
         "issue_608d5bf470cb",
         "issue_52a638dc3484",
         "issue_2995a3a33a27",
-        "issue_a56040e78237",
+        "issue_4fb7aeed94f0",
         "issue_5471760244c0",
         "issue_41356c6dd678",
         "issue_d642dd7bc079",
@@ -213,7 +264,7 @@
         "issue_07fc11fbb545",
         "issue_4d0d372405dc",
         "issue_4f1af35d9c89",
-        "issue_16b5c5e5232e",
+        "issue_cce0bcf3a4fc",
         "issue_2be20d506642",
         "issue_f68b4373140c",
         "issue_c4bb4b10eb94",
@@ -1487,75 +1538,6 @@
             "Build customer trust and reduce frustration by ensuring customers know it's really you calling."
           ],
           "near": "Display your company’s name, logo, and call reason on outbound calls"
-        },
-        "from": "Georgia, serif",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "font-family",
-        "to": "\"Nunito Sans\", sans-serif"
-      }
-    },
-    {
-      "id": "issue_16b5c5e5232e",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"RESOURCES\"",
-      "locator": {
-        "anchors": {
-          "text": "Cookie Settings",
-          "role": "link",
-          "href": "http://localhost:47000/branded-call.html#",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "RESOURCES",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
-        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
-        "bboxOld": [
-          616,
-          6930,
-          92,
-          20
-        ],
-        "bboxNew": [
-          584,
-          6930,
-          83,
-          20
-        ],
-        "seqIndexOld": 199,
-        "seqIndexNew": 199
-      },
-      "evidence": {
-        "match": {
-          "band": "matched",
-          "score": 1.0,
-          "signals": {
-            "exactKey": 1.0
-          },
-          "stage": "identity"
-        },
-        "new": {
-          "font-family": "Georgia, serif"
-        },
-        "old": {
-          "font-family": "\"Nunito Sans\", sans-serif"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "\"http://localhost:47000/branded-call.html#\"",
-            "Cookie Settings"
-          ],
-          "near": "RESOURCES"
         },
         "from": "Georgia, serif",
         "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
@@ -4670,6 +4652,74 @@
       }
     },
     {
+      "id": "issue_44845c567e0d",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "link",
+          "href": "https://www.hiya.com/?r=0",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "banner",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "bboxNew": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "seqIndexOld": 0,
+        "seqIndexNew": 0
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 1.0,
+          "signals": {
+            "exactKey": 1.0
+          },
+          "stage": "identity"
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "\"https://www.hiya.com/?r=0\""
+          ],
+          "near": null
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
       "id": "issue_47b44934c5fb",
       "type": "style_changed",
       "category": "style",
@@ -5418,6 +5468,75 @@
             "Which carriers and countries support Hiya Branded Call?"
           ],
           "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_4fb7aeed94f0",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"RESOURCES\"",
+      "locator": {
+        "anchors": {
+          "text": "Press Kit",
+          "role": "link",
+          "href": "https://www.hiya.com/newsroom/#press-kit",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > ul:nth-of-type(1) > li:nth-of-type(7) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > ul:nth-of-type(1) > li:nth-of-type(7) > a:nth-of-type(1)",
+        "bboxOld": [
+          1081,
+          6704,
+          51,
+          18
+        ],
+        "bboxNew": [
+          1081,
+          6705,
+          48,
+          15
+        ],
+        "seqIndexOld": 190,
+        "seqIndexNew": 190
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 1.0,
+          "signals": {
+            "exactKey": 1.0
+          },
+          "stage": "identity"
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "\"https://www.hiya.com/newsroom/#press-kit\"",
+            "Press Kit"
+          ],
+          "near": "RESOURCES"
         },
         "from": "Georgia, serif",
         "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
@@ -9962,75 +10081,6 @@
       }
     },
     {
-      "id": "issue_a56040e78237",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"RESOURCES\"",
-      "locator": {
-        "anchors": {
-          "text": "Press Kit",
-          "role": "link",
-          "href": "https://www.hiya.com/newsroom/#press-kit",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "RESOURCES",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > ul:nth-of-type(1) > li:nth-of-type(7) > a:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > ul:nth-of-type(1) > li:nth-of-type(7) > a:nth-of-type(1)",
-        "bboxOld": [
-          1081,
-          6704,
-          51,
-          18
-        ],
-        "bboxNew": [
-          1081,
-          6705,
-          48,
-          15
-        ],
-        "seqIndexOld": 190,
-        "seqIndexNew": 190
-      },
-      "evidence": {
-        "match": {
-          "band": "matched",
-          "score": 1.0,
-          "signals": {
-            "exactKey": 1.0
-          },
-          "stage": "identity"
-        },
-        "new": {
-          "font-family": "Georgia, serif"
-        },
-        "old": {
-          "font-family": "\"Nunito Sans\", sans-serif"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "\"https://www.hiya.com/newsroom/#press-kit\"",
-            "Press Kit"
-          ],
-          "near": "RESOURCES"
-        },
-        "from": "Georgia, serif",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "font-family",
-        "to": "\"Nunito Sans\", sans-serif"
-      }
-    },
-    {
       "id": "issue_a5a21ee7e18c",
       "type": "style_changed",
       "category": "style",
@@ -11065,74 +11115,6 @@
       }
     },
     {
-      "id": "issue_c23acbc5bbb7",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "link",
-          "href": "https://www.hiya.com/?r=0",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": null,
-          "landmark": "banner",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          16,
-          20,
-          32
-        ],
-        "bboxNew": [
-          120,
-          16,
-          20,
-          32
-        ],
-        "seqIndexOld": 0,
-        "seqIndexNew": 0
-      },
-      "evidence": {
-        "match": {
-          "band": "matched",
-          "score": 1.0,
-          "signals": {
-            "exactKey": 1.0
-          },
-          "stage": "identity"
-        },
-        "new": {
-          "font-family": "Georgia, serif"
-        },
-        "old": {
-          "font-family": "\"Nunito Sans\", sans-serif"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "\"https://www.hiya.com/?r=0\""
-          ],
-          "near": null
-        },
-        "from": "Georgia, serif",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "font-family",
-        "to": "\"Nunito Sans\", sans-serif"
-      }
-    },
-    {
       "id": "issue_c457edbbbdc4",
       "type": "style_changed",
       "category": "style",
@@ -11604,6 +11586,75 @@
             "TRUSTED BY 1,000+ BUSINESSES GLOBALLY"
           ],
           "near": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_cce0bcf3a4fc",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"RESOURCES\"",
+      "locator": {
+        "anchors": {
+          "text": "Cookie Settings",
+          "role": "link",
+          "href": "http://localhost:47000/branded-call.html#",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
+        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
+        "bboxOld": [
+          616,
+          6930,
+          92,
+          20
+        ],
+        "bboxNew": [
+          584,
+          6930,
+          83,
+          20
+        ],
+        "seqIndexOld": 199,
+        "seqIndexNew": 199
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 1.0,
+          "signals": {
+            "exactKey": 1.0
+          },
+          "stage": "identity"
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "\"http://localhost:47000/branded-call.html#\"",
+            "Cookie Settings"
+          ],
+          "near": "RESOURCES"
         },
         "from": "Georgia, serif",
         "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
@@ -33608,6 +33659,670 @@
       "remediation": null
     },
     {
+      "id": "issue_220ec0abaaaa",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "banner",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "bboxNew": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "seqIndexOld": 1,
+        "seqIndexNew": 1
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [],
+          "near": null
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_3662bc99cccf",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 35
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5640,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5640,
+          16,
+          16
+        ],
+        "seqIndexOld": 135,
+        "seqIndexNew": 135
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_4e142b0a374b",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 37
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(7) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(7) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5767,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5767,
+          16,
+          16
+        ],
+        "seqIndexOld": 141,
+        "seqIndexNew": 141
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_78f7b4f38388",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 32
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5439,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5439,
+          16,
+          16
+        ],
+        "seqIndexOld": 126,
+        "seqIndexNew": 126
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_9374514df41f",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 34
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5577,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5577,
+          16,
+          16
+        ],
+        "seqIndexOld": 132,
+        "seqIndexNew": 132
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_ac8e26b139db",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 36
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5704,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5704,
+          16,
+          16
+        ],
+        "seqIndexOld": 138,
+        "seqIndexNew": 138
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_c996fdc01694",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 38
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(8) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(8) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5831,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5831,
+          16,
+          16
+        ],
+        "seqIndexOld": 144,
+        "seqIndexNew": 144
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_d191bdddb4cc",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 33
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5514,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5514,
+          16,
+          16
+        ],
+        "seqIndexOld": 129,
+        "seqIndexNew": 129
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
+      "id": "issue_d28b3cd14b80",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-family changed from \"Nunito Sans\", sans-serif to Georgia, serif near \"Your customers are waiting to hear from you\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          6505,
+          0,
+          0
+        ],
+        "bboxNew": [
+          120,
+          6505,
+          0,
+          0
+        ],
+        "seqIndexOld": 149,
+        "seqIndexNew": 149
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.595,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 0.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-family": "Georgia, serif"
+        },
+        "old": {
+          "font-family": "\"Nunito Sans\", sans-serif"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Your customers are waiting to hear from you"
+          ],
+          "near": "Your customers are waiting to hear from you"
+        },
+        "from": "Georgia, serif",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-family",
+        "to": "\"Nunito Sans\", sans-serif"
+      }
+    },
+    {
       "id": "issue_a609a79ce17b",
       "type": "visual_region_changed",
       "category": "visual",
@@ -33714,7 +34429,6 @@
         "issue_15662c81ddc6",
         "issue_15d765d57dae",
         "issue_160c2d93dd0b",
-        "issue_16b5c5e5232e",
         "issue_16b787ed2383",
         "issue_1748ed1348bb",
         "issue_177c105c62f6",
@@ -33739,6 +34453,7 @@
         "issue_1f20007d335f",
         "issue_2046c4c4cc3d",
         "issue_21583a902ad5",
+        "issue_220ec0abaaaa",
         "issue_22b7add93537",
         "issue_236ceea4536d",
         "issue_25236c198b4a",
@@ -33784,6 +34499,7 @@
         "issue_34bf35cbb901",
         "issue_35b580cba8b4",
         "issue_35e6340ef7b2",
+        "issue_3662bc99cccf",
         "issue_377118dfea5b",
         "issue_3886746abed6",
         "issue_399d14d1ce98",
@@ -33810,6 +34526,7 @@
         "issue_4307ae723720",
         "issue_43a5b2cfdacc",
         "issue_44232c17bcbe",
+        "issue_44845c567e0d",
         "issue_452b8897d8a2",
         "issue_458d083f2c96",
         "issue_4670d264ced3",
@@ -33829,10 +34546,12 @@
         "issue_4c57dbd5c74b",
         "issue_4d0d372405dc",
         "issue_4d5c76e8080e",
+        "issue_4e142b0a374b",
         "issue_4e5664bf9c14",
         "issue_4f1af35d9c89",
         "issue_4f7217e9e988",
         "issue_4fae515b29a0",
+        "issue_4fb7aeed94f0",
         "issue_50217dde3fbc",
         "issue_5074f6e3ac4c",
         "issue_5087a55d8351",
@@ -33902,6 +34621,7 @@
         "issue_76d9dcde0438",
         "issue_7728bade1db2",
         "issue_78c7d62018ed",
+        "issue_78f7b4f38388",
         "issue_79004b34173b",
         "issue_7974b6e407d2",
         "issue_7988990b12bf",
@@ -33947,6 +34667,7 @@
         "issue_91bd84d7ea8c",
         "issue_91e78b1a2210",
         "issue_92436db9e710",
+        "issue_9374514df41f",
         "issue_9394f4d7e4d2",
         "issue_941286145a14",
         "issue_946ed0e72d89",
@@ -33966,13 +34687,13 @@
         "issue_a3516f62f101",
         "issue_a48ceabd9876",
         "issue_a4c4b2e167a1",
-        "issue_a56040e78237",
         "issue_a5a21ee7e18c",
         "issue_a6774b25f84b",
         "issue_a698a152772c",
         "issue_a7b974f475f4",
         "issue_a7bb33083c94",
         "issue_aac8e12ed93a",
+        "issue_ac8e26b139db",
         "issue_acf77a8a3578",
         "issue_acfb94bccacb",
         "issue_ad42def8ee6c",
@@ -34011,7 +34732,6 @@
         "issue_c13f8093698a",
         "issue_c19661babdeb",
         "issue_c1b01cbd283f",
-        "issue_c23acbc5bbb7",
         "issue_c2e87c02b2d6",
         "issue_c3436056bcfa",
         "issue_c3ebdf1a464d",
@@ -34025,6 +34745,7 @@
         "issue_c804044d70cb",
         "issue_c93e59f19fa0",
         "issue_c966d2673bae",
+        "issue_c996fdc01694",
         "issue_c9b06cacd1dc",
         "issue_c9ca15246d57",
         "issue_c9e0590d2d4b",
@@ -34034,10 +34755,13 @@
         "issue_ca8e30cdea54",
         "issue_cac05cfae7b2",
         "issue_cb77d9dbaac2",
+        "issue_cce0bcf3a4fc",
         "issue_cd3d9c7f6c41",
         "issue_cf4e0c84d7b1",
         "issue_cff84d6e86be",
+        "issue_d191bdddb4cc",
         "issue_d21efec4ccc0",
+        "issue_d28b3cd14b80",
         "issue_d39c1559a488",
         "issue_d3c8237c1d6f",
         "issue_d4734d92d526",
@@ -34127,7 +34851,7 @@
       ],
       "sharedProperty": "font-family",
       "sharedLandmark": null,
-      "summary": "454 style_changed issues share font-family"
+      "summary": "463 style_changed issues share font-family"
     },
     {
       "id": "cluster_ebe4318e14cf",
@@ -34180,6 +34904,12 @@
     "count": 0,
     "ids": []
   },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
+    "count": 0,
+    "ids": []
+  },
   "determinism": {
     "old": {
       "animationsDisabled": "ran",
@@ -34193,7 +34923,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     },
     "new": {
       "animationsDisabled": "ran",
@@ -34207,7 +34949,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     }
   },
   "artifacts": {

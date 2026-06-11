@@ -672,4 +672,149 @@ describe("CaptureBundleSchema", () => {
     const result = CaptureBundleSchema.safeParse(bundle);
     expect(result.success).toBe(true);
   });
+
+  // ── WP-G: landmarkRects schema tests ──────────────────────────────────────
+
+  it("WP-G: accepts page with well-formed landmarkRects", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      page: {
+        ...KNOWN_GOOD_BUNDLE.page,
+        landmarkRects: [
+          {
+            path: "main",
+            role: "main",
+            heading: "Register your number",
+            bbox: [0, 72, 1440, 500] as [number, number, number, number],
+          },
+          {
+            path: "contentinfo",
+            role: "contentinfo",
+            heading: null,
+            bbox: [0, 572, 1440, 310] as [number, number, number, number],
+          },
+          {
+            path: "main › section[1]",
+            role: "region",
+            heading: "Hero section",
+            bbox: [0, 100, 1440, 200] as [number, number, number, number],
+          },
+        ],
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("WP-G: accepts page without landmarkRects (field is optional)", () => {
+    // KNOWN_GOOD_BUNDLE has no landmarkRects — it should still validate.
+    const result = CaptureBundleSchema.safeParse(KNOWN_GOOD_BUNDLE);
+    expect(result.success).toBe(true);
+  });
+
+  it("WP-G: rejects landmarkRects entry missing required bbox", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      page: {
+        ...KNOWN_GOOD_BUNDLE.page,
+        landmarkRects: [
+          {
+            path: "main",
+            role: "main",
+            heading: null,
+            // bbox intentionally omitted
+          },
+        ],
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("WP-G: rejects landmarkRects entry with non-integer bbox values", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      page: {
+        ...KNOWN_GOOD_BUNDLE.page,
+        landmarkRects: [
+          {
+            path: "main",
+            role: "main",
+            heading: null,
+            bbox: [0.5, 72.3, 1440.0, 500.7], // floats — must be integers
+          },
+        ],
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  // ── WP-H: integrity field in DeterminismRecord ────────────────────────────
+
+  it("WP-H: accepts determinism record WITH valid integrity inventory", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      determinism: {
+        ...KNOWN_GOOD_BUNDLE.determinism,
+        integrity: {
+          pre: { headingCount: 12, imageCount: 20, landmarkCount: 5 },
+          post: { headingCount: 12, imageCount: 20, landmarkCount: 5 },
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("WP-H: accepts determinism record WITHOUT integrity (field is optional)", () => {
+    // KNOWN_GOOD_BUNDLE has no integrity field — must validate.
+    const result = CaptureBundleSchema.safeParse(KNOWN_GOOD_BUNDLE);
+    expect(result.success).toBe(true);
+  });
+
+  it("WP-H: rejects integrity with missing required counts field", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      determinism: {
+        ...KNOWN_GOOD_BUNDLE.determinism,
+        integrity: {
+          pre: { headingCount: 5, imageCount: 10 }, // landmarkCount missing
+          post: { headingCount: 5, imageCount: 10, landmarkCount: 3 },
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("WP-H: rejects integrity with negative count (malformed)", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      determinism: {
+        ...KNOWN_GOOD_BUNDLE.determinism,
+        integrity: {
+          pre: { headingCount: -1, imageCount: 10, landmarkCount: 3 },
+          post: { headingCount: 5, imageCount: 10, landmarkCount: 3 },
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("WP-H: rejects integrity missing post snapshot", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      determinism: {
+        ...KNOWN_GOOD_BUNDLE.determinism,
+        integrity: {
+          pre: { headingCount: 5, imageCount: 10, landmarkCount: 3 },
+          // post intentionally omitted
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
 });

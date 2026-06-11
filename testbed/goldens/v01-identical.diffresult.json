@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T18-26-24Z",
+  "runId": "2026-06-11T22-07-12Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47001/",
   "parityProfile": "content-structure",
@@ -19,7 +19,8 @@
     "style": 1.0,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 1.0
+    "hygiene": 1.0,
+    "byLandmark": {}
   },
   "viewports": [
     {
@@ -39,6 +40,12 @@
     "count": 0,
     "ids": []
   },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
+    "count": 0,
+    "ids": []
+  },
   "determinism": {
     "old": {
       "animationsDisabled": "ran",
@@ -52,7 +59,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     },
     "new": {
       "animationsDisabled": "ran",
@@ -66,7 +85,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     }
   },
   "artifacts": {

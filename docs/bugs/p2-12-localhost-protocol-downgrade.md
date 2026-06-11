@@ -1,6 +1,6 @@
 # Issue: `url_protocol_downgrade` is error-severity for `http://localhost` candidates; suggested remediation rewrites to `https://localhost` which is invalid for a dev server
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P2 — every dev/CI comparison against a localhost `new` URL raises four permanent error-severity false positives, degrades the report score, and requires a suppressions entry to silence; the suggested fix is semantically wrong for a local server
 **Area:** `packages/analyze/src/hygiene.rs` — `check_protocol_downgrade_page()` and `check_per_link_protocol_downgrade()`

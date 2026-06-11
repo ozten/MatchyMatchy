@@ -64,10 +64,18 @@ export interface RawStyleCandidates {
   droppedCount: number;
 }
 
+export interface RawLandmarkRect {
+  path: string;
+  role: string;
+  heading: string | null;
+  bbox: [number, number, number, number];
+}
+
 export interface RawPageModelResult {
   nodes: RawSemanticNode[];
   pageHeight: number;
   landmarks: string[];
+  landmarkRects: RawLandmarkRect[];
   computedStyles: Record<string, Record<string, string>>;
   styleCandidates: RawStyleCandidates;
 }
@@ -627,6 +635,111 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
   });
   const landmarks = Array.from(landmarkSet).sort();
 
+  // ── Collect landmarkRects (WP-G) ───────────────────────────────────────
+  // Collect geometry for landmark elements + direct section/id-div children of main.
+  // Cap at 64 entries total. Document order.
+
+  const LANDMARK_SELECTOR =
+    "header,nav,main,footer,aside,form[aria-label],form[aria-labelledby]," +
+    "[role=banner],[role=navigation],[role=main],[role=contentinfo]," +
+    "[role=complementary],[role=form]";
+
+  // Derive role for landmark rect: explicit role attr wins; else tag-based mapping.
+  // header→banner only when NOT inside main/article; footer→contentinfo likewise.
+  function getLandmarkRectRole(el: Element): string | null {
+    const roleAttr = el.getAttribute("role");
+    if (roleAttr) {
+      const mapped = ROLE_TO_LANDMARK[roleAttr.toLowerCase()];
+      if (mapped) return mapped;
+    }
+    const tag = el.tagName.toLowerCase();
+    if (tag === "header") {
+      // Only landmark banner when not inside main or article
+      let anc: Element | null = el.parentElement;
+      while (anc && anc !== document.documentElement) {
+        const t = anc.tagName.toLowerCase();
+        if (t === "main" || t === "article") return null;
+        anc = anc.parentElement;
+      }
+      return "banner";
+    }
+    if (tag === "footer") {
+      let anc: Element | null = el.parentElement;
+      while (anc && anc !== document.documentElement) {
+        const t = anc.tagName.toLowerCase();
+        if (t === "main" || t === "article") return null;
+        anc = anc.parentElement;
+      }
+      return "contentinfo";
+    }
+    return TAG_TO_LANDMARK[tag] ?? null;
+  }
+
+  // Find the first h1-h3 inside an element (trimmed, capped 80 chars).
+  function getFirstHeadingInside(container: Element): string | null {
+    const hs = container.querySelectorAll("h1,h2,h3");
+    for (let i = 0; i < hs.length; i++) {
+      const h = hs[i];
+      if (!h) continue;
+      const raw = (h as HTMLElement).innerText ?? "";
+      const trimmed = raw.replace(/\s+/g, " ").trim();
+      if (trimmed) return trimmed.length > 80 ? trimmed.slice(0, 80) : trimmed;
+    }
+    return null;
+  }
+
+  const landmarkRects: RawLandmarkRect[] = [];
+  // Track how many times each role has been seen (for [2],[3] suffixing).
+  const roleCount = new Map<string, number>();
+
+  // Pass 1: landmark elements in document order (deduplicated by identity via a Set).
+  const seenLandmarkEls = new Set<Element>();
+  const landmarkEls = document.querySelectorAll(LANDMARK_SELECTOR);
+  for (let i = 0; i < landmarkEls.length; i++) {
+    if (landmarkRects.length >= 64) break;
+    const el = landmarkEls[i];
+    if (!el || seenLandmarkEls.has(el)) continue;
+    seenLandmarkEls.add(el);
+    const role = getLandmarkRectRole(el);
+    if (!role) continue;
+    const bbox = getPageBbox(el);
+    if (!bbox) continue;
+    const count = (roleCount.get(role) ?? 0) + 1;
+    roleCount.set(role, count);
+    const path = count === 1 ? role : `${role}[${count}]`;
+    landmarkRects.push({
+      path,
+      role,
+      heading: getFirstHeadingInside(el),
+      bbox,
+    });
+  }
+
+  // Pass 2: direct children of main that are section, or div-with-id.
+  const mainEl = document.querySelector("main") ?? document.querySelector("[role=main]");
+  if (mainEl) {
+    let sectionIdx = 0;
+    const mainChildren = mainEl.children;
+    for (let i = 0; i < mainChildren.length; i++) {
+      if (landmarkRects.length >= 64) break;
+      const child = mainChildren[i];
+      if (!child) continue;
+      const childTag = child.tagName.toLowerCase();
+      const isSection = childTag === "section";
+      const isDivWithId = childTag === "div" && child.id !== "";
+      if (!isSection && !isDivWithId) continue;
+      sectionIdx++;
+      const bbox = getPageBbox(child);
+      if (!bbox) continue;
+      landmarkRects.push({
+        path: `main › section[${sectionIdx}]`,
+        role: "region",
+        heading: getFirstHeadingInside(child),
+        bbox,
+      });
+    }
+  }
+
   // ── Build computed-style candidate set (§4.4) ──────────────────────────────
   //
   // Candidates = every SemanticNode element + each node's ancestor chain up to
@@ -965,6 +1078,7 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     nodes,
     pageHeight: document.documentElement.scrollHeight,
     landmarks,
+    landmarkRects,
     computedStyles,
     styleCandidates,
   };

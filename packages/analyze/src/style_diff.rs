@@ -11,7 +11,9 @@
 
 use std::collections::BTreeMap;
 
-use crate::config::{base_confidence, ANCESTOR_MIN_SIMILARITY, STYLE_DIFF_PROPERTIES};
+use crate::config::{
+    base_confidence, ANCESTOR_MIN_SIMILARITY, MIN_PAIRING_SCORE_FOR_STYLE, STYLE_DIFF_PROPERTIES,
+};
 use crate::contract::{
     AncestorDescriptor, Anchors, CaptureBundle, Issue, IssueCategory, IssueType, Locator,
 };
@@ -47,14 +49,13 @@ pub fn style_issues(
     // -----------------------------------------------------------------------
     // 1. Leaf channel
     // -----------------------------------------------------------------------
-    // Process Matched pairs only (Uncertain excluded per §3.1).
+    // Process ALL pairs (Matched and Uncertain).
+    // Uncertain-pairing gate (bug p1-04): pairs with band != Matched OR
+    // score < MIN_PAIRING_SCORE_FOR_STYLE emit issues at Info severity with
+    // evidence.match.uncertainPairing = true, excluded from style score.
     // Sort by (old_seq_index, old_id) for deterministic issue ordering.
-    let mut matched_pairs: Vec<&crate::matching::MatchedPair> = match_outcome
-        .pairs
-        .iter()
-        .filter(|p| p.band == MatchBand::Matched)
-        .collect();
-    matched_pairs.sort_by(|a, b| {
+    let mut all_pairs: Vec<&crate::matching::MatchedPair> = match_outcome.pairs.iter().collect();
+    all_pairs.sort_by(|a, b| {
         let oa = &old_bundle.page.nodes[a.old_idx];
         let ob = &old_bundle.page.nodes[b.old_idx];
         oa.seq_index
@@ -62,13 +63,17 @@ pub fn style_issues(
             .then_with(|| oa.id.cmp(&ob.id))
     });
 
-    // Build old_id -> new_id map for ancestor channel
+    // Build old_id -> new_id map for ancestor channel (only Matched pairs)
     let mut old_to_new_id: BTreeMap<String, String> = BTreeMap::new();
 
-    for pair in &matched_pairs {
+    for pair in &all_pairs {
         let old_node = &old_bundle.page.nodes[pair.old_idx];
         let new_node = &new_bundle.page.nodes[pair.new_idx];
-        old_to_new_id.insert(old_node.id.clone(), new_node.id.clone());
+
+        // Only use Matched pairs for the ancestor channel map.
+        if pair.band == MatchBand::Matched {
+            old_to_new_id.insert(old_node.id.clone(), new_node.id.clone());
+        }
 
         let old_styles = match old_bundle.computed_styles.get(&old_node.id) {
             Some(s) => s,
@@ -79,7 +84,11 @@ pub fn style_issues(
             None => continue,
         };
 
-        let match_evidence = pair_match_evidence(pair, old_bundle, new_bundle);
+        // Determine whether this is an uncertain pairing.
+        let is_uncertain =
+            pair.band != MatchBand::Matched || pair.score < MIN_PAIRING_SCORE_FOR_STYLE;
+
+        let match_evidence = pair_match_evidence(pair, old_bundle, new_bundle, is_uncertain);
 
         let base = base_confidence::STYLE_CHANGED;
         let confidence = compute_confidence(
@@ -111,6 +120,7 @@ pub fn style_issues(
             &new_bundle.determinism,
             old_page_url,
             new_page_url,
+            is_uncertain,
         );
         issues.append(&mut leaf_issues);
     }
@@ -381,6 +391,7 @@ fn ancestor_channel_issues(
                 &new_bundle.determinism,
                 old_page_url,
                 new_page_url,
+                false, // ancestor channel: similarity >= ANCESTOR_MIN_SIMILARITY, always confident
             );
             issues.append(&mut anc_issues);
         }
@@ -443,6 +454,65 @@ fn style_similarity(
 }
 
 // ---------------------------------------------------------------------------
+// Canonicalization for equality comparison (WP-C)
+// ---------------------------------------------------------------------------
+
+/// Canonicalize an already-normalized CSS property value for equality comparison.
+///
+/// This step runs AFTER `normalize_value_with_page_url` and BEFORE the equality
+/// check in `diff_styles`. Its job is to collapse semantically-equivalent
+/// representations to a single canonical form so that they compare equal.
+///
+/// Rules:
+/// 1. `border` / `outline`: if any whitespace-delimited token is exactly `none`
+///    (the border-style component), return `"none"` — a border with style none
+///    never paints regardless of width or color.  Token match is whole-token only.
+/// 2. `text-align`: `start` → `left`, `end` → `right` (whole-value).
+///    Constraint: capture does not record writing direction; `start`/`left` and
+///    `end`/`right` are equated assuming LTR, the overwhelmingly common case.
+/// 3. `line-height`: if value is exactly `normal` and `own_font_size` parses as
+///    `<f>px`, return `format!("{:.4}px", f * 1.2)` (UA default ratio).
+///
+/// All other properties: returned unchanged.
+/// The function is pure, deterministic, and allocation-light.
+fn canonicalize_for_compare(prop: &str, value: &str, own_font_size: Option<&str>) -> String {
+    match prop {
+        "border" | "outline" => {
+            // Rule 1: if any whole token is exactly "none", the border never paints.
+            for token in value.split_ascii_whitespace() {
+                if token == "none" {
+                    return "none".to_string();
+                }
+            }
+            value.to_string()
+        }
+        "text-align" => {
+            // Rule 2: LTR normalization.  start → left, end → right.
+            match value {
+                "start" => "left".to_string(),
+                "end" => "right".to_string(),
+                _ => value.to_string(),
+            }
+        }
+        "line-height" => {
+            // Rule 3: resolve `normal` using the UA ratio 1.2 × font-size.
+            if value == "normal" {
+                if let Some(fs_str) = own_font_size {
+                    // Expect the form "<number>px"
+                    if let Some(num_str) = fs_str.strip_suffix("px") {
+                        if let Ok(fs) = num_str.trim().parse::<f64>() {
+                            return format!("{:.4}px", fs * 1.2);
+                        }
+                    }
+                }
+            }
+            value.to_string()
+        }
+        _ => value.to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Core style diff (used by both channels)
 // ---------------------------------------------------------------------------
 
@@ -467,8 +537,10 @@ fn diff_styles(
     new_det: &crate::contract::CaptureDeterminism,
     old_page_url: &str,
     new_page_url: &str,
+    is_uncertain: bool,
 ) -> Vec<Issue> {
     let mut issues: Vec<Issue> = Vec::new();
+    use crate::contract::IssueSeverity;
 
     // Iterate diff property list in fixed order (STYLE_DIFF_PROPERTIES is a &[&str] slice)
     for prop in STYLE_DIFF_PROPERTIES {
@@ -500,6 +572,24 @@ fn diff_styles(
         // was present (same asset, different CDN host or path prefix).
         if values_equal_c3(&old_norm, &new_norm) {
             continue;
+        }
+
+        // C4: canonicalize for semantic equivalence (WP-C).
+        // `own_font_size` is taken from each side's own style map for the
+        // line-height rule; evidence/messages keep using old_norm/new_norm.
+        {
+            let old_fs = old_styles.get("font-size").map(String::as_str);
+            let new_fs = new_styles.get("font-size").map(String::as_str);
+            let old_canon = canonicalize_for_compare(prop, &old_norm, old_fs);
+            let new_canon = canonicalize_for_compare(prop, &new_norm, new_fs);
+            if old_canon == new_canon {
+                continue; // Semantically equivalent → no issue
+            }
+            // Also run C2 epsilon on the canonical forms (needed for line-height:
+            // real UA "normal" ratios vary slightly, e.g. 22.6094px vs 22.608px).
+            if values_equal_c2(&old_canon, &new_canon) {
+                continue;
+            }
         }
 
         // Classification
@@ -618,6 +708,16 @@ fn diff_styles(
                 evidence,
                 remediation: Some(remediation),
             });
+        }
+    }
+
+    // Uncertain-pairing gate (bug p1-04): when the pairing is uncertain
+    // (band != Matched OR score < MIN_PAIRING_SCORE_FOR_STYLE), override
+    // severity to Info for all emitted issues. The evidence.match already
+    // has `uncertainPairing: true` injected by pair_match_evidence.
+    if is_uncertain {
+        for issue in &mut issues {
+            issue.severity = IssueSeverity::Info;
         }
     }
 
@@ -1638,6 +1738,7 @@ fn pair_match_evidence(
     pair: &crate::matching::MatchedPair,
     old_bundle: &CaptureBundle,
     new_bundle: &CaptureBundle,
+    is_uncertain: bool,
 ) -> serde_json::Value {
     let _ = (old_bundle, new_bundle);
     let stage_str = match pair.stage {
@@ -1655,12 +1756,23 @@ fn pair_match_evidence(
         }
         serde_json::Value::Object(map)
     };
-    serde_json::json!({
-        "stage": stage_str,
-        "score": round4(pair.score),
-        "band": band_str,
-        "signals": signals_val
-    })
+    // Only emit uncertainPairing key when true (omit the key for confident pairs).
+    if is_uncertain {
+        serde_json::json!({
+            "stage": stage_str,
+            "score": round4(pair.score),
+            "band": band_str,
+            "signals": signals_val,
+            "uncertainPairing": true
+        })
+    } else {
+        serde_json::json!({
+            "stage": stage_str,
+            "score": round4(pair.score),
+            "band": band_str,
+            "signals": signals_val
+        })
+    }
 }
 
 fn node_to_anchors(node: &crate::contract::SemanticNode) -> Anchors {
@@ -1713,6 +1825,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         }
     }
 
@@ -1747,6 +1860,7 @@ mod tests {
             page_height: 4000,
             nodes,
             landmarks: vec![],
+            landmark_rects: None,
             network: NetworkInfo { requests: vec![] },
             console: vec![],
             a11y: A11yInfo { violations: vec![] },
@@ -2651,7 +2765,8 @@ mod tests {
 
     #[test]
     fn test_uncertain_pair_skipped() {
-        // Uncertain-band pairs should NOT produce style issues
+        // WP-E: Uncertain-band pairs emit style issues at Info severity (not skipped).
+        // Evidence includes uncertainPairing:true; issues are excluded from style score.
         let old_node = make_node("o1", Some("Text"), None);
         let new_node = make_node("n1", Some("Text"), None);
 
@@ -2680,10 +2795,24 @@ mod tests {
         let outcome = make_outcome(vec![uncertain_pair]);
 
         let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        // WP-E behavior: issues ARE emitted but at Info severity.
         assert!(
-            issues.is_empty(),
-            "uncertain-band pairs must not produce style issues"
+            !issues.is_empty(),
+            "uncertain-band pairs must produce Info-severity style issues (not skipped)"
         );
+        for issue in &issues {
+            assert_eq!(
+                issue.severity,
+                crate::contract::IssueSeverity::Info,
+                "uncertain-band style issues must be Info severity"
+            );
+            // Evidence must carry uncertainPairing: true
+            assert_eq!(
+                issue.evidence["match"]["uncertainPairing"],
+                serde_json::Value::Bool(true),
+                "uncertain-band style issues must carry uncertainPairing:true in evidence"
+            );
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -3435,6 +3564,395 @@ mod tests {
             loaded: None,
             heading_level: None,
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // C4: canonicalize_for_compare unit tests (WP-C)
+    // -----------------------------------------------------------------------
+
+    /// Rule 1: border with "none" style token — different colors, both invisible → equal.
+    #[test]
+    fn test_canon_border_none_style_invisible_both_sides_equal() {
+        let a = canonicalize_for_compare("border", "0px none rgb(0, 0, 0)", None);
+        let b = canonicalize_for_compare("border", "0px none rgb(38, 38, 38)", None);
+        assert_eq!(a, "none");
+        assert_eq!(b, "none");
+        assert_eq!(a, b);
+    }
+
+    /// Rule 1: border with solid style — should NOT be collapsed.
+    #[test]
+    fn test_canon_border_solid_not_collapsed() {
+        let a = canonicalize_for_compare("border", "2px solid rgb(0, 0, 0)", None);
+        assert_eq!(a, "2px solid rgb(0, 0, 0)");
+    }
+
+    /// Rule 1: outline with none token → collapsed.
+    #[test]
+    fn test_canon_outline_none_collapsed() {
+        let a = canonicalize_for_compare("outline", "0px none rgb(255, 255, 255)", None);
+        assert_eq!(a, "none");
+    }
+
+    /// Rule 1: "none" must be a whole-token match — "noneblue" must not trigger.
+    #[test]
+    fn test_canon_border_partial_none_token_not_collapsed() {
+        // Hypothetical value where "none" appears as part of a longer token — should NOT fire.
+        let a = canonicalize_for_compare("border", "1px noneblue rgb(0,0,0)", None);
+        assert_eq!(a, "1px noneblue rgb(0,0,0)");
+    }
+
+    /// Rule 2: text-align start → left.
+    #[test]
+    fn test_canon_text_align_start_to_left() {
+        let a = canonicalize_for_compare("text-align", "start", None);
+        assert_eq!(a, "left");
+    }
+
+    /// Rule 2: text-align end → right.
+    #[test]
+    fn test_canon_text_align_end_to_right() {
+        let a = canonicalize_for_compare("text-align", "end", None);
+        assert_eq!(a, "right");
+    }
+
+    /// Rule 2: text-align left → unchanged.
+    #[test]
+    fn test_canon_text_align_left_unchanged() {
+        let a = canonicalize_for_compare("text-align", "left", None);
+        assert_eq!(a, "left");
+    }
+
+    /// Rule 2: text-align center → unchanged.
+    #[test]
+    fn test_canon_text_align_center_unchanged() {
+        let a = canonicalize_for_compare("text-align", "center", None);
+        assert_eq!(a, "center");
+    }
+
+    /// Rule 3: line-height normal with font-size 18.84px → 22.6080px.
+    #[test]
+    fn test_canon_line_height_normal_resolves_with_font_size() {
+        let a = canonicalize_for_compare("line-height", "normal", Some("18.84px"));
+        // 18.84 * 1.2 = 22.608 → formatted as 4 decimals: "22.6080px"
+        assert_eq!(a, "22.6080px");
+    }
+
+    /// Rule 3: line-height normal with font-size 16px → 19.2000px.
+    #[test]
+    fn test_canon_line_height_normal_font_size_16px() {
+        let a = canonicalize_for_compare("line-height", "normal", Some("16px"));
+        assert_eq!(a, "19.2000px");
+    }
+
+    /// Rule 3: line-height normal without font-size — unchanged.
+    #[test]
+    fn test_canon_line_height_normal_no_font_size_unchanged() {
+        let a = canonicalize_for_compare("line-height", "normal", None);
+        assert_eq!(a, "normal");
+    }
+
+    /// Rule 3: line-height explicit px — unchanged.
+    #[test]
+    fn test_canon_line_height_explicit_px_unchanged() {
+        let a = canonicalize_for_compare("line-height", "22.6094px", Some("18.84px"));
+        assert_eq!(a, "22.6094px");
+    }
+
+    /// Pass-through: non-canonicalized property (e.g. color) — unchanged.
+    #[test]
+    fn test_canon_passthrough_color_unchanged() {
+        let a = canonicalize_for_compare("color", "rgb(1, 1, 1)", None);
+        assert_eq!(a, "rgb(1, 1, 1)");
+    }
+
+    // -----------------------------------------------------------------------
+    // C4: diff_styles end-to-end integration tests (WP-C)
+    // -----------------------------------------------------------------------
+
+    /// End-to-end: border "0px none <colorA>" vs "0px none <colorB>" → no issue.
+    #[test]
+    fn test_c4_border_none_suppressed_end_to_end() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("border", "0px none rgb(0, 0, 0)")]);
+        let new_cs = styles(&[("border", "0px none rgb(38, 38, 38)")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "border 0px none with different colors must not emit an issue; got {} issues",
+            issues.len()
+        );
+    }
+
+    /// End-to-end: border "0px none ..." vs "2px solid ..." → issue IS emitted.
+    #[test]
+    fn test_c4_border_solid_vs_none_emits_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("border", "0px none rgb(255, 255, 255)")]);
+        let new_cs = styles(&[("border", "2px solid rgb(0, 0, 0)")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.issue_type == IssueType::StyleChanged),
+            "border none vs solid must emit a style_changed issue"
+        );
+    }
+
+    /// End-to-end: text-align start vs left → no issue.
+    #[test]
+    fn test_c4_text_align_start_vs_left_no_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("text-align", "start")]);
+        let new_cs = styles(&[("text-align", "left")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "text-align start vs left must not emit an issue (LTR equivalence)"
+        );
+    }
+
+    /// End-to-end: text-align start vs center → issue IS emitted.
+    #[test]
+    fn test_c4_text_align_start_vs_center_emits_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("text-align", "start")]);
+        let new_cs = styles(&[("text-align", "center")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.issue_type == IssueType::StyleChanged),
+            "text-align start vs center must emit a style_changed issue"
+        );
+    }
+
+    /// End-to-end: text-align end vs right → no issue.
+    #[test]
+    fn test_c4_text_align_end_vs_right_no_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("text-align", "end")]);
+        let new_cs = styles(&[("text-align", "right")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "text-align end vs right must not emit an issue (LTR equivalence)"
+        );
+    }
+
+    /// End-to-end: line-height normal (font-size 18.84px) vs 22.6094px → no issue.
+    #[test]
+    fn test_c4_line_height_normal_vs_computed_no_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        // Old side: computed px value (e.g. from Webflow); new side: "normal"
+        let old_cs = styles(&[("line-height", "22.6094px"), ("font-size", "18.84px")]);
+        let new_cs = styles(&[("line-height", "normal"), ("font-size", "18.84px")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        // line-height issues only
+        let lh_issues: Vec<_> = issues
+            .iter()
+            .filter(|i| {
+                i.issue_type == IssueType::StyleChanged
+                    && i.evidence
+                        .get("old")
+                        .and_then(|o| o.get("line-height"))
+                        .is_some()
+            })
+            .collect();
+        assert!(
+            lh_issues.is_empty(),
+            "line-height normal vs 22.6094px (font-size 18.84px) must not emit issue; got {:?}",
+            lh_issues
+        );
+    }
+
+    /// End-to-end: line-height normal (font-size 16px) vs 28px → issue IS emitted.
+    #[test]
+    fn test_c4_line_height_normal_vs_28px_emits_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("line-height", "normal"), ("font-size", "16px")]);
+        let new_cs = styles(&[("line-height", "28px"), ("font-size", "16px")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let lh_issues: Vec<_> = issues
+            .iter()
+            .filter(|i| {
+                i.issue_type == IssueType::StyleChanged
+                    && i.evidence
+                        .get("old")
+                        .and_then(|o| o.get("line-height"))
+                        .is_some()
+            })
+            .collect();
+        assert!(
+            !lh_issues.is_empty(),
+            "line-height normal (16px * 1.2 = 19.2px) vs 28px must emit a style_changed issue"
+        );
+    }
+
+    /// End-to-end: color change still emits an issue (non-canonicalized property).
+    #[test]
+    fn test_c4_non_canon_prop_still_emits() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("color", "rgb(1, 1, 1)")]);
+        let new_cs = styles(&[("color", "rgb(2, 2, 2)")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.issue_type == IssueType::StyleChanged),
+            "color change rgb(1,1,1) vs rgb(2,2,2) must still emit style_changed"
+        );
+    }
+
+    /// End-to-end: emitted issue evidence still uses raw normalized values (not canonical).
+    #[test]
+    fn test_c4_evidence_uses_normalized_not_canonical_values() {
+        // border none vs solid: issue emitted, evidence must show raw normalized values.
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("border", "0px none rgb(255, 255, 255)")]);
+        let new_cs = styles(&[("border", "2px solid rgb(0, 0, 0)")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            !issues.is_empty(),
+            "border none vs solid must emit an issue"
+        );
+        let issue = &issues[0];
+        let old_ev = issue
+            .evidence
+            .get("old")
+            .and_then(|o| o.get("border"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let new_ev = issue
+            .evidence
+            .get("new")
+            .and_then(|o| o.get("border"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        // Evidence must contain the raw (non-canonical) values
+        assert!(
+            old_ev.contains("none"),
+            "evidence.old.border must contain the raw value (with 'none'), got: {}",
+            old_ev
+        );
+        assert!(
+            new_ev.contains("solid"),
+            "evidence.new.border must contain the raw value (with 'solid'), got: {}",
+            new_ev
+        );
+        // Must NOT contain the canonical form
+        assert_ne!(
+            old_ev, "none",
+            "evidence.old.border must NOT be the collapsed canonical 'none'"
+        );
     }
 
     /// v05 regression (C1): a `.button_content` label div is a dup-label nested inside the

@@ -1,4 +1,4 @@
-//! Static HTML report renderer (M8 §5).
+//! Static HTML report renderer (M8 §5 / WP-F).
 //!
 //! Security invariants (spec §15):
 //! - Every page-derived string passes through `escape()` before interpolation.
@@ -24,6 +24,18 @@ fn escape(s: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
+}
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
+fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
+    evidence
+        .get("match")
+        .and_then(|m| m.get("uncertainPairing"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------
@@ -95,7 +107,35 @@ pub fn render_html(result: &DiffResult) -> String {
         "<dt>Schema version</dt><dd>{}</dd>\n",
         escape(&result.schema_version)
     ));
+    // Scoping metadata
+    if let Some(scoped) = &result.scoped_to {
+        let scope_str = scoped
+            .iter()
+            .map(|s| escape(s))
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!("<dt>Scoped to</dt><dd>{scope_str}</dd>\n"));
+        out.push_str(&format!(
+            "<dt>Out of scope</dt><dd>{} issue(s)</dd>\n",
+            result.out_of_scope.count
+        ));
+    }
     out.push_str("</dl>\n");
+
+    // ------------------------------------------------------------------
+    // 1b. Warnings banner (right after header metadata)
+    // ------------------------------------------------------------------
+    if !result.warnings.is_empty() {
+        out.push_str("<section class=\"warnings\">\n");
+        for w in &result.warnings {
+            out.push_str(&format!(
+                "<div class=\"warning\">⚠ {}: {}</div>\n",
+                escape(&w.code),
+                escape(&w.message)
+            ));
+        }
+        out.push_str("</section>\n");
+    }
 
     // ------------------------------------------------------------------
     // 2. Agent summary
@@ -249,15 +289,23 @@ pub fn render_html(result: &DiffResult) -> String {
                 crate::contract::IssueCategory::Hygiene => "hygiene",
             };
 
+            let uncertain = is_uncertain_pairing(&issue.evidence);
+
             out.push_str(&format!(
                 "<div class=\"issue sev-{sev_str}\" id=\"{}\">\n",
                 escape(&issue.id)
             ));
+            // Title line: type + severity badge + optional uncertain badge
             out.push_str(&format!(
-                "<h4>{} <span class=\"badge badge-{sev_str}\">{}</span></h4>\n",
+                "<h4>{} <span class=\"badge badge-{sev_str}\">{}</span>",
                 escape(issue.issue_type.as_str()),
                 sev_str.to_uppercase()
             ));
+            if uncertain {
+                out.push_str(" <span class=\"badge uncertain\">uncertain pairing</span>");
+            }
+            out.push_str("</h4>\n");
+
             out.push_str("<dl class=\"issue-meta\">\n");
             out.push_str(&format!("<dt>ID</dt><dd>{}</dd>\n", escape(&issue.id)));
             out.push_str(&format!("<dt>Category</dt><dd>{cat_str}</dd>\n"));
@@ -462,6 +510,18 @@ section { margin: 1.5rem 0; }
 .badge-warn { background: #d4820a; }
 .badge-fail { background: #cc2222; }
 .badge-error { background: #7a0a7a; }
+.badge.uncertain { background: #888; text-transform: none; }
+
+/* Warnings banner */
+section.warnings { margin: 0.75rem 0; }
+.warning {
+  background: #fff8e1;
+  border-left: 4px solid #f9a825;
+  padding: 0.5em 0.75em;
+  margin-bottom: 0.4em;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95em;
+}
 
 /* Meta definition lists */
 dl.meta { display: grid; grid-template-columns: max-content 1fr; gap: 0.2em 1em; margin: 0.5em 0; }
@@ -528,8 +588,8 @@ mod tests {
     use super::*;
     use crate::contract::{
         AgentSummary, Anchors, Artifacts, Cluster, DeterminismSummary, DiffResult, Issue,
-        IssueCategory, IssueSeverity, IssueType, Locator, Scores, Status, Suppressed,
-        ViewportResult,
+        IssueCategory, IssueSeverity, IssueType, Locator, OutOfScope, RunWarning, Scores, Status,
+        Suppressed, ViewportResult,
     };
     use std::collections::BTreeMap;
 
@@ -548,6 +608,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         }
     }
 
@@ -596,7 +657,7 @@ mod tests {
         by_type.insert("changed_text".to_string(), 1u32);
 
         DiffResult {
-            schema_version: "1.0".to_string(),
+            schema_version: "1.1".to_string(),
             tool_version: "0.0.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "https://example.com/old".to_string(),
@@ -617,6 +678,7 @@ mod tests {
                 accessibility: 1.0,
                 technical: 1.0,
                 hygiene: 1.0,
+                by_landmark: BTreeMap::new(),
             },
             viewports: vec![ViewportResult {
                 name: "desktop".to_string(),
@@ -640,6 +702,12 @@ mod tests {
                 count: 1,
                 ids: vec!["issue_dead000000ff".to_string()],
             },
+            warnings: vec![],
+            scoped_to: None,
+            out_of_scope: OutOfScope {
+                count: 0,
+                ids: vec![],
+            },
             determinism: DeterminismSummary {
                 old: make_default_det(),
                 new: make_default_det(),
@@ -651,6 +719,10 @@ mod tests {
             },
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Existing tests (kept/updated)
+    // -----------------------------------------------------------------------
 
     #[test]
     fn test_escape_correctness() {
@@ -778,5 +850,124 @@ mod tests {
         assert!(content.ends_with('\n'), "report.html must end with newline");
         // cleanup
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW: warnings banner
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_warnings_banner_present_when_non_empty() {
+        let mut result = make_fixture();
+        result.warnings.push(RunWarning {
+            code: "STALE_BASELINE".to_string(),
+            message: "Baseline may be outdated".to_string(),
+            context: None,
+        });
+        let html = render_html(&result);
+        assert!(
+            html.contains("<section class=\"warnings\">"),
+            "Warnings section must appear"
+        );
+        assert!(
+            html.contains("<div class=\"warning\">"),
+            "Warning div must appear"
+        );
+        assert!(html.contains("STALE_BASELINE"), "Warning code must appear");
+        assert!(
+            html.contains("Baseline may be outdated"),
+            "Warning message must appear"
+        );
+    }
+
+    #[test]
+    fn test_warnings_banner_absent_when_empty() {
+        let result = make_fixture(); // warnings: vec![]
+        let html = render_html(&result);
+        assert!(
+            !html.contains("<section class=\"warnings\">"),
+            "Warnings section must not appear when empty"
+        );
+    }
+
+    /// Warning message containing `<script>` must be escaped.
+    #[test]
+    fn test_warnings_banner_escaping() {
+        let mut result = make_fixture();
+        result.warnings.push(RunWarning {
+            code: "XSS_TEST".to_string(),
+            message: "<script>alert(1)</script>".to_string(),
+            context: None,
+        });
+        let html = render_html(&result);
+        // Raw payload must not appear.
+        assert!(
+            !html.contains("<script>alert"),
+            "Raw script tag in warning must be escaped"
+        );
+        // Escaped form must appear.
+        assert!(
+            html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"),
+            "Escaped warning message must appear"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW: uncertain badge on issue card
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_uncertain_badge_present() {
+        let mut result = make_fixture();
+        // Modify the issue to be uncertain.
+        result.issues[0].evidence = serde_json::json!({ "match": { "uncertainPairing": true } });
+        let html = render_html(&result);
+        assert!(
+            html.contains("<span class=\"badge uncertain\">uncertain pairing</span>"),
+            "Uncertain badge must appear on issue card"
+        );
+    }
+
+    #[test]
+    fn test_uncertain_badge_absent_for_normal_issue() {
+        let result = make_fixture(); // issue has no uncertainPairing
+        let html = render_html(&result);
+        assert!(
+            !html.contains("uncertain pairing"),
+            "Uncertain badge must not appear on normal issue"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW: scoped_to in metadata DL
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_scoped_to_in_metadata() {
+        let mut result = make_fixture();
+        result.scoped_to = Some(vec!["main".to_string()]);
+        result.out_of_scope = OutOfScope {
+            count: 5,
+            ids: vec![],
+        };
+        let html = render_html(&result);
+        assert!(
+            html.contains("<dt>Scoped to</dt>"),
+            "Scoped to dt must appear"
+        );
+        assert!(
+            html.contains("5 issue(s)"),
+            "Out-of-scope count must appear"
+        );
+    }
+
+    #[test]
+    fn test_scoped_to_absent_when_none() {
+        let result = make_fixture(); // scoped_to: None
+        let html = render_html(&result);
+        assert!(
+            !html.contains("<dt>Scoped to</dt>"),
+            "Scoped to must not appear when None"
+        );
     }
 }

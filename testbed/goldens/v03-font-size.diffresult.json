@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T05-56-46Z",
+  "runId": "2026-06-11T22-07-26Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47003/",
   "parityProfile": "content-structure",
@@ -10,7 +10,7 @@
     "fixableNow": 707,
     "byType": {
       "page_height_changed": 1,
-      "style_changed": 707,
+      "style_changed": 725,
       "visual_region_changed": 50
     },
     "clusterCount": 6,
@@ -29,7 +29,49 @@
     "style": 0.0014124293785310734,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 1.0
+    "hygiene": 1.0,
+    "byLandmark": {
+      "(none)": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 1.0,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "banner": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.06666666666666667,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "contentinfo": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.009523809523809525,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "main": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.0017241379310344827,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      },
+      "navigation": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.09090909090909091,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      }
+    }
   },
   "viewports": [
     {
@@ -87,8 +129,10 @@
         "issue_1f138e296ba5",
         "issue_1f138e296ba5-2",
         "issue_2c8595b75643",
-        "issue_8b0888b7bc2a",
-        "issue_ab6f9fc64d75",
+        "issue_9d72fc254bf0",
+        "issue_1c498c786a4f",
+        "issue_3222d4569c69",
+        "issue_a7c72ff248d2",
         "issue_6c758e9e0bbd",
         "issue_fc49fbc2a2a0",
         "issue_a54cb2662819",
@@ -203,21 +247,37 @@
         "issue_213f9f7ca48f",
         "issue_12d2d1e66685",
         "issue_ab5120eaf7a4",
+        "issue_9cbe246d131f",
+        "issue_2fc18d072112",
         "issue_d9c83308c978",
         "issue_fb6394e534c5",
+        "issue_5579d75a8330",
+        "issue_cf0f73f6487e",
         "issue_699825474d60",
         "issue_17185ac19bb0",
+        "issue_cd3dde658cf8",
+        "issue_791c2538eb80",
         "issue_76dad4d6d021",
         "issue_7e0c25e1eef6",
+        "issue_fe4965bdc3a0",
+        "issue_21067421158a",
         "issue_0b17946ec8e1",
         "issue_2c6fa10e4234",
+        "issue_14d002394f97",
+        "issue_832e6959fde6",
         "issue_a5f348446a34",
         "issue_67e24c44011a",
+        "issue_a17f0beb884b",
+        "issue_dc857026861e",
         "issue_8d57d4df3117",
         "issue_6bdce232e1f8",
+        "issue_12971c8ee783",
+        "issue_138f34bfd678",
         "issue_66bc9f822402",
         "issue_9fab33fbe60b",
         "issue_226f801d390f",
+        "issue_ea76f70b2d0e",
+        "issue_d5d95af21563",
         "issue_8aaa42d443a4",
         "issue_2d41b652198e",
         "issue_48daf55afcb8",
@@ -2449,6 +2509,74 @@
         "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
         "property": "padding-bottom",
         "to": "4.8px"
+      }
+    },
+    {
+      "id": "issue_1c498c786a4f",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "link",
+          "href": "https://www.hiya.com/?r=0",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "banner",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "bboxNew": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "seqIndexOld": 0,
+        "seqIndexNew": 0
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 1.0,
+          "signals": {
+            "exactKey": 1.0
+          },
+          "stage": "identity"
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "\"https://www.hiya.com/?r=0\""
+          ],
+          "near": null
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
       }
     },
     {
@@ -8589,74 +8717,6 @@
       }
     },
     {
-      "id": "issue_8b0888b7bc2a",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "font-size changed from 16px to 14px",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "link",
-          "href": "https://www.hiya.com/?r=0",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": null,
-          "landmark": "banner",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          16,
-          20,
-          32
-        ],
-        "bboxNew": [
-          120,
-          16,
-          20,
-          32
-        ],
-        "seqIndexOld": 0,
-        "seqIndexNew": 0
-      },
-      "evidence": {
-        "match": {
-          "band": "matched",
-          "score": 1.0,
-          "signals": {
-            "exactKey": 1.0
-          },
-          "stage": "identity"
-        },
-        "new": {
-          "font-size": "14px"
-        },
-        "old": {
-          "font-size": "16px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "\"https://www.hiya.com/?r=0\""
-          ],
-          "near": null
-        },
-        "from": "14px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "font-size",
-        "to": "16px"
-      }
-    },
-    {
       "id": "issue_8d57d4df3117",
       "type": "style_changed",
       "category": "style",
@@ -9829,6 +9889,74 @@
       }
     },
     {
+      "id": "issue_9d72fc254bf0",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "link",
+          "href": "https://www.hiya.com/?r=0",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "banner",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "bboxNew": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "seqIndexOld": 0,
+        "seqIndexNew": 0
+      },
+      "evidence": {
+        "match": {
+          "band": "matched",
+          "score": 1.0,
+          "signals": {
+            "exactKey": 1.0
+          },
+          "stage": "identity"
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "\"https://www.hiya.com/?r=0\""
+          ],
+          "near": null
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
       "id": "issue_9e66e3b49527",
       "type": "style_changed",
       "category": "style",
@@ -10574,74 +10702,6 @@
             "What is Hiya Branded Call, and how is it different from regular caller ID or Number Registration?"
           ],
           "near": "FAQs"
-        },
-        "from": "21px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "line-height",
-        "to": "24px"
-      }
-    },
-    {
-      "id": "issue_ab6f9fc64d75",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "line-height changed from 24px to 21px",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "link",
-          "href": "https://www.hiya.com/?r=0",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": null,
-          "landmark": "banner",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          16,
-          20,
-          32
-        ],
-        "bboxNew": [
-          120,
-          16,
-          20,
-          32
-        ],
-        "seqIndexOld": 0,
-        "seqIndexNew": 0
-      },
-      "evidence": {
-        "match": {
-          "band": "matched",
-          "score": 1.0,
-          "signals": {
-            "exactKey": 1.0
-          },
-          "stage": "identity"
-        },
-        "new": {
-          "line-height": "21px"
-        },
-        "old": {
-          "line-height": "24px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "\"https://www.hiya.com/?r=0\""
-          ],
-          "near": null
         },
         "from": "21px",
         "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
@@ -51306,6 +51366,1334 @@
       "remediation": null
     },
     {
+      "id": "issue_12971c8ee783",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 38
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(8) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(8) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5831,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5784,
+          16,
+          16
+        ],
+        "seqIndexOld": 144,
+        "seqIndexNew": 144
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6843,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9955,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_138f34bfd678",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 38
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(8) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(8) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5831,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5784,
+          16,
+          16
+        ],
+        "seqIndexOld": 144,
+        "seqIndexNew": 144
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6843,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9955,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_14d002394f97",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 36
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5704,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5657,
+          16,
+          16
+        ],
+        "seqIndexOld": 138,
+        "seqIndexNew": 138
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9958,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_21067421158a",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 35
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5640,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5594,
+          16,
+          16
+        ],
+        "seqIndexOld": 135,
+        "seqIndexNew": 135
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9958,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_2fc18d072112",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 32
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5439,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5392,
+          16,
+          16
+        ],
+        "seqIndexOld": 126,
+        "seqIndexNew": 126
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9963,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_3222d4569c69",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "banner",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "bboxNew": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "seqIndexOld": 1,
+        "seqIndexNew": 1
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [],
+          "near": null
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_5579d75a8330",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 33
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5514,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5467,
+          16,
+          16
+        ],
+        "seqIndexOld": 129,
+        "seqIndexNew": 129
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9962,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_791c2538eb80",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 34
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5577,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5530,
+          16,
+          16
+        ],
+        "seqIndexOld": 132,
+        "seqIndexNew": 132
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.996,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_832e6959fde6",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 36
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5704,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5657,
+          16,
+          16
+        ],
+        "seqIndexOld": 138,
+        "seqIndexNew": 138
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9958,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_9cbe246d131f",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 32
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5439,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5392,
+          16,
+          16
+        ],
+        "seqIndexOld": 126,
+        "seqIndexNew": 126
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9963,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_a17f0beb884b",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 37
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(7) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(7) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5767,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5720,
+          16,
+          16
+        ],
+        "seqIndexOld": 141,
+        "seqIndexNew": 141
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6843,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9957,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_a7c72ff248d2",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "banner",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "bboxNew": [
+          120,
+          16,
+          20,
+          32
+        ],
+        "seqIndexOld": 1,
+        "seqIndexNew": 1
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.685,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [],
+          "near": null
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_cd3dde658cf8",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 34
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5577,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5530,
+          16,
+          16
+        ],
+        "seqIndexOld": 132,
+        "seqIndexNew": 132
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.996,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_cf0f73f6487e",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 33
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5514,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5467,
+          16,
+          16
+        ],
+        "seqIndexOld": 129,
+        "seqIndexNew": 129
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9962,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_d5d95af21563",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"Your customers are waiting to hear from you\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          6505,
+          0,
+          0
+        ],
+        "bboxNew": [
+          120,
+          6434,
+          0,
+          0
+        ],
+        "seqIndexOld": 149,
+        "seqIndexNew": 149
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.5947,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9977,
+            "tiebreakSize": 0.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Your customers are waiting to hear from you"
+          ],
+          "near": "Your customers are waiting to hear from you"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_dc857026861e",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "line-height changed from 24px to 21px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 37
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(7) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(7) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5767,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5720,
+          16,
+          16
+        ],
+        "seqIndexOld": 141,
+        "seqIndexNew": 141
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6843,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9957,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "line-height": "21px"
+        },
+        "old": {
+          "line-height": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "21px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "line-height",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_ea76f70b2d0e",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"Your customers are waiting to hear from you\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          6505,
+          0,
+          0
+        ],
+        "bboxNew": [
+          120,
+          6434,
+          0,
+          0
+        ],
+        "seqIndexOld": 149,
+        "seqIndexNew": 149
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.5947,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9977,
+            "tiebreakSize": 0.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Your customers are waiting to hear from you"
+          ],
+          "near": "Your customers are waiting to hear from you"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
+      "id": "issue_fe4965bdc3a0",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "font-size changed from 16px to 14px near \"FAQs\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "FAQs",
+          "landmark": "main",
+          "ordinalInLandmark": 35
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          1303,
+          5640,
+          16,
+          16
+        ],
+        "bboxNew": [
+          1303,
+          5594,
+          16,
+          16
+        ],
+        "seqIndexOld": 135,
+        "seqIndexNew": 135
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.6844,
+          "signals": {
+            "alt": 1.0,
+            "identityScore": 0.55,
+            "intrinsicDim": 0.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 0.9958,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment",
+          "uncertainPairing": true
+        },
+        "new": {
+          "font-size": "14px"
+        },
+        "old": {
+          "font-size": "16px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "FAQs"
+          ],
+          "near": "FAQs"
+        },
+        "from": "14px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "font-size",
+        "to": "16px"
+      }
+    },
+    {
       "id": "issue_2c8595b75643",
       "type": "page_height_changed",
       "category": "visual",
@@ -51328,8 +52716,18 @@
         },
         "cssSelectorOld": null,
         "cssSelectorNew": null,
-        "bboxOld": null,
-        "bboxNew": null,
+        "bboxOld": [
+          0,
+          64,
+          1440,
+          6381
+        ],
+        "bboxNew": [
+          0,
+          64,
+          1440,
+          6311
+        ],
         "seqIndexOld": null,
         "seqIndexNew": null
       },
@@ -51340,7 +52738,25 @@
         },
         "old": {
           "pageHeight": 6977
-        }
+        },
+        "sectionDeltas": [
+          {
+            "delta": -70,
+            "heading": "Reach more customers with Hiya's Branded Call",
+            "newHeight": 6311,
+            "oldHeight": 6381,
+            "path": "main",
+            "role": "main"
+          },
+          {
+            "delta": -22,
+            "heading": null,
+            "newHeight": 510,
+            "oldHeight": 532,
+            "path": "contentinfo",
+            "role": "contentinfo"
+          }
+        ]
       },
       "remediation": null
     },
@@ -52473,6 +53889,7 @@
         "issue_10ba8de5a4c8",
         "issue_13163daab5d3",
         "issue_13463a3c030f",
+        "issue_138f34bfd678",
         "issue_1487026f04ff",
         "issue_1499879d40d1",
         "issue_161f7f37a2a1",
@@ -52485,6 +53902,7 @@
         "issue_1b5724a310aa",
         "issue_1bc783f5c3fa",
         "issue_1beb196d503f",
+        "issue_1c498c786a4f",
         "issue_1ca83db3043f",
         "issue_1d878869fc1a",
         "issue_1e02b14ce758",
@@ -52497,6 +53915,7 @@
         "issue_2078937f440b",
         "issue_20cca9a076bc",
         "issue_20e3de992e5b",
+        "issue_21067421158a",
         "issue_218d5bddfd8e",
         "issue_227041ef9ff1",
         "issue_22a7fc669897",
@@ -52516,6 +53935,7 @@
         "issue_2d41b652198e",
         "issue_2dce0bde40b3",
         "issue_2f1d04907b4e",
+        "issue_2fc18d072112",
         "issue_309ad26c0343",
         "issue_30d2424f9f7e",
         "issue_31dd543cff68",
@@ -52616,6 +54036,7 @@
         "issue_774838af08ff",
         "issue_77e1def4eb0c",
         "issue_78c9ef0c6e87",
+        "issue_791c2538eb80",
         "issue_79c3ec1e97df",
         "issue_79f1e71e7385",
         "issue_7ad3ff92fec7",
@@ -52630,6 +54051,7 @@
         "issue_80cfa817413f",
         "issue_81527ac1d6fb",
         "issue_82060bfeccff",
+        "issue_832e6959fde6",
         "issue_8357ebb9162c",
         "issue_8519d52981de",
         "issue_8530a689fba9",
@@ -52681,12 +54103,12 @@
         "issue_a58908106934",
         "issue_a5eba1e8a6cd",
         "issue_a6af6392c334",
+        "issue_a7c72ff248d2",
         "issue_a83bf38bd7ec",
         "issue_a97835ebe3ae",
         "issue_a9f5559ca3b1",
         "issue_aadf085152c0",
         "issue_ab5120eaf7a4",
-        "issue_ab6f9fc64d75",
         "issue_ab774a77e41f",
         "issue_abba3576826c",
         "issue_ac741e0ee7b1",
@@ -52735,6 +54157,7 @@
         "issue_cd811e48beb8",
         "issue_ce5d6296c269",
         "issue_ce787588ef8b",
+        "issue_cf0f73f6487e",
         "issue_cf39738de41e",
         "issue_cf7cb73e3381",
         "issue_d0676d2e6763",
@@ -52743,6 +54166,7 @@
         "issue_d3a7e2203d63",
         "issue_d52ba0df0a67",
         "issue_d53bc94e9add",
+        "issue_d5d95af21563",
         "issue_d5df1d2df9ef",
         "issue_d614c58cdb10",
         "issue_d69d44d0df5d",
@@ -52754,6 +54178,7 @@
         "issue_dbece2c55cff",
         "issue_dc00b7e5f433",
         "issue_dc097e50023a",
+        "issue_dc857026861e",
         "issue_dd0c2b3eb25a",
         "issue_df709456b14c",
         "issue_e04ad927472c",
@@ -52798,7 +54223,7 @@
       ],
       "sharedProperty": "line-height",
       "sharedLandmark": null,
-      "summary": "344 style_changed issues share line-height"
+      "summary": "353 style_changed issues share line-height"
     },
     {
       "id": "cluster_fcc207b9fb0d",
@@ -52832,9 +54257,11 @@
         "issue_10f9aa3503e8",
         "issue_1104b265705e",
         "issue_117b3d396e58",
+        "issue_12971c8ee783",
         "issue_12c950e6a2d4",
         "issue_12d2d1e66685",
         "issue_137b33e40715",
+        "issue_14d002394f97",
         "issue_15a7a3d4b03d",
         "issue_167a81614d8d",
         "issue_16fc42b15342",
@@ -52877,6 +54304,7 @@
         "issue_3098ab14ebef",
         "issue_30dd3cf8aab3",
         "issue_31eebd215051",
+        "issue_3222d4569c69",
         "issue_326adfc05c65",
         "issue_32a487615c4c",
         "issue_337f3728e330",
@@ -52919,6 +54347,7 @@
         "issue_5278dda3c10b",
         "issue_534b3ee232ed",
         "issue_53bcb3a37308",
+        "issue_5579d75a8330",
         "issue_55a0de87e126",
         "issue_564b432da19a",
         "issue_56e74d04e0d2",
@@ -52983,7 +54412,6 @@
         "issue_88e35c5a7209",
         "issue_89c6e7757cb4",
         "issue_8aaa42d443a4",
-        "issue_8b0888b7bc2a",
         "issue_8c3f57d31e06",
         "issue_8d57d4df3117",
         "issue_8dcef05b3db4",
@@ -53006,13 +54434,16 @@
         "issue_9b3246857ad4",
         "issue_9c8b828bd5a1",
         "issue_9c90e3d4deb6",
+        "issue_9cbe246d131f",
         "issue_9d042c5ac877",
+        "issue_9d72fc254bf0",
         "issue_9fa70274bfe6",
         "issue_9fe7ac3dadfe",
         "issue_9ff02b126b7a",
         "issue_a038d0d079ef",
         "issue_a0f9349179fe",
         "issue_a0fd228f70fc",
+        "issue_a17f0beb884b",
         "issue_a1a91f5b50eb",
         "issue_a27165b0e1a0",
         "issue_a356b4cafbad",
@@ -53074,6 +54505,7 @@
         "issue_cc98fc332a2a",
         "issue_ccc131738c32",
         "issue_ccecc22d3c41",
+        "issue_cd3dde658cf8",
         "issue_cd45c93bd2cc",
         "issue_ce04a21d6d39",
         "issue_ce1f88a9f885",
@@ -53119,6 +54551,7 @@
         "issue_e77c8d86d732",
         "issue_e7ac860786ab",
         "issue_e8d6fd05edeb",
+        "issue_ea76f70b2d0e",
         "issue_ec84b79a4cf7",
         "issue_ecd3271abb7e",
         "issue_ed523d33c8f5",
@@ -53146,11 +54579,12 @@
         "issue_fcdeef89bc98",
         "issue_fd0668be1e29",
         "issue_fd2f9c7217d0",
+        "issue_fe4965bdc3a0",
         "issue_fff03e6430fb"
       ],
       "sharedProperty": "font-size",
       "sharedLandmark": null,
-      "summary": "344 style_changed issues share font-size"
+      "summary": "353 style_changed issues share font-size"
     },
     {
       "id": "cluster_ebe4318e14cf",
@@ -53239,6 +54673,12 @@
     "count": 0,
     "ids": []
   },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
+    "count": 0,
+    "ids": []
+  },
   "determinism": {
     "old": {
       "animationsDisabled": "ran",
@@ -53252,7 +54692,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     },
     "new": {
       "animationsDisabled": "ran",
@@ -53266,7 +54718,19 @@
       "clicked": [],
       "hidden": [],
       "masked": [],
-      "retriedWithoutTimeFreeze": false
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
     }
   },
   "artifacts": {

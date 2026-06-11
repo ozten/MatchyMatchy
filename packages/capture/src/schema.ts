@@ -142,6 +142,21 @@ export const ConsoleMessageSchema = z.object({
 });
 export type ConsoleMessage = z.infer<typeof ConsoleMessageSchema>;
 
+// ─── IntegrityCounts ──────────────────────────────────────────────────────
+export const IntegrityCountsSchema = z.object({
+  headingCount: z.number().int().nonnegative(),
+  imageCount: z.number().int().nonnegative(),
+  landmarkCount: z.number().int().nonnegative(),
+});
+export type IntegrityCounts = z.infer<typeof IntegrityCountsSchema>;
+
+// ─── IntegrityInventory ───────────────────────────────────────────────────
+export const IntegrityInventorySchema = z.object({
+  pre: IntegrityCountsSchema,
+  post: IntegrityCountsSchema,
+});
+export type IntegrityInventory = z.infer<typeof IntegrityInventorySchema>;
+
 // ─── DeterminismRecord ────────────────────────────────────────────────────
 export const DeterminismRecordSchema = z.object({
   animationsDisabled: DeterminismStepSchema,
@@ -156,8 +171,19 @@ export const DeterminismRecordSchema = z.object({
   hidden: z.array(z.string()),
   masked: z.array(z.string()),
   retriedWithoutTimeFreeze: z.boolean(),
+  /** Pre/post stabilization page inventory. Optional; absent when the evaluate failed. */
+  integrity: IntegrityInventorySchema.optional(),
 });
 export type DeterminismRecord = z.infer<typeof DeterminismRecordSchema>;
+
+// ─── LandmarkRect ─────────────────────────────────────────────────────────
+export const LandmarkRectSchema = z.object({
+  path: z.string(),
+  role: z.string(),
+  heading: z.string().nullable(),
+  bbox: z.tuple([z.number().int(), z.number().int(), z.number().int(), z.number().int()]),
+});
+export type LandmarkRect = z.infer<typeof LandmarkRectSchema>;
 
 // ─── PageModel ────────────────────────────────────────────────────────────
 export const PageModelSchema = z.object({
@@ -172,6 +198,8 @@ export const PageModelSchema = z.object({
   pageHeight: z.number().int(),
   nodes: z.array(SemanticNodeSchema),
   landmarks: z.array(z.string()),
+  /** WP-G: geometry for landmark elements and main's children. Absent in old bundles. */
+  landmarkRects: z.array(LandmarkRectSchema).optional(),
   network: z.object({
     requests: z.array(NetworkRequestSchema),
   }),

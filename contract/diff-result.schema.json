@@ -19,15 +19,18 @@
     "issues",
     "clusters",
     "suppressed",
+    "warnings",
+    "scopedTo",
+    "outOfScope",
     "determinism",
     "artifacts"
   ],
   "properties": {
     "schemaVersion": {
       "title": "Schema version",
-      "description": "Version of the DiffResult schema. Always '1.0' in v1.",
+      "description": "Version of the DiffResult schema. '1.1' adds warnings, scopedTo, outOfScope, and scores.byLandmark (all required, so 1.0 documents do not validate against this schema).",
       "type": "string",
-      "const": "1.0"
+      "enum": ["1.1"]
     },
     "toolVersion": {
       "title": "Tool version",
@@ -104,7 +107,7 @@
       "description": "Per-category parity scores in [0, 1]. 1.0 = identical, 0.0 = completely different.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["visual", "content", "structure", "style", "accessibility", "technical", "hygiene"],
+      "required": ["visual", "content", "structure", "style", "accessibility", "technical", "hygiene", "byLandmark"],
       "properties": {
         "visual": {
           "title": "Visual score",
@@ -115,45 +118,53 @@
         },
         "content": {
           "title": "Content score",
-          "description": "Content parity score (1.0 in M1).",
+          "description": "Content parity score: 1/(1+n) counting only Warning-or-worse issues.",
           "type": "number",
           "minimum": 0,
           "maximum": 1
         },
         "structure": {
           "title": "Structure score",
-          "description": "Structure parity score (1.0 in M1).",
+          "description": "Structure parity score: 1/(1+n) counting only Warning-or-worse issues.",
           "type": "number",
           "minimum": 0,
           "maximum": 1
         },
         "style": {
           "title": "Style score",
-          "description": "Style parity score (1.0 in M1).",
+          "description": "Style parity score: 1/(1+n) counting only Warning-or-worse issues. Uncertain-pairing style issues are Info and excluded.",
           "type": "number",
           "minimum": 0,
           "maximum": 1
         },
         "accessibility": {
           "title": "Accessibility score",
-          "description": "Accessibility parity score (1.0 in M1).",
+          "description": "Accessibility parity score: 1/(1+n) counting only Warning-or-worse accessibility_regression issues.",
           "type": "number",
           "minimum": 0,
           "maximum": 1
         },
         "technical": {
           "title": "Technical score",
-          "description": "Technical parity score (1.0 in M1).",
+          "description": "Technical parity score: 1/(1+n) counting only Warning-or-worse issues.",
           "type": "number",
           "minimum": 0,
           "maximum": 1
         },
         "hygiene": {
           "title": "Hygiene score",
-          "description": "URL/locale hygiene score (1.0 in M1).",
+          "description": "URL/locale hygiene score: 1/(1+n) counting only Warning-or-worse issues.",
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "byLandmark": {
+          "title": "Scores by landmark",
+          "description": "Per-landmark aggregated scores. Keys are landmark role names (or '(none)' for page-level issues). No 'visual' key — visual is page-global pixel data.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LandmarkScores"
+          }
         }
       }
     },
@@ -175,7 +186,7 @@
     },
     "clusters": {
       "title": "Clusters",
-      "description": "Deterministic issue clusters. Empty in M1.",
+      "description": "Deterministic issue clusters.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Cluster"
@@ -197,6 +208,45 @@
         "ids": {
           "title": "Suppressed IDs",
           "description": "IDs of suppressed issues.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "warnings": {
+      "title": "Run-level warnings",
+      "description": "Warnings surfacing capture-integrity degradation or baseline staleness. Empty array when all is well.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RunWarning"
+      }
+    },
+    "scopedTo": {
+      "title": "Scoped to",
+      "description": "Landmark roles passed to --scope; null when no scoping was applied.",
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "outOfScope": {
+      "title": "Out-of-scope issues",
+      "description": "Issues excluded by --scope (landmark present but not in scope). Zero/empty when no scoping.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "ids"],
+      "properties": {
+        "count": {
+          "title": "Out-of-scope count",
+          "description": "Number of issues excluded by scoping.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "ids": {
+          "title": "Out-of-scope IDs",
+          "description": "IDs of issues excluded by scoping, sorted ascending.",
           "type": "array",
           "items": {
             "type": "string"
@@ -226,6 +276,82 @@
     }
   },
   "$defs": {
+    "LandmarkScores": {
+      "title": "Landmark scores",
+      "description": "Per-category scores for issues anchored to a specific landmark. No 'visual' field — visual is page-global pixel data and cannot be attributed per landmark.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "structure", "style", "accessibility", "technical", "hygiene"],
+      "properties": {
+        "content": {
+          "title": "Content score",
+          "description": "Content parity score for this landmark: 1/(1+n) counting Warning-or-worse issues.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "structure": {
+          "title": "Structure score",
+          "description": "Structure parity score for this landmark: 1/(1+n) counting Warning-or-worse issues.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "style": {
+          "title": "Style score",
+          "description": "Style parity score for this landmark: 1/(1+n) counting Warning-or-worse issues.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "accessibility": {
+          "title": "Accessibility score",
+          "description": "Accessibility parity score for this landmark: 1/(1+n) counting Warning-or-worse issues.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "technical": {
+          "title": "Technical score",
+          "description": "Technical parity score for this landmark: 1/(1+n) counting Warning-or-worse issues.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hygiene": {
+          "title": "Hygiene score",
+          "description": "URL/locale hygiene score for this landmark: 1/(1+n) counting Warning-or-worse issues.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "RunWarning": {
+      "title": "Run warning",
+      "description": "A run-level warning surfacing capture-integrity degradation or baseline staleness.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "context"],
+      "properties": {
+        "code": {
+          "title": "Warning code",
+          "description": "Machine-stable warning code (snake_case).",
+          "type": "string"
+        },
+        "message": {
+          "title": "Warning message",
+          "description": "Human-readable description of the warning.",
+          "type": "string"
+        },
+        "context": {
+          "title": "Warning context",
+          "description": "Structured context for the warning. Always serialized; null when no context is available.",
+          "type": ["object", "null"],
+          "additionalProperties": true
+        }
+      }
+    },
     "IssueType": {
       "title": "Issue type",
       "description": "Stable string taxonomy for all issue types (spec §7.3).",
@@ -627,6 +753,57 @@
           "title": "Retried without time freeze",
           "description": "True if the capture was retried after networkidle timeout with time freeze disabled.",
           "type": "boolean"
+        },
+        "integrity": {
+          "title": "Integrity inventory",
+          "description": "Pre/post-stabilization page element counts. Absent when the inventory evaluate failed or was not taken.",
+          "$ref": "#/$defs/IntegrityInventory"
+        }
+      }
+    },
+    "IntegrityCounts": {
+      "title": "IntegrityCounts",
+      "description": "Counts of selected element types in the page at a point in time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headingCount", "imageCount", "landmarkCount"],
+      "properties": {
+        "headingCount": {
+          "title": "Heading count",
+          "description": "Number of h1, h2, h3 elements present in the document.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "imageCount": {
+          "title": "Image count",
+          "description": "Number of img elements present in the document.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "landmarkCount": {
+          "title": "Landmark count",
+          "description": "Number of landmark elements present in the document.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "IntegrityInventory": {
+      "title": "IntegrityInventory",
+      "description": "Pre/post-stabilization element count snapshots.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre", "post"],
+      "properties": {
+        "pre": {
+          "title": "Pre-stabilization counts",
+          "description": "Element counts taken before stabilization steps.",
+          "$ref": "#/$defs/IntegrityCounts"
+        },
+        "post": {
+          "title": "Post-stabilization counts",
+          "description": "Element counts taken after the full stabilization pipeline completes.",
+          "$ref": "#/$defs/IntegrityCounts"
         }
       }
     },

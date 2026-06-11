@@ -165,6 +165,40 @@ pub const TIEBREAK_NEARBY: f64 = 0.2;
 /// Minimum per-axis intrinsic dimension ratio to suppress changed_image_dimensions. M3.md §5.3.
 pub const IMAGE_DIM_RATIO_FLOOR: f64 = 0.9;
 
+/// Maximum fractional difference in aspect ratio before two images are considered
+/// aspect-changed in responsive mode (docs/bugs/p2-07). 0.02 = 2%.
+pub const ASPECT_RATIO_TOLERANCE: f64 = 0.02;
+
+/// Image-dimension comparison mode (docs/bugs/p2-07).
+///
+/// `Strict`     — flag any naturalWidth/Height change (default). Goldens recorded in this mode.
+/// `Responsive` — pass aspect-preserving downscales that still cover the rendered box;
+///               flag upscales, aspect changes, and undersized images.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageDimensionsMode {
+    Strict,
+    Responsive,
+}
+
+impl ImageDimensionsMode {
+    /// Parse from CLI string. Returns `None` on unrecognised value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "strict" => Some(Self::Strict),
+            "responsive" => Some(Self::Responsive),
+            _ => None,
+        }
+    }
+
+    /// Canonical string representation (round-trips with `parse`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Strict => "strict",
+            Self::Responsive => "responsive",
+        }
+    }
+}
+
 /// Minimum displacement constant for sequence-diff reorder emission.
 /// A `component_reordered` is emitted only when block displacement (in eligible-pair
 /// rank units) **strictly exceeds** this value; displacement == SEQ_MIN_DISPLACEMENT is
@@ -207,3 +241,51 @@ pub const DUP_LABEL_BBOX_TOLERANCE_PX: f64 = 2.0;
 /// M6 live-page observations (e.g. "19.5776px" vs "19.6px").
 /// Note: 13px vs 14px (diff 1.0) is still reported.
 pub const STYLE_NUMERIC_EPSILON: f64 = 0.1;
+
+/// Minimum pair score required to emit style issues at Warning/Error severity.
+///
+/// Bug p1-04: uncertain pairings (band != Matched OR score < this threshold)
+/// produce style issues at Info severity only, which are excluded from the
+/// style category score. This prevents 1592-issue saturation from uncertain
+/// cross-engine pairings dominating the style score.
+pub const MIN_PAIRING_SCORE_FOR_STYLE: f64 = 0.75;
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// WP-I: ImageDimensionsMode::parse round-trips with as_str.
+    #[test]
+    fn test_image_dims_mode_parse_roundtrip() {
+        assert_eq!(
+            ImageDimensionsMode::parse("strict"),
+            Some(ImageDimensionsMode::Strict)
+        );
+        assert_eq!(
+            ImageDimensionsMode::parse("responsive"),
+            Some(ImageDimensionsMode::Responsive)
+        );
+        assert_eq!(
+            ImageDimensionsMode::Strict.as_str(),
+            "strict",
+            "Strict.as_str() must be 'strict'"
+        );
+        assert_eq!(
+            ImageDimensionsMode::Responsive.as_str(),
+            "responsive",
+            "Responsive.as_str() must be 'responsive'"
+        );
+    }
+
+    /// WP-I: Unrecognised value returns None.
+    #[test]
+    fn test_image_dims_mode_parse_bad_value() {
+        assert_eq!(ImageDimensionsMode::parse("unknown"), None);
+        assert_eq!(ImageDimensionsMode::parse(""), None);
+        assert_eq!(ImageDimensionsMode::parse("Strict"), None);
+    }
+}

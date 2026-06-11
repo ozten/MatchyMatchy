@@ -4,8 +4,38 @@
 //! all maps are BTreeMap.
 
 use sha2::{Digest, Sha256};
+use url::Url;
 
 use crate::contract::{Anchors, Issue, IssueType};
+
+/// Normalize an href to scheme+host+path for stable hashing.
+///
+/// Live pages may inject volatile query parameters (`__hstc`, `utm_*`, etc.) that must
+/// not affect the id. On successful parse, returns `scheme://host[:port]/path`; query
+/// and fragment are dropped. On parse failure (relative or malformed hrefs), the string
+/// is truncated at the first `?` or `#`, whichever comes first; if neither is present
+/// the input is returned unchanged.
+fn id_stable_url(href: &str) -> String {
+    if let Ok(parsed) = Url::parse(href) {
+        let scheme = parsed.scheme();
+        let host = parsed.host_str().unwrap_or("");
+        let path = parsed.path();
+        match parsed.port() {
+            Some(port) => format!("{}://{}:{}{}", scheme, host, port, path),
+            None => format!("{}://{}{}", scheme, host, path),
+        }
+    } else {
+        // Relative or unparseable: strip from first '?' or '#'
+        let q = href.find('?').unwrap_or(usize::MAX);
+        let f = href.find('#').unwrap_or(usize::MAX);
+        let cut = q.min(f);
+        if cut == usize::MAX {
+            href.to_string()
+        } else {
+            href[..cut].to_string()
+        }
+    }
+}
 
 /// Compute the content-addressed issue id per M1.md §3.2.
 ///
@@ -14,6 +44,11 @@ use crate::contract::{Anchors, Issue, IssueType};
 ///   anchors.ariaLabel, anchors.nearestHeading, anchors.landmark,
 ///   str(anchors.ordinalInLandmark), styleProperty
 /// None -> empty string.
+///
+/// URL anchors are normalized to scheme+host+path before hashing because query strings
+/// carry volatile session/tracking data (see docs/bugs/p0-02); two links that differ
+/// only by query/fragment intentionally share an id (the existing bbox-ordered collision
+/// suffix disambiguates if both occur).
 pub fn compute_issue_id(
     issue_type: &IssueType,
     viewport: &str,
@@ -26,13 +61,19 @@ pub fn compute_issue_id(
         .map(|n| n.to_string())
         .unwrap_or_default();
 
+    let href_stable = anchors
+        .href
+        .as_deref()
+        .map(id_stable_url)
+        .unwrap_or_default();
+
     let canonical = format!(
         "{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}",
         issue_type.as_str(),
         viewport,
         anchors.text.as_deref().unwrap_or(""),
         anchors.role.as_deref().unwrap_or(""),
-        anchors.href.as_deref().unwrap_or(""),
+        href_stable,
         anchors.alt.as_deref().unwrap_or(""),
         anchors.aria_label.as_deref().unwrap_or(""),
         anchors.nearest_heading.as_deref().unwrap_or(""),
@@ -248,6 +289,145 @@ mod tests {
         assert!(has_suffix, "at least one issue should have '-2' suffix");
         let no_suffix = !base_id.ends_with("-2") || !base_id2.ends_with("-2");
         assert!(no_suffix, "at least one issue should NOT have a suffix");
+    }
+
+    // -----------------------------------------------------------------------
+    // id_stable_url unit tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_id_stable_url_drops_query_and_fragment() {
+        // Absolute URL: query and fragment both dropped
+        assert_eq!(
+            id_stable_url("https://www.hiya.com/newsroom/?__hstc=17958374.abc#press-kit"),
+            "https://www.hiya.com/newsroom/"
+        );
+        // Only fragment
+        assert_eq!(
+            id_stable_url("https://www.hiya.com/newsroom/#press-kit"),
+            "https://www.hiya.com/newsroom/"
+        );
+        // Clean URL unchanged
+        assert_eq!(
+            id_stable_url("https://www.hiya.com/newsroom/"),
+            "https://www.hiya.com/newsroom/"
+        );
+    }
+
+    #[test]
+    fn test_id_stable_url_preserves_non_default_port() {
+        assert_eq!(
+            id_stable_url("http://localhost:3001/a?b=c"),
+            "http://localhost:3001/a"
+        );
+    }
+
+    #[test]
+    fn test_id_stable_url_parse_failure_truncation() {
+        // Relative href with query: truncate at '?'
+        assert_eq!(id_stable_url("foo/bar?x=1"), "foo/bar");
+        // Relative href without query/fragment: unchanged
+        assert_eq!(id_stable_url("foo/bar"), "foo/bar");
+        // Fragment-only: truncate at '#' → empty string
+        assert_eq!(id_stable_url("#x"), "");
+    }
+
+    // -----------------------------------------------------------------------
+    // compute_issue_id stability tests for volatile href query params
+    // -----------------------------------------------------------------------
+
+    fn make_anchors_with_href(href: &str) -> Anchors {
+        Anchors {
+            text: Some("Press Kit".to_string()),
+            role: None,
+            href: Some(href.to_string()),
+            alt: None,
+            aria_label: None,
+            nearest_heading: Some("About".to_string()),
+            landmark: Some("main".to_string()),
+            ordinal_in_landmark: None,
+        }
+    }
+
+    #[test]
+    fn test_issue_id_stable_across_tracking_params() {
+        // All three hrefs differ only in query/fragment — must produce the same id
+        let a1 =
+            make_anchors_with_href("https://www.hiya.com/newsroom/?__hstc=17958374.abc#press-kit");
+        let a2 = make_anchors_with_href("https://www.hiya.com/newsroom/#press-kit");
+        let a3 = make_anchors_with_href("https://www.hiya.com/newsroom/");
+
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a1, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a2, None);
+        let id3 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a3, None);
+
+        assert_eq!(id1, id2, "tracking params must not affect id");
+        assert_eq!(id2, id3, "fragment alone must not affect id");
+    }
+
+    #[test]
+    fn test_issue_id_differs_for_different_path() {
+        let a_newsroom = make_anchors_with_href("https://www.hiya.com/newsroom/");
+        let a_blog = make_anchors_with_href("https://www.hiya.com/blog");
+
+        let id1 = compute_issue_id(
+            &IssueType::VisualRegionChanged,
+            "desktop",
+            &a_newsroom,
+            None,
+        );
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_blog, None);
+
+        assert_ne!(id1, id2, "different path must produce different id");
+    }
+
+    #[test]
+    fn test_issue_id_differs_for_different_host() {
+        let a_hiya = make_anchors_with_href("https://www.hiya.com/newsroom/");
+        let a_other = make_anchors_with_href("https://other.example.com/newsroom/");
+
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_hiya, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_other, None);
+
+        assert_ne!(id1, id2, "different host must produce different id");
+    }
+
+    #[test]
+    fn test_issue_id_stable_for_relative_href_with_query() {
+        // Relative hrefs: parse fails, truncate at '?'
+        let a_with_q = make_anchors_with_href("foo/bar?x=1");
+        let a_clean = make_anchors_with_href("foo/bar");
+
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_with_q, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_clean, None);
+
+        assert_eq!(id1, id2, "relative href query must not affect id");
+    }
+
+    #[test]
+    fn test_issue_id_fragment_only_href() {
+        // '#x' truncates to "" — same as an empty href
+        assert_eq!(id_stable_url("#x"), "");
+
+        let a_frag = make_anchors_with_href("#x");
+        let a_empty = Anchors {
+            text: Some("Press Kit".to_string()),
+            role: None,
+            href: Some(String::new()),
+            alt: None,
+            aria_label: None,
+            nearest_heading: Some("About".to_string()),
+            landmark: Some("main".to_string()),
+            ordinal_in_landmark: None,
+        };
+
+        let id_frag = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_frag, None);
+        let id_empty = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a_empty, None);
+
+        assert_eq!(
+            id_frag, id_empty,
+            "fragment-only href should hash the same as empty href"
+        );
     }
 
     #[test]

@@ -7,9 +7,10 @@
 //!
 //! Prints status table + remediation commands; exit 0 healthy, 1 not.
 
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use crate::orchestrate::resolve_capture_script;
+use crate::orchestrate::{extract_chromium_rev, format_browser_remedy, resolve_capture_script};
 
 struct Check {
     name: &'static str,
@@ -138,6 +139,66 @@ fn check_capture_script() -> Check {
     }
 }
 
+/// Parsed fields from capture's doctor-mode JSON response.
+/// All fields are optional so old builds that omit the new fields still work.
+struct DoctorResponse {
+    playwright_ok: bool,
+    playwright_version: String,
+    chromium_ok_raw: bool, // from chromium.ok in the JSON
+    chromium_version: String,
+    chromium_executable_path: Option<String>, // new: may be absent in old builds
+    chromium_exists: Option<bool>,            // new: may be absent in old builds
+    browsers_path: Option<String>,            // new: may be absent in old builds
+}
+
+fn parse_doctor_response(value: &serde_json::Value) -> DoctorResponse {
+    let playwright_version = value
+        .get("playwright")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let playwright_ok = value.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+
+    let chromium = value.get("chromium");
+
+    let chromium_ok_raw = chromium
+        .and_then(|c| c.get("ok"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let chromium_version = chromium
+        .and_then(|c| c.get("version"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    // New fields — tolerate absence for old capture.cjs builds
+    let chromium_executable_path = chromium
+        .and_then(|c| c.get("executablePath"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let chromium_exists = chromium
+        .and_then(|c| c.get("exists"))
+        .and_then(|v| v.as_bool());
+
+    let browsers_path = value
+        .get("browsersPath")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    DoctorResponse {
+        playwright_ok,
+        playwright_version,
+        chromium_ok_raw,
+        chromium_version,
+        chromium_executable_path,
+        chromium_exists,
+        browsers_path,
+    }
+}
+
 fn check_capture_doctor(capture_path: &str) -> Vec<Check> {
     let config_json = r#"{"mode":"doctor"}"#;
 
@@ -242,30 +303,80 @@ fn check_capture_doctor(capture_path: &str) -> Vec<Check> {
         }
     };
 
-    let playwright_version = value
-        .get("playwright")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown");
+    let resp = parse_doctor_response(&value);
 
-    let playwright_ok = value.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    // Determine final chromium ok:
+    // If exists field is present, ok requires both raw ok AND exists==true.
+    // If exists is absent (old build), fall back to raw ok.
+    let chromium_ok = match resp.chromium_exists {
+        Some(exists) => resp.chromium_ok_raw && exists,
+        None => resp.chromium_ok_raw,
+    };
 
-    let chromium_ok = value
-        .get("chromium")
-        .and_then(|c| c.get("ok"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    let chromium_version = value
-        .get("chromium")
-        .and_then(|c| c.get("version"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown");
+    // Build chromium detail and remediation
+    let browsers_path_display = resp
+        .browsers_path
+        .as_deref()
+        .unwrap_or("(not set — Playwright is using ~/.cache/ms-playwright)");
+
+    let chromium_detail = if chromium_ok {
+        format!(
+            "build {}  browsers: {}",
+            resp.chromium_version, browsers_path_display
+        )
+    } else {
+        format!("build {}  (FAIL)", resp.chromium_version)
+    };
+
+    let chromium_remediation = if chromium_ok {
+        None
+    } else {
+        // Construct targeted remedy
+        let executable_line = resp
+            .chromium_executable_path
+            .as_deref()
+            .map(|p| format!("  Expected executable: {}", p))
+            .unwrap_or_default();
+
+        // Try to derive repo root from capture_path (resolve_capture_script recorded it,
+        // but we can also find it by walking ancestors of capture_path).
+        let repo_root = find_repo_root_from_capture(capture_path);
+
+        let remedy_block = match repo_root.as_deref() {
+            Some(root) => {
+                // Build the standard install command
+                let rev = resp
+                    .chromium_executable_path
+                    .as_deref()
+                    .and_then(extract_chromium_rev)
+                    .unwrap_or_else(|| "?".to_string());
+                format!(
+                    "Chromium build {} not found.\n  Current browsers path: {}\n{}\n  Install:\n    cd {}/packages/capture && PLAYWRIGHT_BROWSERS_PATH={}/.pw-browsers npx playwright install chromium\n  Then run matchy with:\n    export PLAYWRIGHT_BROWSERS_PATH={}/.pw-browsers",
+                    rev,
+                    browsers_path_display,
+                    executable_line,
+                    root.display(),
+                    root.display(),
+                    root.display()
+                )
+            }
+            None => {
+                let missing_path = resp
+                    .chromium_executable_path
+                    .as_deref()
+                    .unwrap_or("<unknown>");
+                format_browser_remedy(missing_path, None)
+            }
+        };
+        Some(remedy_block)
+    };
 
     vec![
         Check {
             name: "playwright",
-            ok: playwright_ok,
-            detail: format!("v{}", playwright_version),
-            remediation: if playwright_ok {
+            ok: resp.playwright_ok,
+            detail: format!("v{}", resp.playwright_version),
+            remediation: if resp.playwright_ok {
                 None
             } else {
                 Some("Run `cd packages/capture && npm ci`".to_string())
@@ -274,12 +385,109 @@ fn check_capture_doctor(capture_path: &str) -> Vec<Check> {
         Check {
             name: "chromium",
             ok: chromium_ok,
-            detail: format!("build {}", chromium_version),
-            remediation: if chromium_ok {
-                None
-            } else {
-                Some("Run `npx playwright install chromium`".to_string())
-            },
+            detail: chromium_detail,
+            remediation: chromium_remediation,
         },
     ]
+}
+
+/// Walk ancestors of `capture_path` to find the repo root
+/// (the ancestor that has a `packages/capture` subdirectory).
+fn find_repo_root_from_capture(capture_path: &str) -> Option<PathBuf> {
+    let p = std::path::Path::new(capture_path);
+    p.ancestors()
+        .find(|a| a.join("packages/capture").is_dir())
+        .map(|a| a.to_path_buf())
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_doctor_response_old_build_no_new_fields() {
+        // Old capture.cjs that doesn't return executablePath / exists / browsersPath
+        let value = json!({
+            "ok": true,
+            "node": "v24.0.0",
+            "playwright": "1.60.0",
+            "chromium": { "ok": true, "version": "chromium-1223" }
+        });
+        let resp = parse_doctor_response(&value);
+        assert!(resp.playwright_ok);
+        assert!(resp.chromium_ok_raw);
+        assert_eq!(resp.chromium_version, "chromium-1223");
+        assert!(resp.chromium_executable_path.is_none());
+        assert!(resp.chromium_exists.is_none());
+        assert!(resp.browsers_path.is_none());
+    }
+
+    #[test]
+    fn parse_doctor_response_new_fields_ok() {
+        let value = json!({
+            "ok": true,
+            "node": "v24.0.0",
+            "playwright": "1.60.0",
+            "chromium": {
+                "ok": true,
+                "version": "chromium-1223",
+                "executablePath": "/repo/.pw-browsers/chromium_headless_shell-1223/chrome-linux/chrome",
+                "exists": true
+            },
+            "browsersPath": "/repo/.pw-browsers"
+        });
+        let resp = parse_doctor_response(&value);
+        assert!(resp.playwright_ok);
+        assert!(resp.chromium_ok_raw);
+        assert_eq!(
+            resp.chromium_executable_path.as_deref(),
+            Some("/repo/.pw-browsers/chromium_headless_shell-1223/chrome-linux/chrome")
+        );
+        assert_eq!(resp.chromium_exists, Some(true));
+        assert_eq!(resp.browsers_path.as_deref(), Some("/repo/.pw-browsers"));
+    }
+
+    #[test]
+    fn parse_doctor_response_exists_false_overrides_ok() {
+        // chromium.ok is true (launch hasn't been verified), but exists is false
+        let value = json!({
+            "ok": false,
+            "node": "v24.0.0",
+            "playwright": "1.60.0",
+            "chromium": {
+                "ok": false,
+                "version": "",
+                "executablePath": "/home/user/.cache/ms-playwright/chromium_headless_shell-1223/chrome-linux/chrome",
+                "exists": false
+            },
+            "browsersPath": null
+        });
+        let resp = parse_doctor_response(&value);
+        // When exists == false, chromium_ok should be false even if raw was true
+        let chromium_ok = match resp.chromium_exists {
+            Some(exists) => resp.chromium_ok_raw && exists,
+            None => resp.chromium_ok_raw,
+        };
+        assert!(!chromium_ok);
+        assert_eq!(resp.chromium_exists, Some(false));
+    }
+
+    #[test]
+    fn parse_doctor_response_browsers_path_null() {
+        let value = json!({
+            "ok": false,
+            "node": "v24.0.0",
+            "playwright": "1.60.0",
+            "chromium": { "ok": false, "version": "" },
+            "browsersPath": null
+        });
+        let resp = parse_doctor_response(&value);
+        // null browsersPath should be treated as absent
+        assert!(resp.browsers_path.is_none());
+    }
 }

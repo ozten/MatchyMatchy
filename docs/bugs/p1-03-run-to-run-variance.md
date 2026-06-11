@@ -1,6 +1,6 @@
 # Issue: Large run-to-run variance in issue counts and scores with no candidate change
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P1 — per-run scores are not reliable indicators of whether a fix helped; count-based or score-based CI gates would flap on an unchanged candidate
 **Area:** capture determinism / scoring stability

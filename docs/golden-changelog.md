@@ -754,3 +754,81 @@ fix-plan step 3) — out of scope for this single-golden audit but required befo
 
 Condition satisfied by this entry; the blast-radius paragraph above records the full-suite
 confirmation that only v04 changed.
+
+## 2026-06-11 — 12-bug fix session: contract v1.1, all 21 goldens re-recorded
+
+**What changed.** All 21 `testbed/goldens/*.diffresult.json` re-recorded from
+`testbed/.runs/<variant>/diff-result.json` after the field-test bug-fix session
+(reports in `docs/bugs/`, 5-whys analysis and work packages in
+`docs/bugs/ROOT-CAUSE-AND-PLAN.md`). **No `expected-issues.json` file was modified** —
+all 21 intent checks pass unmodified against the new outputs, check-m8 passes, and the
+determinism spot-check passed 3/3 (`python3 testbed/determinism-check.py` on
+v02-banner-added, v08-cta-removed, v06-gradient-removed — byte-deterministic).
+
+Every golden delta falls into six classes:
+
+1. **Contract v1.1 additive fields** (every variant): `warnings: []`, `scopedTo: null`,
+   `outOfScope: {count:0, ids:[]}`, `scores.byLandmark`,
+   `determinism.{old,new}.integrity`; `schemaVersion` 1.0→1.1. Bugs p0-01 (warnings
+   channel), p1-06 (per-landmark scores), p1-03/p0-01 (capture-integrity inventory).
+2. **Issue-id rotations** for anchors whose href carries a query/fragment (v03 ×2,
+   v04 ×3): id hashing now normalizes URLs to scheme+host+path (bug p0-02). Issue
+   content unchanged; ids are now durable against volatile tracking params.
+3. **Uncertain-pairing style issues now emitted** (v03 +18, v04 +9) at severity `info`
+   with `evidence.match.uncertainPairing: true`, excluded from the style score
+   (byte-identical style scores prove the exclusion). The old code dropped uncertain-band
+   pairs entirely, citing §3.1 — but spec §3.1 (lines 173, 363) requires the uncertain
+   band to be "emitted with low confidence for agent/human review … not silently
+   decided". The old goldens contradicted the spec; bug p1-04 supplies the gating.
+   *Recorded decision (auditor condition 2):* `severity: info` + `band: "uncertain"` +
+   `uncertainPairing: true` is the low-confidence signal; the `confidence` field keeps
+   detector semantics (confidence in the property delta, not the pairing). A follow-up
+   may scale `confidence` by pairing score; deferred to keep this re-record audited as-is.
+4. **`page_height_changed` evidence gains `sectionDeltas` + locator bboxes**
+   (v02, v03, v12, v19) — per-landmark height attribution, bug p2-11. Pure enrichment.
+5. **v11 per-link `url_protocol_downgrade` error→info** with remediation
+   `action: "none"`: the link target is `http://localhost:47011`, where the old
+   `https://localhost` rewrite advice was not actionable (bug p2-12). The variant's
+   required `broken_link` (error) and forbidden assertions are untouched.
+6. **Score deltas derivable from the above**: category scores now count only
+   Warning-or-worse issues (info = expected/uncertain, not regression — bugs
+   p1-04/p2-12), e.g. v11 hygiene 0.5→1.0, fixableNow 3→2. The decisive M2.md §5.5
+   rule is preserved: v18 `scores.technical` remains 0.0 (a refactor regression that
+   briefly produced 0.5 was caught against the golden and fixed before re-record —
+   `test_compute_scores_status_mismatch_pins_technical_to_zero`).
+
+**Why the old expectations were wrong / superseded.** Class 3 goldens encoded behavior
+contrary to spec §3.1 (uncertain band silently dropped). Classes 1, 2, 4, 5, 6 are
+approved behavior changes from the documented bug fixes; the goldens are byte baselines
+re-recorded after the behavior change per CLAUDE.md golden discipline ("Re-recording
+byte goldens after an approved behavior change is fine").
+
+**Audit (golden-auditor, 2026-06-11): APPROVE**, pasted verbatim:
+
+```
+VERDICT: APPROVE
+EXPECTATION(S): testbed/goldens/v01-identical.diffresult.json through
+v21-a11y-lang.diffresult.json (all 21), re-recorded from testbed/.runs/<variant>/diff-result.json.
+No expected-issues.json modified (verified: git status shows zero testbed/ changes).
+REASONING: Every one of the byte-golden deltas falls into the six claimed classes with zero
+unexplained residue, and each class is grounded in approval rule 1 or 3: the uncertain-pairing
+emission (class 3) corrects a golden that contradicted spec §3.1 ("emitted with low confidence for
+agent/human review rather than a coin-flip verdict" / "emitted low-confidence for review, not
+silently decided"); classes 1, 2, 4, 5, 6 are approved behavior changes from the documented
+12-bug root-cause plan (docs/bugs/ROOT-CAUSE-AND-PLAN.md, WPs B/D/E/G/H),
+each traced to a field bug report, none rationalized as "the code currently produces X." All 21
+intent checks PASS against the fresh outputs with unmodified expectations; no forbidden-issue
+assertion is weakened, no required issue is dropped, no status flips, v01 control holds
+(pass, 0 issues), v18 technical remains 0.0.
+CONDITIONS: (1) Before copying, add the docs/golden-changelog.md entry: enumerate the six delta
+classes, cite p0-01/p0-02/p1-03/p1-04/p1-06/p2-11/p2-12 + spec §3.1, note class 4 also touches
+v03 (the claim listed only v02/v12/v19), record the 3/3 determinism command, and paste this
+verdict. (2) File a follow-up: uncertain-pairing issues carry confidence 0.9 — identical to
+matched-band issues — while §3.1 says "low confidence"; either lower the confidence field when
+uncertainPairing=true or record an explicit decision that severity=info + band=uncertain is the
+low-confidence signal. (3) Non-blocking contract nit: diff-result.schema.json's enum still permits
+"1.0" but the new fields are unconditionally required, so 1.0 documents can no longer validate.
+```
+
+Conditions disposition: (1) this entry; (2) decision recorded in class 3 above;
+(3) fixed — schema enum now `["1.1"]`.

@@ -1,6 +1,6 @@
 # Issue: Default time-freezing crashes target-page JS and silently corrupts the baseline capture
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P0 — corrupted baseline causes all subsequent diffs to measure the wrong ground truth; fix rounds are wasted optimizing against a phantom reference
 **Area:** stabilizer / capture integrity

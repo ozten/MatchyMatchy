@@ -245,6 +245,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         };
 
         let conf = compute_confidence(0.9, false, &det_ok, &det_ok);
@@ -273,6 +274,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         };
         let det_ok = CaptureDeterminism {
             animations_disabled: StepStatus::Ran,
@@ -287,6 +289,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         };
 
         // 0.9 * 0.8 = 0.72

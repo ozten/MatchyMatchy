@@ -111,6 +111,23 @@ impl StepStatus {
     }
 }
 
+/// Per-element-type counts at one point in time.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrityCounts {
+    pub heading_count: u32,
+    pub image_count: u32,
+    pub landmark_count: u32,
+}
+
+/// Pre/post-stabilization element count snapshots.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrityInventory {
+    pub pre: IntegrityCounts,
+    pub post: IntegrityCounts,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureDeterminism {
@@ -126,6 +143,9 @@ pub struct CaptureDeterminism {
     pub hidden: Vec<String>,
     pub masked: Vec<String>,
     pub retried_without_time_freeze: bool,
+    /// Pre/post stabilization page inventory. None when the evaluate failed or was not taken.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrity: Option<IntegrityInventory>,
 }
 
 impl CaptureDeterminism {
@@ -162,6 +182,10 @@ impl CaptureDeterminism {
             },
             retried_without_time_freeze: a.retried_without_time_freeze
                 || b.retried_without_time_freeze,
+            // integrity: prefer the first Some value (a's, then b's).
+            // Rationale: merge_worst is used across viewports for the same capture side;
+            // if the first viewport has inventory data we keep it as representative.
+            integrity: a.integrity.clone().or_else(|| b.integrity.clone()),
         }
     }
 
@@ -193,6 +217,20 @@ pub struct LinkProbe {
     pub error: Option<String>,
 }
 
+/// WP-G: geometry for a single landmark element or a direct section-child of main.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LandmarkRect {
+    /// Role-based path: e.g. "main", "contentinfo", "banner[2]", "main › section[1]".
+    pub path: String,
+    /// ARIA landmark role.
+    pub role: String,
+    /// Text of first h1-h3 inside, capped at 80 chars. Null if absent.
+    pub heading: Option<String>,
+    /// [x, y, w, h] in CSS pixels (page coordinates, scroll-offset-adjusted).
+    pub bbox: [i32; 4],
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageModel {
@@ -207,6 +245,9 @@ pub struct PageModel {
     pub page_height: u32,
     pub nodes: Vec<SemanticNode>,
     pub landmarks: Vec<String>,
+    /// WP-G: landmark geometry. Absent in pre-WP-G bundles; defaults to None.
+    #[serde(default)]
+    pub landmark_rects: Option<Vec<LandmarkRect>>,
     pub network: NetworkInfo,
     pub console: Vec<ConsoleEntry>,
     pub a11y: A11yInfo,
@@ -347,6 +388,37 @@ pub struct Screenshots {
 // DiffResult (produced by analyze)
 // ---------------------------------------------------------------------------
 
+/// A run-level warning surfacing capture-integrity or baseline staleness conditions.
+///
+/// `context` is always serialized (null when absent) to keep golden key-sets stable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunWarning {
+    pub code: String,
+    pub message: String,
+    pub context: Option<serde_json::Value>,
+}
+
+/// Out-of-scope issues: those whose landmark was excluded by --scope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutOfScope {
+    pub count: u32,
+    pub ids: Vec<String>,
+}
+
+/// Per-landmark aggregated scores (no `visual` — visual is page-global pixel data).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LandmarkScores {
+    pub content: f64,
+    pub structure: f64,
+    pub style: f64,
+    pub accessibility: f64,
+    pub technical: f64,
+    pub hygiene: f64,
+}
+
 /// The primary deliverable of the matchy tool.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -364,6 +436,9 @@ pub struct DiffResult {
     pub issues: Vec<Issue>,
     pub clusters: Vec<Cluster>,
     pub suppressed: Suppressed,
+    pub warnings: Vec<RunWarning>,
+    pub scoped_to: Option<Vec<String>>,
+    pub out_of_scope: OutOfScope,
     pub determinism: DeterminismSummary,
     pub artifacts: Artifacts,
 }
@@ -429,6 +504,9 @@ pub struct Scores {
     pub accessibility: f64,
     pub technical: f64,
     pub hygiene: f64,
+    /// Per-landmark aggregated scores (BTreeMap for deterministic order).
+    /// Empty map `{}` at per-viewport level when not populated; filled at top level.
+    pub by_landmark: BTreeMap<String, LandmarkScores>,
 }
 
 impl Scores {
@@ -441,6 +519,7 @@ impl Scores {
             accessibility: 1.0,
             technical: 1.0,
             hygiene: 1.0,
+            by_landmark: BTreeMap::new(),
         }
     }
 
@@ -482,6 +561,8 @@ impl Scores {
             accessibility,
             technical,
             hygiene,
+            // by_landmark is not aggregated via min — caller sets it separately.
+            by_landmark: BTreeMap::new(),
         }
     }
 }

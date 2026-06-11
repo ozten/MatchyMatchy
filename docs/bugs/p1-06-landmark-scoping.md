@@ -1,6 +1,6 @@
 # Issue: Add landmark scoping (--scope main) and per-landmark score breakdowns
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P1 — shared chrome (nav/footer) dominates page-level results and causes correctly-ported pages to report `status: fail`, making the gate unusable for page-by-page migration without manual triage
 **Area:** diff engine / scoring (enhancement)

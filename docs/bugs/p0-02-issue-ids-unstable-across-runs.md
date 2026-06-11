@@ -1,6 +1,6 @@
 # Issue: Issue ids unstable across runs; --baseline accept-lists don't hold
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P0 — the `--baseline` accept-list workflow is broken for the error class it matters most for; CI gates cannot be expressed as durable acceptances
 **Area:** issue-id hashing / baseline / accept-list

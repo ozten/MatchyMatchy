@@ -11,7 +11,7 @@ use url::Url;
 
 use crate::config::{base_confidence, TrailingSlashPolicy, DEFAULT_TRAILING_SLASH_POLICY};
 use crate::contract::{
-    Anchors, CaptureBundle, Issue, IssueCategory, IssueType, Locator, SemanticNode,
+    Anchors, CaptureBundle, Issue, IssueCategory, IssueSeverity, IssueType, Locator, SemanticNode,
 };
 use crate::egress::{check_probe_url, EgressDecision};
 use crate::issue::compute_issue_id;
@@ -459,6 +459,42 @@ fn build_redirect_chain_issue(
 // Check 4: Protocol downgrade (page level + per-link)
 // ---------------------------------------------------------------------------
 
+/// Returns true when `url_str` has a loopback / local-dev host.
+///
+/// Loopback hosts: `localhost`, `127.0.0.0/8`, `::1` (including the bracket form
+/// `[::1]` that the `url` crate uses), any host ending in `.localhost` or `.local`.
+/// Returns false on parse failure or when the URL has no host component.
+fn is_loopback_dev_host(url_str: &str) -> bool {
+    let parsed = match Url::parse(url_str) {
+        Ok(u) => u,
+        Err(_) => return false,
+    };
+    let host = match parsed.host_str() {
+        Some(h) => h,
+        None => return false,
+    };
+    // Exact matches
+    if host.eq_ignore_ascii_case("localhost")
+        || host == "127.0.0.1"
+        || host == "::1"
+        || host == "[::1]"
+    {
+        return true;
+    }
+    // Subdomains of .localhost or .local
+    let lower = host.to_ascii_lowercase();
+    if lower.ends_with(".localhost") || lower.ends_with(".local") {
+        return true;
+    }
+    // 127.0.0.0/8: any address 127.x.x.x
+    if let Some(url::Host::Ipv4(addr)) = parsed.host() {
+        if addr.octets()[0] == 127 {
+            return true;
+        }
+    }
+    false
+}
+
 fn check_protocol_downgrade_page(
     old: &CaptureBundle,
     new: &CaptureBundle,
@@ -472,10 +508,6 @@ fn check_protocol_downgrade_page(
     if new_scheme == "http" && old_scheme == "https" {
         let new_url = &new.page.final_url;
         let old_url = &old.page.final_url;
-        let https_url = new_url.replacen("http://", "https://", 1);
-        let url_sans_scheme = new_url
-            .trim_start_matches("http://")
-            .trim_start_matches("https://");
 
         let path = url_path_query(new_url).unwrap_or_else(|| "/".to_string());
         let anchors = Anchors {
@@ -490,8 +522,6 @@ fn check_protocol_downgrade_page(
         };
 
         let id = compute_issue_id(&IssueType::UrlProtocolDowngrade, viewport, &anchors, None);
-        let severity =
-            profile.severity_for(&IssueType::UrlProtocolDowngrade, &IssueCategory::Hygiene);
         let confidence = base_confidence::HYGIENE;
 
         let evidence = serde_json::json!({
@@ -499,13 +529,34 @@ fn check_protocol_downgrade_page(
             "new": { "url": new_url }
         });
 
-        let remediation = serde_json::json!({
-            "action": "rewrite_url",
-            "findBy": { "grep": [url_sans_scheme] },
-            "from": new_url,
-            "to": https_url,
-            "note": "New page uses HTTP where old page used HTTPS. Update to HTTPS."
-        });
+        let loopback = is_loopback_dev_host(new_url);
+        let (severity, message, remediation) = if loopback {
+            let msg = format!(
+                "Protocol downgrade: old={} new={} (expected for a local development server)",
+                old_url, new_url
+            );
+            let rem = serde_json::json!({
+                "action": "none",
+                "note": "HTTP is expected for a local dev server; HTTPS on localhost would require a self-signed certificate. This issue will not appear once the candidate is served from a real HTTPS host."
+            });
+            (IssueSeverity::Info, msg, rem)
+        } else {
+            let sev =
+                profile.severity_for(&IssueType::UrlProtocolDowngrade, &IssueCategory::Hygiene);
+            let https_url = new_url.replacen("http://", "https://", 1);
+            let url_sans_scheme = new_url
+                .trim_start_matches("http://")
+                .trim_start_matches("https://");
+            let msg = format!("Protocol downgrade: old={} new={}", old_url, new_url);
+            let rem = serde_json::json!({
+                "action": "rewrite_url",
+                "findBy": { "grep": [url_sans_scheme] },
+                "from": new_url,
+                "to": https_url,
+                "note": "New page uses HTTP where old page used HTTPS. Update to HTTPS."
+            });
+            (sev, msg, rem)
+        };
 
         return Some(Issue {
             id,
@@ -516,7 +567,7 @@ fn check_protocol_downgrade_page(
             viewport: viewport.to_string(),
             locale: new_lang.clone(),
             goal: Some("G5".to_string()),
-            message: format!("Protocol downgrade: old={} new={}", old_url, new_url),
+            message,
             locator: Locator {
                 anchors,
                 css_selector_old: None,
@@ -615,11 +666,6 @@ fn check_per_link_protocol_downgrade(
             continue;
         }
 
-        let https_url = href.replacen("http://", "https://", 1);
-        let url_sans_scheme = href
-            .trim_start_matches("http://")
-            .trim_start_matches("https://");
-
         let anchors = Anchors {
             text: node.anchors.text.clone(),
             role: node.anchors.role.clone(),
@@ -632,22 +678,42 @@ fn check_per_link_protocol_downgrade(
         };
 
         let id = compute_issue_id(&IssueType::UrlProtocolDowngrade, viewport, &anchors, None);
-        let severity =
-            profile.severity_for(&IssueType::UrlProtocolDowngrade, &IssueCategory::Hygiene);
         let confidence = base_confidence::HYGIENE;
+
+        let https_url = href.replacen("http://", "https://", 1);
 
         let evidence = serde_json::json!({
             "old": { "url": https_url },
             "new": { "url": href }
         });
 
-        let remediation = serde_json::json!({
-            "action": "rewrite_url",
-            "findBy": { "grep": [url_sans_scheme] },
-            "from": href,
-            "to": https_url,
-            "note": "Link uses HTTP where old page had HTTPS for the same path. Update to HTTPS."
-        });
+        let loopback = is_loopback_dev_host(href);
+        let (severity, message, remediation) = if loopback {
+            let msg = format!(
+                "Per-link protocol downgrade: {} should be https (expected for a local development server)",
+                href
+            );
+            let rem = serde_json::json!({
+                "action": "none",
+                "note": "HTTP is expected for a local dev server; HTTPS on localhost would require a self-signed certificate. This issue will not appear once the candidate is served from a real HTTPS host."
+            });
+            (IssueSeverity::Info, msg, rem)
+        } else {
+            let sev =
+                profile.severity_for(&IssueType::UrlProtocolDowngrade, &IssueCategory::Hygiene);
+            let url_sans_scheme = href
+                .trim_start_matches("http://")
+                .trim_start_matches("https://");
+            let msg = format!("Per-link protocol downgrade: {} should be https", href);
+            let rem = serde_json::json!({
+                "action": "rewrite_url",
+                "findBy": { "grep": [url_sans_scheme] },
+                "from": href,
+                "to": https_url,
+                "note": "Link uses HTTP where old page had HTTPS for the same path. Update to HTTPS."
+            });
+            (sev, msg, rem)
+        };
 
         issues.push(Issue {
             id,
@@ -658,7 +724,7 @@ fn check_per_link_protocol_downgrade(
             viewport: viewport.to_string(),
             locale: new_lang.clone(),
             goal: Some("G5".to_string()),
-            message: format!("Per-link protocol downgrade: {} should be https", href),
+            message,
             locator: Locator {
                 anchors,
                 css_selector_old: None,
@@ -1281,6 +1347,7 @@ mod tests {
             hidden: vec![],
             masked: vec![],
             retried_without_time_freeze: false,
+            integrity: None,
         }
     }
 
@@ -1320,6 +1387,7 @@ mod tests {
             page_height: 1000,
             nodes: vec![],
             landmarks: vec![],
+            landmark_rects: None,
             network: NetworkInfo { requests: vec![] },
             console: vec![],
             a11y: A11yInfo { violations: vec![] },
@@ -1334,7 +1402,7 @@ mod tests {
         status: u32,
     ) -> CaptureBundle {
         CaptureBundle {
-            schema_version: "1.0".to_string(),
+            schema_version: "1.1".to_string(),
             captured_at: "2026-01-01T00:00:00Z".to_string(),
             viewport: make_viewport(),
             environment: make_env(),
@@ -1609,6 +1677,354 @@ mod tests {
             .issues
             .iter()
             .all(|i| i.issue_type != IssueType::UrlProtocolDowngrade));
+    }
+
+    // -------------------------------------------------------------------------
+    // is_loopback_dev_host unit tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_is_loopback_dev_host_localhost() {
+        assert!(is_loopback_dev_host("http://localhost/"));
+        assert!(is_loopback_dev_host("http://localhost:3001/path"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_127_0_0_1() {
+        assert!(is_loopback_dev_host("http://127.0.0.1/"));
+        assert!(is_loopback_dev_host("http://127.0.0.1:8080/foo"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_127_other_octets() {
+        // Any 127.x.x.x is loopback
+        assert!(is_loopback_dev_host("http://127.0.0.2/"));
+        assert!(is_loopback_dev_host("http://127.255.255.255/"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_ipv6_loopback() {
+        // url crate parses ::1 as [::1] in host_str
+        assert!(is_loopback_dev_host("http://[::1]/"));
+        assert!(is_loopback_dev_host("http://[::1]:3000/page"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_dot_local() {
+        assert!(is_loopback_dev_host("http://myapp.local/"));
+        assert!(is_loopback_dev_host("http://myapp.local:8080/x"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_dot_localhost_subdomain() {
+        assert!(is_loopback_dev_host("http://foo.localhost/"));
+        assert!(is_loopback_dev_host("http://foo.localhost:3001/x"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_scheme_irrelevant() {
+        // Helper only inspects host, scheme does not matter
+        assert!(is_loopback_dev_host("https://localhost/"));
+        assert!(is_loopback_dev_host("https://127.0.0.1/"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_false_for_real_host() {
+        assert!(!is_loopback_dev_host("http://example.com/"));
+        assert!(!is_loopback_dev_host("https://staging.example.com/"));
+        // 128.0.0.1 is NOT loopback
+        assert!(!is_loopback_dev_host("http://128.0.0.1/"));
+    }
+
+    #[test]
+    fn test_is_loopback_dev_host_parse_failure() {
+        assert!(!is_loopback_dev_host("not a url"));
+        assert!(!is_loopback_dev_host(""));
+        assert!(!is_loopback_dev_host("://missing-scheme"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Protocol downgrade — localhost variants emit info severity
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_protocol_downgrade_localhost_is_info() {
+        let old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let new_b = make_bundle(
+            "http://localhost:3001/",
+            "http://localhost:3001/",
+            vec![],
+            200,
+        );
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(
+            !issues.is_empty(),
+            "downgrade issue should still be emitted"
+        );
+        let issue = &issues[0];
+        assert_eq!(
+            issue.severity,
+            IssueSeverity::Info,
+            "localhost downgrade must be Info not Error"
+        );
+        assert!(
+            issue
+                .message
+                .contains("expected for a local development server"),
+            "message must mention local dev server; got: {}",
+            issue.message
+        );
+        let action = issue
+            .remediation
+            .as_ref()
+            .and_then(|r| r["action"].as_str());
+        assert_eq!(
+            action,
+            Some("none"),
+            "remediation action must be 'none' for localhost"
+        );
+        // Must NOT have from/to/findBy
+        assert!(
+            issue
+                .remediation
+                .as_ref()
+                .map_or(true, |r| r["to"].is_null()),
+            "remediation.to must be absent for localhost"
+        );
+    }
+
+    #[test]
+    fn test_protocol_downgrade_127_0_0_1_is_info() {
+        let old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let new_b = make_bundle(
+            "http://127.0.0.1:3000/",
+            "http://127.0.0.1:3000/",
+            vec![],
+            200,
+        );
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, IssueSeverity::Info);
+        assert!(issues[0]
+            .message
+            .contains("expected for a local development server"));
+    }
+
+    #[test]
+    fn test_protocol_downgrade_ipv6_loopback_is_info() {
+        let old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let new_b = make_bundle("http://[::1]:3000/", "http://[::1]:3000/", vec![], 200);
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, IssueSeverity::Info);
+        assert!(issues[0]
+            .message
+            .contains("expected for a local development server"));
+    }
+
+    #[test]
+    fn test_protocol_downgrade_dot_local_is_info() {
+        let old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let new_b = make_bundle(
+            "http://myapp.local:3000/",
+            "http://myapp.local:3000/",
+            vec![],
+            200,
+        );
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, IssueSeverity::Info);
+        assert!(issues[0]
+            .message
+            .contains("expected for a local development server"));
+    }
+
+    #[test]
+    fn test_protocol_downgrade_foo_localhost_is_info() {
+        let old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let new_b = make_bundle(
+            "http://foo.localhost:3001/",
+            "http://foo.localhost:3001/",
+            vec![],
+            200,
+        );
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, IssueSeverity::Info);
+        assert!(issues[0]
+            .message
+            .contains("expected for a local development server"));
+    }
+
+    #[test]
+    fn test_protocol_downgrade_real_host_is_error_with_rewrite_remediation() {
+        // http://example.com vs https://example.com → error + rewrite_url remediation (existing behavior)
+        let old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let new_b = make_bundle("http://example.com/", "http://example.com/", vec![], 200);
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(
+            !issues.is_empty(),
+            "must emit downgrade issue for real host"
+        );
+        let issue = &issues[0];
+        // Severity is driven by the profile; ContentStructure gives Error for this type
+        assert_ne!(
+            issue.severity,
+            IssueSeverity::Info,
+            "real host downgrade must not be Info"
+        );
+        let action = issue
+            .remediation
+            .as_ref()
+            .and_then(|r| r["action"].as_str());
+        assert_eq!(
+            action,
+            Some("rewrite_url"),
+            "real host must have rewrite_url remediation"
+        );
+        assert!(
+            issue
+                .remediation
+                .as_ref()
+                .map_or(false, |r| !r["to"].is_null()),
+            "real host remediation must have a 'to' field"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-link protocol downgrade — localhost variants emit info severity
+    // -------------------------------------------------------------------------
+
+    fn make_link_node(href: &str) -> SemanticNode {
+        SemanticNode {
+            id: "node_0".to_string(),
+            kind: "link".to_string(),
+            role: Some("link".to_string()),
+            text: Some("Link".to_string()),
+            acc_name: Some("Link".to_string()),
+            href: Some(href.to_string()),
+            image_alt: None,
+            bbox: [0, 0, 100, 30],
+            seq_index: 0,
+            anchors: crate::contract::NodeAnchors {
+                text: Some("Link".to_string()),
+                role: Some("link".to_string()),
+                href: Some(href.to_string()),
+                alt: None,
+                aria_label: None,
+                nearest_heading: None,
+                landmark: None,
+                ordinal_in_landmark: None,
+            },
+            css_selector: None,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_per_link_downgrade_localhost_is_info() {
+        // New page is http://localhost:3001; old page has https link to same path;
+        // per-link check should emit Info for the localhost link.
+        let mut old_b = make_bundle(
+            "http://localhost:3001/",
+            "http://localhost:3001/",
+            vec![],
+            200,
+        );
+        let mut new_b = make_bundle(
+            "http://localhost:3001/",
+            "http://localhost:3001/",
+            vec![],
+            200,
+        );
+
+        // Old page has the https version of the link
+        old_b.page.nodes = vec![make_link_node("https://localhost:3001/x")];
+        // New page has the http version
+        new_b.page.nodes = vec![make_link_node("http://localhost:3001/x")];
+
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(!issues.is_empty(), "per-link downgrade should be emitted");
+        assert_eq!(
+            issues[0].severity,
+            IssueSeverity::Info,
+            "localhost per-link downgrade must be Info"
+        );
+        assert!(
+            issues[0]
+                .message
+                .contains("expected for a local development server"),
+            "message must mention local dev server; got: {}",
+            issues[0].message
+        );
+        let action = issues[0]
+            .remediation
+            .as_ref()
+            .and_then(|r| r["action"].as_str());
+        assert_eq!(action, Some("none"));
+    }
+
+    #[test]
+    fn test_per_link_downgrade_real_host_is_error() {
+        // New page has http://example.com link; old has https → error
+        let mut old_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+        let mut new_b = make_bundle("https://example.com/", "https://example.com/", vec![], 200);
+
+        old_b.page.nodes = vec![make_link_node("https://example.com/x")];
+        new_b.page.nodes = vec![make_link_node("http://example.com/x")];
+
+        let result = hygiene_issues(&old_b, &new_b, "desktop", &profile());
+        let issues: Vec<_> = result
+            .issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UrlProtocolDowngrade)
+            .collect();
+        assert!(!issues.is_empty(), "real host per-link downgrade must fire");
+        assert_ne!(
+            issues[0].severity,
+            IssueSeverity::Info,
+            "real host per-link downgrade must not be Info"
+        );
+        let action = issues[0]
+            .remediation
+            .as_ref()
+            .and_then(|r| r["action"].as_str());
+        assert_eq!(action, Some("rewrite_url"));
     }
 
     // -------------------------------------------------------------------------
@@ -1914,7 +2330,7 @@ mod tests {
         let issues = outcome.issues;
 
         let result = DiffResult {
-            schema_version: "1.0".to_string(),
+            schema_version: "1.1".to_string(),
             tool_version: "0.1.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "http://old.com/".to_string(),
@@ -1941,6 +2357,12 @@ mod tests {
             issues,
             clusters: vec![],
             suppressed: Suppressed {
+                count: 0,
+                ids: vec![],
+            },
+            warnings: vec![],
+            scoped_to: None,
+            out_of_scope: crate::contract::OutOfScope {
                 count: 0,
                 ids: vec![],
             },

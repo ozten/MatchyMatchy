@@ -8,6 +8,13 @@ Shell 148.0.7778.96 (playwright chromium-headless-shell v1223). All numbers in
 these reports were verified against the on-disk run artifacts
 (`/tmp/matchy-nr-*/diff-result.json`, capture bundles) before filing.
 
+**Status (2026-06-11): all 12 FIXED.** Root-cause analysis (5-whys) and the
+work-package plan are in [ROOT-CAUSE-AND-PLAN.md](./ROOT-CAUSE-AND-PLAN.md);
+the resulting contract v1.1 golden re-record is documented and audited in
+`docs/golden-changelog.md`. Deferred follow-ups (median-of-N capture,
+uncertain-pairing confidence scaling, selector-depth heuristics) are listed at
+the end of the plan doc.
+
 | # | Pri | Report | One line |
 |---|-----|--------|----------|
 | 01 | P0 | [time-freeze corrupts baseline capture](./p0-01-time-freeze-corrupts-baseline-capture.md) | Frozen clock crashes target-page Swiper; baseline silently loses a whole section; no integrity warning. Workaround: `--no-freeze-time`. |

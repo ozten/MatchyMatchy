@@ -1,6 +1,6 @@
 # Issue: Weak cross-page element pairings produce misleading style_changed issues
 
-**Status:** OPEN
+**Status:** FIXED (2026-06-11 — see ROOT-CAUSE-AND-PLAN.md and docs/golden-changelog.md)
 **Found:** 2026-06-11, during a real migration gate (Webflow staging page vs local Next.js port)
 **Severity:** P1 — bad pairings inflate per-section style counts and hold the style score near 0.001 even after real fixes land, making the gate signal untrustworthy
 **Area:** diff engine / scoring

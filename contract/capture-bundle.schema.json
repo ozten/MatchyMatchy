@@ -224,6 +224,11 @@
           "title": "Retried without time freeze",
           "description": "True if networkidle timed out with freezeTime on and the page was retried without it.",
           "type": "boolean"
+        },
+        "integrity": {
+          "title": "Integrity inventory",
+          "description": "Pre/post-stabilization page element counts. Absent when the inventory evaluate failed or was not taken.",
+          "$ref": "#/$defs/IntegrityInventory"
         }
       }
     },
@@ -414,6 +419,14 @@
           "items": {
             "$ref": "#/$defs/LinkProbe"
           }
+        },
+        "landmarkRects": {
+          "title": "Landmark rects",
+          "description": "Bounding boxes for landmark elements and direct children of main that give section-level geometry. Additive optional field; absent in pre-WP-G bundles. Capped at 64 entries.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LandmarkRect"
+          }
         }
       }
     },
@@ -457,6 +470,84 @@
     }
   },
   "$defs": {
+    "IntegrityCounts": {
+      "title": "IntegrityCounts",
+      "description": "Counts of selected element types in the page at a point in time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headingCount", "imageCount", "landmarkCount"],
+      "properties": {
+        "headingCount": {
+          "title": "Heading count",
+          "description": "Number of h1, h2, h3 elements present in the document.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "imageCount": {
+          "title": "Image count",
+          "description": "Number of img elements present in the document.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "landmarkCount": {
+          "title": "Landmark count",
+          "description": "Number of landmark elements (header, nav, main, footer, aside, and elements with ARIA landmark roles) present in the document.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "IntegrityInventory": {
+      "title": "IntegrityInventory",
+      "description": "Pre/post-stabilization element count snapshots. Used to detect stabilizer-induced DOM mutations.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre", "post"],
+      "properties": {
+        "pre": {
+          "title": "Pre-stabilization counts",
+          "description": "Element counts taken right after navigation settles, before lazy-load and scroll steps.",
+          "$ref": "#/$defs/IntegrityCounts"
+        },
+        "post": {
+          "title": "Post-stabilization counts",
+          "description": "Element counts taken after the full stabilization pipeline completes.",
+          "$ref": "#/$defs/IntegrityCounts"
+        }
+      }
+    },
+    "LandmarkRect": {
+      "title": "LandmarkRect",
+      "description": "Bounding box and metadata for a single landmark element or a direct child section/div-with-id inside main, captured at the time of extraction.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "role", "heading", "bbox"],
+      "properties": {
+        "path": {
+          "title": "Path",
+          "description": "Role-based path identifying this entry. Landmark elements use the role name (e.g. 'main', 'contentinfo'); repeated roles are suffixed '[2]', '[3]', etc. Main's children use 'main › section[N]'.",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "description": "ARIA landmark role for this element.",
+          "type": "string"
+        },
+        "heading": {
+          "title": "Heading",
+          "description": "Text of the first h1-h3 inside this element, trimmed and capped at 80 chars. Null if none found.",
+          "type": ["string", "null"]
+        },
+        "bbox": {
+          "title": "Bounding box",
+          "description": "Bounding box in page coordinates [x, y, width, height] with scroll offsets added. Values rounded to integers.",
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
     "AncestorDescriptor": {
       "title": "AncestorDescriptor",
       "description": "Descriptor for a true ancestor element (a DOM element that is not itself a SemanticNode) included in the computed-style candidate set.",
