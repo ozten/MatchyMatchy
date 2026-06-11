@@ -132,6 +132,8 @@ What changes is the **authoring discipline**, because a real pair is added preci
 - **False-positive case (matchy flooded noise).** Add `forbidden` matchers for the bogus issue classes and/or a `maxIssues` ceiling. The fixture is red until the matcher/scoring is tightened. This is the regression analog of M6's R2/R3 noise-floor checks.
 - **True-positive / mixed case.** Use `required` for the genuine diffs that must always be caught, `forbidden`/`maxIssues` for the declared `knownDrift`, and a `status` assertion. Useful for promoting a calibration pair into a standing guard.
 
+**Triage aid.** Deciding which matcher to write hinges on a question the `diff-result.json` alone doesn't answer: *what did each side actually compute for the element in question?* `matchy explain` (§9 R-CLI-4) reads the pair's frozen bundles and prints the per-side computed-style/bbox delta for a node located by anchor — so classifying a case as false-negative vs false-positive is a fact check against the captured data, not a guess. It is the hermetic successor to the M6 `style-compare.cjs` calibration probe.
+
 **Golden-discipline alignment (CLAUDE.md, non-negotiable).** A failing real-pair fixture is, by default, **a bug in the code, not in the expectation** — identical to Tier-1 rules. An `expected-issues.json` for a pair may only be weakened/changed when the *expectation itself* was wrong (over-specified, contradicted the spec), and only with: (1) a `docs/golden-changelog.md` entry citing the spec section, and (2) an APPROVE verdict from the `golden-auditor` subagent. Adding a brand-new red fixture is **not** a golden change and needs no auditor sign-off — it is the normal way to file "matchy should catch this."
 
 ---
@@ -221,11 +223,19 @@ Committing real captures to a shared repo raises two risks the build spec alread
 
 ## 9. CLI requirements on `matchy`
 
-The replay path exists, but this feature pins three requirements an implementing agent must verify (and fix if absent — these are small, in-scope CLI corrections, not new analysis):
+The replay path exists, but this feature pins four CLI requirements an implementing agent must satisfy. R-CLI-1..3 are small confirmations or corrections of existing behavior (not new analysis); R-CLI-4 adds one small, read-only debug subcommand that only surfaces data already present in the bundle:
 
 - **R-CLI-1.** `matchy analyze --old-bundle PATH --new-bundle PATH --out DIR` writes `<DIR>/diff-result.json` in the same shape and location as the live `matchy` run, and validates it against `/contract/diff-result.schema.json`. Exit codes match build spec §14 (`0`/`1`/`2`).
 - **R-CLI-2.** `matchy analyze` honors the global `--profile`, `--baseline`, and `--fail-on` flags (they are declared `global = true` in `matchy.rs`). Confirm propagation into the analyze branch; add it if the analyze path ignores them. `--viewport` is irrelevant to analyze (the bundle carries its own viewport) and may be ignored.
 - **R-CLI-3.** Promote `matchy analyze` from its current internal "for determinism verification" status to a **documented, supported entrypoint** in build spec §14 (CLI & config), since Tier-3 fixtures and the user-facing "replay a saved pair" workflow now depend on it.
+- **R-CLI-4. (new, small) `matchy explain` — a hermetic style/bbox triage probe.** Add a read-only debug subcommand that answers the question the §4 FN/FP triage turns on: *what did each side actually compute for this element?* It operates on the **frozen bundles** (no browser, no network), so it reports exactly the data `matchy analyze` consumed — not a fresh, possibly-skewed re-render:
+  ```
+  matchy explain --old-bundle PATH --new-bundle PATH \
+      (--anchor "text=…" | --node node_<N> | --selector "<css>") \
+      [--props color,font-family,gap,…]   # default: the extracted set, diff-only
+  ```
+  It locates the node by the **same anchor-set model** matchy uses for issue locators (build spec §5) — `--anchor` matches on text / role / href / nearestHeading, with `--node` (the bundle's `computedStyles` key) and `--selector` as escape hatches — then prints the per-side computed-style + bbox values, highlighting the properties that differ. This is **not a new analysis feature** (§1 non-goals): it surfaces the `computedStyles` / `page.nodes` data already in the `CaptureBundle` and reuses the existing locator code; it adds no taxonomy, scoring, or matching. It generalizes the one-off M6 `packages/capture/style-compare.cjs` calibration probe (hardcoded URLs, live re-capture, CSS-selector-only) into the hermetic, anchor-aware, **agent-usable** form the Tier-3 loop needs: a red `check-pair.py` fixture → `matchy explain` on its committed bundles → author the matcher from observed fact.
+  - **Optional secondary `--live URL_OLD URL_NEW` mode.** A frozen bundle carries only the properties matchy extracts. For the rarer "is matchy blind to property X entirely?" investigation, a thin `--live` mode may capture-then-explain two URLs to expose *arbitrary* CSS properties. This is the only mode that touches the network/browser; it is never used in CI and is out of scope for the M9 DoD below (the hermetic bundle mode is the deliverable).
 
 ---
 
@@ -254,8 +264,9 @@ Slots after M8 in the build spec's build order (and supersedes the one-shot natu
 4. R-CLI-1..3 confirmed/implemented; build spec §14 documents `matchy analyze`.
 5. **At least one seed fixture committed**, ideally promoted from an M6 calibration pair (R1 or R3 are natural candidates: capture once, freeze, author intent + `knownDrift` pin-outs).
 6. Privacy/redaction gate implemented and tested against a bundle with a token-bearing URL.
+7. `matchy explain --old-bundle/--new-bundle` (R-CLI-4) implemented as a hermetic, anchor-aware computed-style/bbox triage probe over the frozen bundles, and documented in build spec §14 alongside `analyze`. (The optional `--live` mode is not part of this DoD.)
 
-**DoD:** `make pair-add` on a fresh URL pair produces a frozen, schema-valid, redaction-clean fixture with a stub expectation; `make verify` runs every committed pair hermetically (no servers) and gates on it; at least one committed pair demonstrates a real false-negative or false-positive caught and locked; the loop "capture real failure → freeze → write intent (red) → fix code → green → optional byte-golden" is exercised end-to-end and documented in the README/CLAUDE.md testbed section.
+**DoD:** `make pair-add` on a fresh URL pair produces a frozen, schema-valid, redaction-clean fixture with a stub expectation; `make verify` runs every committed pair hermetically (no servers) and gates on it; at least one committed pair demonstrates a real false-negative or false-positive caught and locked; `matchy explain` resolves a node by anchor from the pair's bundles and prints the per-side computed-style delta used to triage it; the loop "capture real failure → freeze → write intent (red) → fix code → green → optional byte-golden" is exercised end-to-end and documented in the README/CLAUDE.md testbed section.
 
 ---
 
