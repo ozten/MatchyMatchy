@@ -161,6 +161,117 @@ require a golden change with audit.
 > CONDITIONS: (1) changelog must cite D13/D14 and give the complete delta incl. seqIndexNew
 > shifts — satisfied above; (2) record the broken-footer-image fixture quirk — satisfied above.
 
+## 2026-06-11 — M7: v12 re-recorded (network_error added); v20/v21 first goldens (a11y + console differs)
+
+**What changed:** `testbed/goldens/v12-image-404.diffresult.json` **re-recorded** from the verified
+`testbed/.runs/v12-image-404/diff-result.json`; **first recording** of
+`testbed/goldens/v20-console-error.diffresult.json` and `testbed/goldens/v21-a11y-lang.diffresult.json`
+(two new M7 variants). No `expected-issues.json` changed for any of the three; all 21 intent checks
+pass before and after, and the other 18 goldens are byte-identical.
+
+**Why (designed M7 behavior changes, `docs/design/M7.md`):** M7 introduced three pure differs and the
+capture signals they consume — `network_diff.rs` (`network_error`, `console_error`, category technical,
+§11/§7.3) and `a11y_diff.rs` (`accessibility_regression`/`accessibility_improved`, category accessibility,
+§11/§7.3/§9), plus axe-core in capture, a pre-navigation console listener, and a synchronous network-status
+listener.
+
+- **v12 (re-record, no expectation change):** the deleted asset
+  `673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png` is 200 on golden (:3000) and 404 on new
+  (:3012) → one new-only `network_error` (error, confidence 0.95, goal G7), anchored to the image node
+  (role img, nearestHeading "Branded Call performance analytics", landmark main). v12's intent file
+  **already anticipated** this (`required[0].anyOfTypes: ["broken_image","network_error"]`); the
+  expectation is untouched — this is a byte-golden re-record after a designed behavior change. `network_error`
+  co-detects with `broken_image` (the IMG element's load status, M3) without double-counting — distinct
+  taxonomy strings for distinct facts (asset request status vs. element render), like v11's
+  `broken_link`+`changed_link_target`. The differ correctly **suppresses ~7 other asset 404s that fail on
+  BOTH sides** (spec §11 "failures on both are noted but not scored"); the cross-base-path correlation keys
+  each request relative to its own page's URL directory (the fix that cleared the v14/v15/v16 prefix-mount
+  false positives — see below). **Complete delta:** exactly +1 issue (`issue_f4fbff68cf48` network_error);
+  `byType.network_error` 0→1; `fixableNow` 1→2; `scores.technical` 1.0→0.5; `topFixes` shifted one position
+  (mechanical §7.2 fix-value re-sort — the new error/0.95/medium-anchor issue legitimately ranks #2);
+  issues 36→37. All 36 pre-existing issues (incl. `broken_image` `issue_16e7cfbe3ecf`) are byte-identical;
+  `missing_image` stays absent; status stays `fail`.
+- **v20-console-error (first golden):** one new-only load-time `console.error(...)` → one `console_error`
+  (warning, confidence 0.9, status `warn`); byType `{console_error:1}`, no side-effect issues (the inline
+  script renders nothing). Symmetric "Failed to load resource… 404" console lines (present on both sides)
+  are correctly **excluded** (routed to the network differ per M7.md §2.2, and suppressed by the new-only
+  rule) — no double-count. Honest null anchor (§5); message lives in `evidence.new` + `remediation.findBy.grep`.
+- **v21-a11y-lang (first golden):** new page drops `<html lang>` → axe rule set gains exactly
+  `html-has-lang` (OLD 9 rules → NEW 9+html-has-lang) → one `accessibility_regression` (warning, goal G8,
+  status `warn`); byType `{accessibility_regression:1}`, page-level null anchors (honest). Rule-level
+  set-diff (M7.md §3); `accessibility` score 1.0→0.5.
+
+**Blast radius (a11y differ design property, empirically confirmed by the auditor):** across all v01–v19
+`.runs`, `accessibility_*`/`console_error`/`network_error` issue counts are **zero** (network_error only on
+v12). Because the golden page already trips 9 axe rules, restyle variants (v03/v04/v05/v06/v19) add no new
+rule, so rule-level diffing emits no spurious regression. The v14/v15/v16 URL-hygiene variants — which
+serve the same site under a URL **path prefix** — initially leaked symmetric dangling-asset 404s as false
+new-only `network_error`; this was a tool correlation bug (origin-root keying can't survive a base-path
+change, which is exactly what a URL migration is) and was fixed by keying each request relative to its own
+page's URL directory. Post-fix, v14/v15/v16 emit `network_error=0` and remain byte-identical to their
+pre-M7 goldens.
+
+**Determinism:** two-run byte-identity confirmed on v12, v20, v21 (`testbed/determinism-check.py`).
+
+**Audit:** golden-auditor **APPROVE × 3** (2026-06-11), pasted verbatim.
+
+```
+VERDICT: APPROVE
+ITEM: v12-image-404 (re-record)
+REASONING: Independently diffed testbed/goldens/v12-image-404.diffresult.json against
+testbed/.runs/v12-image-404/diff-result.json. The ID set difference is exactly ONE: the new
+issue_f4fbff68cf48 (network_error); zero pre-existing IDs were dropped. Deep canonical diff of all 36
+shared issues (sorted by id) is byte-identical — no pre-existing id, anchor, severity, confidence,
+evidence, or remediation changed. The pre-existing broken_image (issue_16e7cfbe3ecf, error, G7, anchored
+"Branded Call performance analytics") is unchanged and missing_image stays absent (forbidden assertion
+intact). The new network_error is spec-legitimate: capture bundles confirm the asset is status 200 on old
+(:3000) and 404 on new (:3012), genuinely new-only; the differ correctly SUPPRESSES the ~7 other 404s that
+fail on BOTH sides (spec §11). It is NOT double-counting broken_image: broken_image = the IMG element load
+status (M3 semantic), network_error = the asset request status (M7, §7.3 distinct taxonomy strings) —
+co-detection like v11. The only deltas match the claim exactly: technical 1.0→0.5, fixableNow 1→2, byType
++network_error:1, issues 36→37, topFixes shifted by one (mechanical fix-value re-sort per §7.2). Intent
+check PASSES; determinism-check PASSES (byte-identical two-run). v12's expected-issues.json is unchanged
+and already anticipated this via anyOfTypes ["broken_image","network_error"].
+CONDITIONS: Before overwriting the golden, add an M7-dated entry stating: byte-golden RE-RECORD only (no
+expectation change) following the M7 network differ now emitting the new-only asset 404 the fixture's
+anyOfTypes already permitted; spec §11 + §7.3 network_error + goal G7; deltas = exactly +1 network_error
+(issue_f4fbff68cf48), technical 1.0→0.5, fixableNow 1→2; all 36 pre-existing issues byte-identical. Paste
+this APPROVE verbatim. [satisfied by this entry]
+
+VERDICT: APPROVE
+ITEM: v20-console-error (first)
+REASONING: First recording — nothing pre-existing changed. Verified the variant is a single render-nothing
+edit: manifest + diff confirm only site/index.html differs (+97 bytes, an inline <script>console.error(...)
+</script>), and the proposed output has exactly ONE issue, byType {console_error:1}, all other scores 1.0
+except technical 0.5 — no visual/content/structure/style side-effects. The capture bundles confirm the
+message "MatchyMatchy M7 seeded: newsletter widget failed to initialize" is genuinely new-only and
+load-time. Critically, the symmetric "Failed to load resource… 404" console lines appear on BOTH sides and
+are correctly NOT emitted as console_errors (excluded per M7.md §2.2; suppressed by the new-only rule) — so
+the differ neither double-counts nor over-emits. console_error is spec-legitimate (§11; §7.3), severity
+warning → status warn (proportionate, §9). The honest null anchor is correct (§5). expected-issues.json
+intent is honest (required newContains the message text; forbidden accessibility_regression + network_error
+— both correctly absent). Intent check PASSES; determinism-check PASSES.
+CONDITIONS: Add a "new fixture" note (M7 entry) recording the first golden for v20-console-error, citing
+§11/§7.3 and the v01-v19 blast-radius check (zero spurious console_error elsewhere). [satisfied by this entry]
+
+VERDICT: APPROVE
+ITEM: v21-a11y-lang (first)
+REASONING: First recording — nothing pre-existing changed. Manifest + diff confirm the only change is the
+removed lang="en-US" on <html> (-13 bytes, site/index.html only); bundles confirm page.lang "en-US"→"" with
+zero other effects. Proposed output has exactly ONE issue, byType {accessibility_regression:1}, all scores
+1.0 except accessibility 0.5. The regression is spec-legitimate (§11 "diff violation SETS →
+accessibility_regression"; rule-level set diff per M7.md §3; §7.3). I verified the rule diff directly from
+the bundles: OLD axe rule set = 9 rules, NEW = those same 9 PLUS html-has-lang — the new-minus-old set
+difference is EXACTLY {html-has-lang}, so precisely one regression is correct. evidence carries ruleId at
+both evidence.ruleId and evidence.new.ruleId, helpUrl, target ["html"]; page-level null anchors are honest.
+Severity warning (§9 a11y=warn) → status warn. The blast-radius claim underpinning the whole a11y differ is
+empirically confirmed: across all v01-v19 .runs, accessibility issues = ZERO everywhere; a11y appears ONLY
+on v21. intent is honest (required accessibility_regression G8 newContains html-has-lang; forbidden
+accessibility_improved, correctly absent). Intent check PASSES; determinism-check PASSES.
+CONDITIONS: Add a "new fixture" note (M7 entry) recording the first golden for v21-a11y-lang, citing
+§11/§7.3/§9 and the v01-v19 a11y blast-radius spot-check (a11y present only on v21). [satisfied by this entry]
+```
+
 ## 2026-06-10 — M4: v04/v06 `fromContains`/`toContains` corrected to fix-direction semantics
 
 **What changed:** In `testbed/variants/v04-font-family/expected-issues.json` (required[0].evidence)

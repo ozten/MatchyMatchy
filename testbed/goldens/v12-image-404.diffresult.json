@@ -1,25 +1,26 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T23-52-06Z",
+  "runId": "2026-06-11T02-15-48Z",
   "oldUrl": "http://localhost:3000/",
   "newUrl": "http://localhost:3012/",
   "parityProfile": "content-structure",
   "status": "fail",
   "agentSummary": {
-    "fixableNow": 1,
+    "fixableNow": 2,
     "byType": {
       "broken_image": 1,
+      "network_error": 1,
       "page_height_changed": 1,
       "visual_region_changed": 34
     },
     "clusterCount": 0,
     "topFixes": [
       "issue_16e7cfbe3ecf",
+      "issue_f4fbff68cf48",
       "issue_04e3ea7c0b1a",
       "issue_04e3ea7c0b1a-2",
-      "issue_1b3672476467",
-      "issue_1b3672476467-2"
+      "issue_1b3672476467"
     ]
   },
   "scores": {
@@ -28,7 +29,7 @@
     "structure": 1.0,
     "style": 1.0,
     "accessibility": 1.0,
-    "technical": 1.0,
+    "technical": 0.5,
     "hygiene": 1.0
   },
   "viewports": [
@@ -71,7 +72,8 @@
         "issue_4788dc111883",
         "issue_3b2dc7c7905b-2",
         "issue_2c8595b75643",
-        "issue_16e7cfbe3ecf"
+        "issue_16e7cfbe3ecf",
+        "issue_f4fbff68cf48"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -152,6 +154,64 @@
         },
         "from": "http://localhost:3012/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png",
         "note": "Image asset failed to load on new page",
+        "to": null
+      }
+    },
+    {
+      "id": "issue_f4fbff68cf48",
+      "type": "network_error",
+      "category": "technical",
+      "severity": "error",
+      "confidence": 0.95,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G7",
+      "message": "Network error: http://localhost:3012/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png returned HTTP 404 on the new page",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Branded Call performance analytics",
+          "landmark": "main",
+          "ordinalInLandmark": 16
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": null,
+        "bboxNew": [
+          120,
+          2291,
+          580,
+          0
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 59
+      },
+      "evidence": {
+        "new": {
+          "failed": false,
+          "status": 404,
+          "type": "image",
+          "url": "http://localhost:3012/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png"
+        },
+        "old": {
+          "status": 200,
+          "url": "http://localhost:3000/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png"
+        }
+      },
+      "remediation": {
+        "action": "restore_asset",
+        "findBy": {
+          "grep": [
+            "673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png"
+          ],
+          "near": "Branded Call performance analytics"
+        },
+        "from": "http://localhost:3012/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png",
+        "note": "Asset returned HTTP 404 on the new page (it loaded on the old page). Restore the asset or fix its path. The grep target may hit repo source or CMS content; the anchors identify the element either way.",
         "to": null
       }
     },

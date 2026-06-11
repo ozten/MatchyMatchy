@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-11T02-16-38Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3020/",
+  "parityProfile": "content-structure",
+  "status": "warn",
+  "agentSummary": {
+    "fixableNow": 0,
+    "byType": {
+      "console_error": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_b19ad30951a8"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 0.5,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "warn",
+      "issues": [
+        "issue_b19ad30951a8"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_b19ad30951a8",
+      "type": "console_error",
+      "category": "technical",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Console error: MatchyMatchy M7 seeded: newsletter widget failed to initialize",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "new": {
+          "level": "error",
+          "text": "MatchyMatchy M7 seeded: newsletter widget failed to initialize"
+        },
+        "old": null
+      },
+      "remediation": {
+        "action": "investigate_console_error",
+        "findBy": {
+          "grep": [
+            "MatchyMatchy M7 seeded: newsletter widget failed to initialize"
+          ]
+        },
+        "note": "The new page logged a console error not present on the old page. The grep target is the message text; it may live in repo source or a bundled dependency. The tool does not name the component."
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

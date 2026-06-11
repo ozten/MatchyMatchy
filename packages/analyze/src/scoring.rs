@@ -31,6 +31,13 @@ impl ParityProfile {
 
     /// Map an issue type + category to severity under this profile.
     pub fn severity_for(&self, issue_type: &IssueType, category: &IssueCategory) -> IssueSeverity {
+        // M7 per-type overrides (before the category match)
+        if *issue_type == IssueType::AccessibilityImproved {
+            return IssueSeverity::Info;
+        }
+        if *issue_type == IssueType::ConsoleError {
+            return IssueSeverity::Warning;
+        }
         // load_error and status_code_mismatch are always critical regardless of profile
         if *issue_type == IssueType::LoadError || *issue_type == IssueType::StatusCodeMismatch {
             return IssueSeverity::Critical;
@@ -133,6 +140,38 @@ pub fn count_fixable_now(issues: &[crate::contract::Issue]) -> u32 {
 mod tests {
     use super::*;
     use crate::contract::{AnchorStrength, IssueSeverity, Status};
+
+    #[test]
+    fn test_m7_severity_overrides() {
+        let cs = ParityProfile::ContentStructure;
+        let sv = ParityProfile::StrictVisual;
+
+        // accessibility_improved → Info regardless of profile
+        assert_eq!(
+            cs.severity_for(
+                &IssueType::AccessibilityImproved,
+                &IssueCategory::Accessibility
+            ),
+            IssueSeverity::Info
+        );
+        assert_eq!(
+            sv.severity_for(
+                &IssueType::AccessibilityImproved,
+                &IssueCategory::Accessibility
+            ),
+            IssueSeverity::Info
+        );
+
+        // console_error → Warning regardless of profile
+        assert_eq!(
+            cs.severity_for(&IssueType::ConsoleError, &IssueCategory::Technical),
+            IssueSeverity::Warning
+        );
+        assert_eq!(
+            sv.severity_for(&IssueType::ConsoleError, &IssueCategory::Technical),
+            IssueSeverity::Warning
+        );
+    }
 
     #[test]
     fn test_status_profile_mapping() {

@@ -6,7 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
-import type { Browser, BrowserContext, Page, Request, ConsoleMessage as PwConsoleMessage } from "playwright";
+import type { Browser, BrowserContext, Page, Request, Response, ConsoleMessage as PwConsoleMessage } from "playwright";
 import { CaptureConfigSchema } from "./schema.js";
 import type { CaptureBundle, NetworkRequest, ConsoleMessage } from "./schema.js";
 import { launchBrowser, createContext } from "./browser-runner.js";
@@ -14,6 +14,10 @@ import { stabilize } from "./stabilizer.js";
 import { extractPageModel } from "./extract/page-model.js";
 import { redactUrl, normalizeText } from "./normalize.js";
 import { probeLinks } from "./probe.js";
+import axeCore from "axe-core";
+
+// axe-core exposes the injectable script as a .source property on the default export
+const axeSource: string = (axeCore as unknown as { source: string }).source;
 
 // Get playwright version from package.json
 function getPlaywrightVersion(): string {
@@ -141,25 +145,18 @@ async function runCapture(configRaw: unknown): Promise<void> {
       });
     });
 
-    context.on("requestfinished", (req: Request) => {
-      const reqUrl = redactUrl(req.url(), redactParams);
-      const response = req.response();
-      // Scan from end for last matching entry (backwards-compat with ES2022 target)
+    // Synchronously record status from the response event (reliable; fires for all
+    // completed transactions including 4xx/5xx; requestfailed does NOT fire for these).
+    context.on("response", (resp: Response) => {
+      const respUrl = redactUrl(resp.url(), redactParams);
       let idx = -1;
       for (let i = networkRequests.length - 1; i >= 0; i--) {
         const r = networkRequests[i];
-        if (r && (r.url === reqUrl || r.url === req.url())) { idx = i; break; }
+        if (r && (r.url === respUrl || r.url === resp.url())) { idx = i; break; }
       }
       if (idx !== -1) {
-        void (async () => {
-          try {
-            const resp = await response;
-            if (resp) {
-              const entry = networkRequests[idx];
-              if (entry) (entry as { status: number }).status = resp.status();
-            }
-          } catch { /* ignore */ }
-        })();
+        const entry = networkRequests[idx];
+        if (entry) (entry as { status: number }).status = resp.status();
       }
     });
 
@@ -176,7 +173,22 @@ async function runCapture(configRaw: unknown): Promise<void> {
       }
     });
 
-    // Run stabilization
+    // Build the console-collection callback and pass it into stabilize so that
+    // the listener is attached BEFORE page.goto (pre-navigation), capturing
+    // load-time console messages. The reset on each call handles the retry path
+    // (where stabilize creates a second page) — only the surviving page's
+    // messages are kept.
+    const onPageCreated = (p: Page): void => {
+      consoleMessages.length = 0; // reset so only surviving page's console is kept
+      p.on("console", (msg: PwConsoleMessage) => {
+        consoleMessages.push({
+          level: msg.type(),
+          text: normalizeText(msg.text(), maxTextLength),
+        });
+      });
+    };
+
+    // Run stabilization (onPageCreated attaches console listener pre-navigation)
     const { page, determinism, mainResponse, redirectChain } = await stabilize(
       context,
       url,
@@ -184,16 +196,9 @@ async function runCapture(configRaw: unknown): Promise<void> {
       hideSelectors,
       maskSelectors,
       clickBeforeCapture,
-      log
+      log,
+      onPageCreated
     );
-
-    // Attach console listener after page is created by stabilize
-    page.on("console", (msg: PwConsoleMessage) => {
-      consoleMessages.push({
-        level: msg.type(),
-        text: normalizeText(msg.text(), maxTextLength),
-      });
-    });
 
     // Extract page model
     const pageModelRaw = await page.evaluate(extractPageModel, maxTextLength);
@@ -254,8 +259,42 @@ async function runCapture(configRaw: unknown): Promise<void> {
     await page.screenshot({ path: fullPagePath, fullPage: true, animations: "disabled" });
     await page.screenshot({ path: viewportPath, fullPage: false, animations: "disabled" });
 
-    // Allow async requestfinished handlers a beat to complete
+    // Allow any in-flight response listeners a beat to record statuses
     await new Promise<void>((r) => setTimeout(r, 100));
+
+    // Run axe-core after screenshots + page-model extraction (determinism: axe runs last
+    // so resuming the frozen clock cannot affect already-captured screenshots/styles/model).
+    let violations: unknown[] = [];
+    try {
+      // If the clock was installed (freezeTime path), resume it before running axe.
+      // axe's internal async machinery uses setTimeout, which hangs under a frozen clock.
+      // resume() restores natural time; this is safe because all visual capture is done.
+      if (determinism.timeFrozen === "ran") {
+        await page.clock.resume();
+      }
+
+      // Inject axe-core source into the page then run it
+      const axeRunResult = await new Promise<{ violations: unknown[] }>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("axe run deadline exceeded (20000ms)")),
+          20000
+        );
+        page.addScriptTag({ content: axeSource })
+          .then(() =>
+            page.evaluate(async () =>
+              (window as unknown as { axe: { run: (doc: Document, opts: Record<string, unknown>) => Promise<{ violations: unknown[] }> } })
+                .axe.run(document, { resultTypes: ["violations"] })
+            )
+          )
+          .then((result) => { clearTimeout(timer); resolve(result); })
+          .catch((err) => { clearTimeout(timer); reject(err); });
+      });
+
+      violations = axeRunResult.violations ?? [];
+    } catch (axeErr) {
+      log(`[capture] axe failed (non-fatal): ${axeErr}`);
+      violations = [];
+    }
 
     // Build the bundle
     const bundle: CaptureBundle = {
@@ -296,7 +335,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
         landmarks: pageModelRaw.landmarks,
         network: { requests: networkRequests },
         console: consoleMessages,
-        a11y: { violations: [] },
+        a11y: { violations },
         linkProbes: linkProbeResults,
       },
       computedStyles: pageModelRaw.computedStyles,

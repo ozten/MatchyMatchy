@@ -1,0 +1,9 @@
+{
+  "name": "v20-console-error",
+  "port": 3020,
+  "change": "An inline <script> tag calling console.error with a fixed message is injected near the end of <body> in site/index.html, causing the new page to log exactly one console error absent from the golden.",
+  "edit": "site/index.html: inserted <script>console.error(\"MatchyMatchy M7 seeded: newsletter widget failed to initialize\");</script> immediately before </body></html> on line 1203; inline approach used (no CSP meta tag found in golden index.html; static serve.py sends no CSP header); +97 bytes",
+  "goals": ["technical"],
+  "knockOnEffects": [],
+  "diffSummary": "diff -rq reports only site/index.html differs; +97 bytes; no other files differ. The script element renders nothing — no visual, height, content, or structural change."
+}

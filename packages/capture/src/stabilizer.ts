@@ -51,7 +51,8 @@ export async function stabilize(
   hideSelectors: string[],
   maskSelectors: string[],
   clickBeforeCapture: string[],
-  log: (msg: string) => void
+  log: (msg: string) => void,
+  onPageCreated?: (page: Page) => void
 ): Promise<{ page: Page } & StabilizationResult> {
   const det: DeterminismRecord = {
     animationsDisabled: "skipped",
@@ -93,6 +94,7 @@ export async function stabilize(
 
   // Step 1: Create page (context already configured with viewport/dsf/locale/tz/colorScheme)
   let page = await context.newPage();
+  onPageCreated?.(page);
 
   // Step 2a: emulateMedia reducedMotion
   await step("reducedMotion", async () => {
@@ -154,6 +156,7 @@ export async function stabilize(
       det.retriedWithoutTimeFreeze = true;
       await page.close();
       page = await context.newPage();
+      onPageCreated?.(page);
 
       // Re-apply reducedMotion
       try {

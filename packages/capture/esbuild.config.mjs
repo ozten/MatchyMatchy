@@ -10,9 +10,17 @@ await build({
   target: "node20",
   format: "cjs",
   outfile: "dist/capture.cjs",
-  external: ["playwright", "playwright-core"],
-  // Ensure node built-ins are not bundled
-  packages: "external",
+  // playwright/playwright-core are host deps (resolved at runtime, cannot be bundled).
+  // Node built-ins are also external. axe-core is NOT listed here so it gets bundled.
+  external: [
+    "playwright",
+    "playwright-core",
+    // Node built-ins
+    "fs", "path", "readline", "os", "url", "util", "stream", "buffer",
+    "crypto", "http", "https", "net", "dns", "tls", "child_process",
+    "events", "assert", "zlib", "string_decoder", "querystring",
+    "process", "module", "vm",
+  ],
   // Source map for debugging
   sourcemap: false,
   // Minify in production

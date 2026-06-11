@@ -1,0 +1,15 @@
+{
+  "status": ["warn"],
+  "required": [
+    {
+      "type": "console_error",
+      "evidence": { "newContains": "newsletter widget failed to initialize" },
+      "note": "New-only error-level console message captured via the pre-navigation console listener (M7). console_error severity is warning."
+    }
+  ],
+  "forbidden": [
+    { "type": "accessibility_regression", "note": "no a11y change in this variant" },
+    { "type": "network_error", "note": "no asset failure in this variant" }
+  ],
+  "notes": "One deliberate change: a console.error injected on the new page only. Renders nothing, so no visual/content/structure/style diff. console_error is Warning -> status warn."
+}

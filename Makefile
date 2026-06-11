@@ -67,6 +67,8 @@ verify:
 	python3 testbed/check-fixture.py v17-redirect-chain
 	python3 testbed/check-fixture.py v18-status-mismatch
 	python3 testbed/check-fixture.py v19-container-gap
+	python3 testbed/check-fixture.py v20-console-error
+	python3 testbed/check-fixture.py v21-a11y-lang
 
 	@echo "=== 5/6  golden comparisons ==="
 	@if [ -d testbed/goldens ] && [ -n "$$(ls testbed/goldens/*.diffresult.json 2>/dev/null)" ]; then \

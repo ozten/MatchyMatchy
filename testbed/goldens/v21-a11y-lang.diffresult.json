@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-11T02-16-44Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "http://localhost:3021/",
+  "parityProfile": "content-structure",
+  "status": "warn",
+  "agentSummary": {
+    "fixableNow": 0,
+    "byType": {
+      "accessibility_regression": 1
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_332ab0c6f379"
+    ]
+  },
+  "scores": {
+    "visual": 1.0,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 0.5,
+    "technical": 1.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "warn",
+      "issues": [
+        "issue_332ab0c6f379"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_332ab0c6f379",
+      "type": "accessibility_regression",
+      "category": "accessibility",
+      "severity": "warning",
+      "confidence": 0.95,
+      "viewport": "desktop",
+      "locale": "",
+      "goal": "G8",
+      "message": "Accessibility regression: axe rule 'html-has-lang' now fails (serious)",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": null,
+        "bboxNew": null,
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/html-has-lang?application=axeAPI",
+        "impact": "serious",
+        "new": {
+          "impact": "serious",
+          "nodeCount": 1,
+          "nodes": [
+            {
+              "htmlSnippet": "<html data-wf-domain=\"www.hiya.com\" data-wf-page=\"673622b3f5a1fbc09ac3bfa9\" data-wf-site=\"5dc2e934de1955d46d9f8eb5\" class=\" w-mod-js w-mod-ix\">",
+              "target": [
+                "html"
+              ]
+            }
+          ],
+          "ruleId": "html-has-lang"
+        },
+        "old": {
+          "present": false
+        },
+        "ruleId": "html-has-lang"
+      },
+      "remediation": {
+        "action": "fix_accessibility_violation",
+        "findBy": {
+          "grep": [
+            "html"
+          ]
+        },
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/html-has-lang?application=axeAPI",
+        "note": "axe rule html-has-lang now fails on the new page (clean on old). See helpUrl.",
+        "ruleId": "html-has-lang"
+      }
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

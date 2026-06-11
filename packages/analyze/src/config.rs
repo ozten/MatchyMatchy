@@ -58,6 +58,15 @@ pub mod base_confidence {
     pub const STYLE_CHANGED: f64 = 0.9;
     /// Background gradient issue. M4.md §3.4.
     pub const GRADIENT: f64 = 0.95;
+    /// Network request failure (new-only 4xx/5xx or failed flag). M7-introduced; not under the
+    /// M6 freeze; calibratable at real-pair use.
+    pub const NETWORK_ERROR: f64 = 0.95;
+    /// New-only error-level console message. M7-introduced; not under the M6 freeze;
+    /// calibratable at real-pair use.
+    pub const CONSOLE_ERROR: f64 = 0.9;
+    /// A11y rule set diff (axe-core violations). M7-introduced; not under the M6 freeze;
+    /// calibratable at real-pair use.
+    pub const A11Y: f64 = 0.95;
 }
 
 /// Minimum style similarity for ancestor pairing (M4.md §3.2).

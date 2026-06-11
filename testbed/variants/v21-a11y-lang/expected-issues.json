@@ -1,0 +1,15 @@
+{
+  "status": ["warn"],
+  "required": [
+    {
+      "type": "accessibility_regression",
+      "goal": "G8",
+      "evidence": { "newContains": "html-has-lang" },
+      "note": "axe rule html-has-lang fails on the new page only (lang attribute removed). Rule-level set diff keys on the axe rule id; ruleId is duplicated into evidence.new."
+    }
+  ],
+  "forbidden": [
+    { "type": "accessibility_improved", "note": "no rule was fixed in this direction" }
+  ],
+  "notes": "One deliberate change: <html lang> removed on the new page. accessibility_regression is Warning -> status warn."
+}

@@ -1,5 +1,6 @@
 //! matchy-analyze library crate.
 
+pub mod a11y_diff;
 pub mod config;
 pub mod contract;
 pub mod doctor;
@@ -9,6 +10,7 @@ pub mod issue;
 pub mod locale;
 pub mod locale_data;
 pub mod matching;
+pub mod network_diff;
 pub mod orchestrate;
 pub mod region_link;
 pub mod report;
@@ -287,10 +289,30 @@ pub fn analyze_viewport(
         });
     }
 
-    // --- Append issues: visual ++ content ++ sequence ++ style ++ hygiene (M5 §2) ---
+    // --- Network/console diff (M7 §2) ---
+    let network_issues = network_diff::network_console_issues(
+        old_bundle,
+        new_bundle,
+        viewport_name,
+        profile,
+        env_mismatch,
+    );
+    let technical_issue_count = network_issues.len();
+
+    // --- A11y diff (M7 §3) ---
+    let a11y_issues_vec =
+        a11y_diff::a11y_issues(old_bundle, new_bundle, viewport_name, profile, env_mismatch);
+    let a11y_regression_count = a11y_issues_vec
+        .iter()
+        .filter(|i| i.issue_type == crate::contract::IssueType::AccessibilityRegression)
+        .count();
+
+    // --- Append issues: visual ++ content ++ sequence ++ style ++ network ++ a11y ++ hygiene (M7) ---
     issues.extend(content_issues);
     issues.extend(sequence_issues_vec);
     issues.extend(style_issues_vec);
+    issues.extend(network_issues);
+    issues.extend(a11y_issues_vec);
 
     // --- Append hygiene issues (non-short-circuit path) ---
     issues.extend(hygiene_outcome.issues.clone());
@@ -351,8 +373,10 @@ pub fn analyze_viewport(
         content: content_score,
         structure: structure_score,
         style: style_score,
-        accessibility: 1.0,
-        technical: 1.0,
+        // M7: 1/(1+n) — accessibility_improved excluded from regression count (spec §4)
+        accessibility: 1.0 / (1.0 + a11y_regression_count as f64),
+        // M7: 1/(1+n) — network_error + console_error count
+        technical: 1.0 / (1.0 + technical_issue_count as f64),
         hygiene: hygiene_score,
     };
 

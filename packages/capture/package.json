@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "axe-core": "4.12.1",
     "playwright": "1.60.0",
     "tldts": "^6.1.0",
     "zod": "^3.23.8"
