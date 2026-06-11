@@ -4,6 +4,10 @@ testbed/.pids.json
 testbed/.runs/
 __pycache__/
 
+# M6 calibration: capture bundles + screenshots stay local (SHA-256s recorded in
+# docs/calibration-note.md); only diff-results under calibration/<pair>/ are committed
+calibration/.capture/
+
 # build outputs
 target/
 node_modules/

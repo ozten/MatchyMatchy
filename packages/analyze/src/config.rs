@@ -99,6 +99,15 @@ pub const STYLE_DIFF_PROPERTIES: &[&str] = &[
 
 // ---------------------------------------------------------------------------
 // M3 matcher thresholds (M3.md §3.6)
+//
+// FROZEN at M6 real-pair calibration (docs/calibration-note.md, 2026-06-11).
+// The matching floors/margins/weights, tiebreak weights, and the visual
+// thresholds above were validated against three real page pairs
+// (archive-vs-live, live-vs-live, golden-vs-live): zero false positives at
+// the live-vs-live noise floor, no unexplained missing/added on the drift
+// pair, and ambiguous pairings landing in the uncertain band as designed.
+// Changing any of them requires recalibration per spec §12 M6 and a
+// golden-changelog entry.
 // ---------------------------------------------------------------------------
 
 /// Identity score floor: pairs ≥ this and mutual-unique → stage Identity. M3.md §3.6.
@@ -167,3 +176,22 @@ pub const DEFAULT_TRAILING_SLASH_POLICY: TrailingSlashPolicy = TrailingSlashPoli
 
 /// The maxDelta constant from pixelmatch: 35215 is the maximum possible YIQ delta squared sum.
 pub const PIXELMATCH_MAX_DELTA: f64 = 35215.0;
+
+// ---------------------------------------------------------------------------
+// M6 calibration constants
+// ---------------------------------------------------------------------------
+
+/// Bbox containment tolerance (px) for the duplicate-label text-node filter.
+///
+/// When a text node's bbox is contained within a link/button node's bbox up to
+/// this tolerance, the text node is treated as a nested label duplicate and
+/// suppressed from matcher input. Value chosen from M6 real-pair calibration.
+pub const DUP_LABEL_BBOX_TOLERANCE_PX: f64 = 2.0;
+
+/// Numeric epsilon for style-value sub-pixel jitter suppression.
+///
+/// Two numeric tokens with the same trailing unit that differ by less than
+/// this amount are treated as equal during style comparison. Calibrated from
+/// M6 live-page observations (e.g. "19.5776px" vs "19.6px").
+/// Note: 13px vs 14px (diff 1.0) is still reported.
+pub const STYLE_NUMERIC_EPSILON: f64 = 0.1;

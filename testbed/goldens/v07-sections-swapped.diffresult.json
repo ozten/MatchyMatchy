@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T23-06-15Z",
+  "runId": "2026-06-10T23-51-42Z",
   "oldUrl": "http://localhost:3000/",
   "newUrl": "http://localhost:3007/",
   "parityProfile": "content-structure",
@@ -57,7 +57,7 @@
       "severity": "error",
       "confidence": 1.0,
       "viewport": "desktop",
-      "locale": null,
+      "locale": "en-US",
       "goal": "G3",
       "message": "Components swapped: \"Display your company’s name, logo, and call reason on outbound calls\" and \"Branded Call performance analytics\" exchanged document order; \"Branded Call performance analytics\" now renders before \"Display your company’s name, logo, and call reason on outbound calls\".",
       "locator": {
@@ -292,9 +292,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_8e8483310c5c_diff.png",
-          "newCrop": "desktop/issues/issue_8e8483310c5c_new.png",
-          "oldCrop": "desktop/issues/issue_8e8483310c5c_old.png"
+          "diffCrop": "desktop/issues/issue_8e8483310c5c-2_diff.png",
+          "newCrop": "desktop/issues/issue_8e8483310c5c-2_new.png",
+          "oldCrop": "desktop/issues/issue_8e8483310c5c-2_old.png"
         },
         "visual": {
           "changedPixels": 47495,
@@ -408,9 +408,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a3778c41a353_diff.png",
-          "newCrop": "desktop/issues/issue_a3778c41a353_new.png",
-          "oldCrop": "desktop/issues/issue_a3778c41a353_old.png"
+          "diffCrop": "desktop/issues/issue_a3778c41a353-2_diff.png",
+          "newCrop": "desktop/issues/issue_a3778c41a353-2_new.png",
+          "oldCrop": "desktop/issues/issue_a3778c41a353-2_old.png"
         },
         "visual": {
           "changedPixels": 178530,

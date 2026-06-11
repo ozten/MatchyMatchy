@@ -1,6 +1,6 @@
 //! Sequence / order diff (M5.md §3–§4).
 //!
-//! Entry point: `sequence_issues(old_nodes, new_nodes, outcome, viewport) -> Vec<Issue>`
+//! Entry point: `sequence_issues(old_nodes, new_nodes, outcome, viewport, new_lang) -> Vec<Issue>`
 //!
 //! ## Eligible pairs (S0)
 //!
@@ -42,12 +42,16 @@ use crate::matching::{MatchBand, MatchOutcome, MatchStage};
 
 /// Derive sequence / order issues from the matcher outcome.
 ///
+/// `new_lang` — the new page's `<html lang>` attribute value (stamped on every emitted
+/// issue to match the convention used by all other emitters; M6.md §6).
+///
 /// Returns `component_swapped` and `component_reordered` issues in old-rank order.
 pub fn sequence_issues(
     old_nodes: &[SemanticNode],
     new_nodes: &[SemanticNode],
     outcome: &MatchOutcome,
     viewport: &str,
+    new_lang: Option<String>,
 ) -> Vec<Issue> {
     // S0 — eligible pairs: Matched band AND Identity stage only (M5.md §3 S0).
     // Assignment-stage pairs used position as a tiebreak; displacement derived from them
@@ -151,7 +155,13 @@ pub fn sequence_issues(
             consumed[i] = true;
             consumed[j] = true;
             if let Some(issue) = build_swap_issue(
-                &blocks[i], &blocks[j], old_nodes, new_nodes, outcome, viewport,
+                &blocks[i],
+                &blocks[j],
+                old_nodes,
+                new_nodes,
+                outcome,
+                viewport,
+                new_lang.clone(),
             ) {
                 issues.push(issue);
             }
@@ -200,6 +210,7 @@ pub fn sequence_issues(
                 new_nodes,
                 outcome,
                 viewport,
+                new_lang.clone(),
             ) {
                 issues.push(issue);
             }
@@ -538,6 +549,7 @@ fn build_swap_issue(
     new_nodes: &[SemanticNode],
     outcome: &MatchOutcome,
     viewport: &str,
+    new_lang: Option<String>,
 ) -> Option<Issue> {
     let rep_a_old = block_rep_old(block_a, old_nodes, outcome);
     let rep_b_old = block_rep_old(block_b, old_nodes, outcome);
@@ -620,7 +632,7 @@ fn build_swap_issue(
         severity: IssueSeverity::Error,
         confidence,
         viewport: viewport.to_string(),
-        locale: None,
+        locale: new_lang,
         goal: Some("G3".to_string()),
         message,
         locator,
@@ -643,6 +655,7 @@ fn build_reorder_issue(
     new_nodes: &[SemanticNode],
     outcome: &MatchOutcome,
     viewport: &str,
+    new_lang: Option<String>,
 ) -> Option<Issue> {
     let rep_old = block_rep_old(block, old_nodes, outcome);
     let rep_new = block_rep_new(block, old_nodes, new_nodes, outcome);
@@ -758,7 +771,7 @@ fn build_reorder_issue(
         severity: IssueSeverity::Error,
         confidence,
         viewport: viewport.to_string(),
-        locale: None,
+        locale: new_lang,
         goal: Some("G3".to_string()),
         message,
         locator,
@@ -821,7 +834,7 @@ fn compute_lis_set(values: &[usize]) -> std::collections::BTreeSet<usize> {
 mod tests {
     use super::*;
     use crate::contract::{NodeAnchors, SemanticNode};
-    use crate::matching::{MatchBand, MatchOutcome, MatchStage, MatchedPair, MissRecord};
+    use crate::matching::{MatchBand, MatchOutcome, MatchStage, MatchedPair};
     use std::collections::BTreeMap;
 
     // ---- Node builder (mirrors matching.rs test helper) ----
@@ -894,7 +907,7 @@ mod tests {
             make_pair(2, 2, 0.95, MatchBand::Matched),
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         assert!(issues.is_empty(), "identity should produce no issues");
     }
 
@@ -923,7 +936,7 @@ mod tests {
             make_pair(3, 1, 0.97, MatchBand::Matched),
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         assert_eq!(issues.len(), 1, "exactly one issue");
         assert_eq!(issues[0].issue_type, IssueType::ComponentSwapped);
         // Verify no reorders
@@ -954,7 +967,7 @@ mod tests {
             make_pair(2, 0, 0.95, MatchBand::Matched), // B → new[0]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         let swap_issues: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ComponentSwapped)
@@ -992,7 +1005,7 @@ mod tests {
             make_pair(2, 1, 0.95, MatchBand::Matched), // Q → new[1]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         let swap_count = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ComponentSwapped)
@@ -1044,7 +1057,7 @@ mod tests {
             make_pair(4, 3, 0.95, MatchBand::Matched), // E → new[3]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         let swap_count = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ComponentSwapped)
@@ -1093,7 +1106,7 @@ mod tests {
             make_pair(3, 2, 0.95, MatchBand::Matched), // D → new[2]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         let swap_count = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ComponentSwapped)
@@ -1136,7 +1149,7 @@ mod tests {
             make_pair(3, 1, 0.95, MatchBand::Matched), // D → new[1]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         let swap_count = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ComponentSwapped)
@@ -1185,7 +1198,7 @@ mod tests {
             make_pair(4, 3, 0.95, MatchBand::Matched), // E → new[3]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
 
         // A (displacement == SEQ_MIN_DISPLACEMENT = 2) must be suppressed.
         let a_emitted = issues.iter().any(|i| {
@@ -1239,7 +1252,7 @@ mod tests {
             make_pair(1, 0, 0.62, MatchBand::Uncertain), // B: uncertain → excluded
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         assert!(
             issues.is_empty(),
             "uncertain pairs excluded → no issue emitted"
@@ -1284,7 +1297,7 @@ mod tests {
         let mut pair_c = make_pair(2, 1, 0.78, MatchBand::Matched);
         pair_c.stage = MatchStage::Assignment;
         let outcome = make_outcome(vec![pair_a, pair_b, pair_c]);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         assert!(
             issues.is_empty(),
             "assignment-stage pairs must be excluded from sequence diff (S0 filter)"
@@ -1362,9 +1375,9 @@ mod tests {
             make_pair(3, 1, 0.95, MatchBand::Matched), // D → new[1]
         ];
         let outcome = make_outcome(pairs);
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         // Check determinism: run twice and compare issue ids.
-        let issues2 = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues2 = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         let ids1: Vec<_> = issues.iter().map(|i| i.id.clone()).collect();
         let ids2: Vec<_> = issues2.iter().map(|i| i.id.clone()).collect();
         assert_eq!(ids1, ids2, "LIS result must be deterministic");
@@ -1417,8 +1430,8 @@ mod tests {
         let outcome_v1 = make_outcome(pairs_v1);
         let outcome_v2 = make_outcome(pairs_v2);
 
-        let issues_v1 = sequence_issues(&old_nodes_v1, &new_nodes, &outcome_v1, "desktop");
-        let issues_v2 = sequence_issues(&old_nodes_v2, &new_nodes, &outcome_v2, "desktop");
+        let issues_v1 = sequence_issues(&old_nodes_v1, &new_nodes, &outcome_v1, "desktop", None);
+        let issues_v2 = sequence_issues(&old_nodes_v2, &new_nodes, &outcome_v2, "desktop", None);
 
         assert!(!issues_v1.is_empty(), "should produce issues");
         assert_eq!(issues_v1.len(), issues_v2.len(), "same number of issues");
@@ -1470,7 +1483,7 @@ mod tests {
         ];
         let outcome = make_outcome(pairs);
         // Must not panic.
-        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop");
+        let issues = sequence_issues(&old_nodes, &new_nodes, &outcome, "desktop", None);
         assert_eq!(issues.len(), 1, "one swap issue");
         // The message must be valid UTF-8 (it is, since it's a String) and the
         // rep text embedded in it must be ≤ 80 bytes.
@@ -1483,6 +1496,102 @@ mod tests {
         assert!(
             msg.contains(&ascii_part),
             "truncated ASCII prefix must appear in message"
+        );
+    }
+
+    /// WP-B (M6.md §6): new_lang is stamped on every emitted sequence issue.
+    ///
+    /// Two nodes swap → one component_swapped. The supplied lang must appear on it.
+    /// One node reorders → one component_reordered. The supplied lang must appear on it.
+    #[test]
+    fn test_sequence_issues_locale_stamped() {
+        // Swap scenario: old=[A, B], new=[B, A] → one component_swapped.
+        let old_nodes = vec![
+            make_node("a", "heading", Some("Section A"), 0),
+            make_node("b", "heading", Some("Section B"), 1),
+        ];
+        let new_nodes = vec![
+            make_node("b", "heading", Some("Section B"), 0),
+            make_node("a", "heading", Some("Section A"), 1),
+        ];
+        let pairs = vec![
+            make_pair(0, 1, 0.97, MatchBand::Matched),
+            make_pair(1, 0, 0.97, MatchBand::Matched),
+        ];
+        let outcome = make_outcome(pairs);
+        let issues = sequence_issues(
+            &old_nodes,
+            &new_nodes,
+            &outcome,
+            "desktop",
+            Some("en-US".to_string()),
+        );
+        assert_eq!(issues.len(), 1, "exactly one swap issue");
+        assert_eq!(
+            issues[0].locale,
+            Some("en-US".to_string()),
+            "component_swapped must carry the supplied locale"
+        );
+
+        // Reorder scenario: old=[A, B, C, D, E] with one B displaced far.
+        // perm=[2,4,1,0,3] (same as test_rotation_one_reorder_no_swap).
+        let old_nodes2 = vec![
+            make_node("a", "heading", Some("Block A"), 0),
+            make_node("b", "heading", Some("Block B"), 1),
+            make_node("c", "heading", Some("Block C"), 2),
+            make_node("d", "heading", Some("Block D"), 3),
+            make_node("e", "heading", Some("Block E"), 4),
+        ];
+        let new_nodes2 = vec![
+            make_node("d", "heading", Some("Block D"), 0),
+            make_node("c", "heading", Some("Block C"), 1),
+            make_node("a", "heading", Some("Block A"), 2),
+            make_node("e", "heading", Some("Block E"), 3),
+            make_node("b", "heading", Some("Block B"), 4),
+        ];
+        let pairs2 = vec![
+            make_pair(0, 2, 0.95, MatchBand::Matched),
+            make_pair(1, 4, 0.95, MatchBand::Matched),
+            make_pair(2, 1, 0.95, MatchBand::Matched),
+            make_pair(3, 0, 0.95, MatchBand::Matched),
+            make_pair(4, 3, 0.95, MatchBand::Matched),
+        ];
+        let outcome2 = make_outcome(pairs2);
+        let issues2 = sequence_issues(
+            &old_nodes2,
+            &new_nodes2,
+            &outcome2,
+            "desktop",
+            Some("en-US".to_string()),
+        );
+        let reorder_issues: Vec<_> = issues2
+            .iter()
+            .filter(|i| i.issue_type == IssueType::ComponentReordered)
+            .collect();
+        assert!(
+            !reorder_issues.is_empty(),
+            "expected at least one reorder issue"
+        );
+        for issue in &reorder_issues {
+            assert_eq!(
+                issue.locale,
+                Some("en-US".to_string()),
+                "component_reordered must carry the supplied locale"
+            );
+        }
+
+        // None lang → locale field is None. Use the original swap scenario.
+        let pairs_swap = vec![
+            make_pair(0, 1, 0.97, MatchBand::Matched),
+            make_pair(1, 0, 0.97, MatchBand::Matched),
+        ];
+        let outcome_swap = make_outcome(pairs_swap);
+        let issues_no_lang =
+            sequence_issues(&old_nodes, &new_nodes, &outcome_swap, "desktop", None);
+        assert_eq!(issues_no_lang.len(), 1);
+        assert_eq!(
+            issues_no_lang[0].locale, None,
+            "None new_lang must produce locale: None"
         );
     }
 }

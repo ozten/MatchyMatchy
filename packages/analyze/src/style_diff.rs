@@ -418,7 +418,10 @@ fn style_similarity(
             present_count += 1;
             let old_norm = normalize_value_with_page_url(prop, o, old_page_url);
             let new_norm = normalize_value_with_page_url(prop, n, new_page_url);
-            if old_norm == new_norm {
+            if old_norm == new_norm
+                || values_equal_c2(&old_norm, &new_norm)
+                || values_equal_c3(&old_norm, &new_norm)
+            {
                 equal_count += 1;
             }
         }
@@ -483,6 +486,20 @@ fn diff_styles(
 
         if old_norm == new_norm {
             continue; // Equal after normalization → no issue
+        }
+
+        // C2: sub-pixel numeric epsilon (M6 calibration) — treat as equal
+        // when all non-numeric tokens match and every numeric pair differs by
+        // less than STYLE_NUMERIC_EPSILON with identical unit.
+        if values_equal_c2(&old_norm, &new_norm) {
+            continue;
+        }
+
+        // C3: url() filename-tail comparison (M6 calibration) — treat as equal
+        // when the url-insensitive forms are equal and at least one url() token
+        // was present (same asset, different CDN host or path prefix).
+        if values_equal_c3(&old_norm, &new_norm) {
+            continue;
         }
 
         // Classification
@@ -793,6 +810,219 @@ fn strip_url_quotes(s: &str) -> &str {
     } else {
         s
     }
+}
+
+// ---------------------------------------------------------------------------
+// C2: sub-pixel numeric epsilon comparison (M6 calibration)
+// ---------------------------------------------------------------------------
+
+/// A token in a CSS property value: either a number+unit pair or a non-numeric fragment.
+#[derive(Debug, PartialEq)]
+enum CssToken {
+    Numeric { value: f64, unit: String },
+    Text(String),
+}
+
+/// Tokenize a CSS value string into alternating non-numeric / numeric runs.
+///
+/// Splits the string at every contiguous run of `[0-9.]` that is followed by
+/// an optional unit (`px`, `%`, `em`, `rem`, etc.) or nothing. The unit is
+/// everything after the digits up to the next non-letter character. This is
+/// intentionally simple and deterministic — we only need it for sub-pixel
+/// jitter detection, not full CSS parsing.
+fn tokenize_css_value(s: &str) -> Vec<CssToken> {
+    let mut tokens = Vec::new();
+    let chars: Vec<char> = s.chars().collect();
+    let n = chars.len();
+    let mut i = 0;
+    let mut text_start = 0;
+
+    while i < n {
+        // Try to start a numeric token here. A digit (or '.' followed by digit)
+        // begins a number token.
+        let is_num_start = chars[i].is_ascii_digit()
+            || (chars[i] == '.' && i + 1 < n && chars[i + 1].is_ascii_digit());
+        if is_num_start {
+            // Flush any pending text token.
+            if i > text_start {
+                tokens.push(CssToken::Text(chars[text_start..i].iter().collect()));
+            }
+            // Consume digits and at most one '.'.
+            let num_start = i;
+            let mut dot_seen = false;
+            while i < n && (chars[i].is_ascii_digit() || (chars[i] == '.' && !dot_seen)) {
+                if chars[i] == '.' {
+                    dot_seen = true;
+                }
+                i += 1;
+            }
+            let num_str: String = chars[num_start..i].iter().collect();
+            let value: f64 = num_str.parse().unwrap_or(f64::NAN);
+            // Consume trailing unit letters (and '%').
+            let unit_start = i;
+            while i < n && (chars[i].is_ascii_alphabetic() || chars[i] == '%') {
+                i += 1;
+            }
+            let unit: String = chars[unit_start..i].iter().collect();
+            tokens.push(CssToken::Numeric { value, unit });
+            text_start = i;
+        } else {
+            i += 1;
+        }
+    }
+    // Flush remaining text.
+    if text_start < n {
+        tokens.push(CssToken::Text(chars[text_start..].iter().collect()));
+    }
+    tokens
+}
+
+/// Returns true if two already-normalised CSS property values are equal under
+/// sub-pixel numeric epsilon (C2, M6 calibration).
+///
+/// Equality holds when both values tokenize to the same sequence where:
+///   - every non-numeric (Text) token pair is identical, and
+///   - every numeric token pair has identical unit and value difference < STYLE_NUMERIC_EPSILON.
+///
+/// If the sequences have different lengths or any non-numeric token differs, returns false.
+fn values_equal_c2(a: &str, b: &str) -> bool {
+    use crate::config::STYLE_NUMERIC_EPSILON;
+    if a == b {
+        return true;
+    }
+    let ta = tokenize_css_value(a);
+    let tb = tokenize_css_value(b);
+    if ta.len() != tb.len() {
+        return false;
+    }
+    for (ta_tok, tb_tok) in ta.iter().zip(tb.iter()) {
+        match (ta_tok, tb_tok) {
+            (CssToken::Text(sa), CssToken::Text(sb)) => {
+                if sa != sb {
+                    return false;
+                }
+            }
+            (
+                CssToken::Numeric {
+                    value: va,
+                    unit: ua,
+                },
+                CssToken::Numeric {
+                    value: vb,
+                    unit: ub,
+                },
+            ) => {
+                if ua != ub {
+                    return false;
+                }
+                if (va - vb).abs() >= STYLE_NUMERIC_EPSILON {
+                    return false;
+                }
+            }
+            _ => return false, // mismatched token types
+        }
+    }
+    true
+}
+
+// ---------------------------------------------------------------------------
+// C3: url() filename-tail comparison in style values (M6 calibration)
+// ---------------------------------------------------------------------------
+
+/// Compute the url-insensitive form of a CSS property value: replace every
+/// `url(...)` token with just the filename (final path segment, query/fragment
+/// stripped) of its inner URL.
+///
+/// Returns `(insensitive_form, first_host)` where `first_host` is the
+/// lowercase host of the first url() token found (empty string if the token
+/// is not an absolute URL).  Used by C3 to gate cross-host suppression.
+fn url_insensitive_form(value: &str) -> (String, String) {
+    let mut result = String::with_capacity(value.len());
+    let bytes = value.as_bytes();
+    let mut i = 0;
+    let mut first_host = String::new();
+
+    while i < bytes.len() {
+        if i + 4 <= bytes.len()
+            && bytes[i].eq_ignore_ascii_case(&b'u')
+            && bytes[i + 1].eq_ignore_ascii_case(&b'r')
+            && bytes[i + 2].eq_ignore_ascii_case(&b'l')
+            && bytes[i + 3] == b'('
+        {
+            let inner_start = i + 4;
+            if let Some(close_pos) = find_matching_paren(value, i + 3) {
+                let inner_raw = &value[inner_start..close_pos];
+                let inner = strip_url_quotes(inner_raw);
+                // Extract path segment (strip query + fragment, then take after last '/').
+                let path_only = if let Some(q) = inner.find('?') {
+                    &inner[..q]
+                } else if let Some(f) = inner.find('#') {
+                    &inner[..f]
+                } else {
+                    inner
+                };
+                let filename = match path_only.rfind('/') {
+                    Some(pos) => &path_only[pos + 1..],
+                    None => path_only,
+                };
+                // Record host of the first url() token for cross-host gating.
+                if first_host.is_empty() {
+                    if let Ok(parsed) = url::Url::parse(inner) {
+                        if let Some(h) = parsed.host_str() {
+                            first_host = h.to_ascii_lowercase();
+                        }
+                    }
+                }
+                result.push_str("url(");
+                result.push_str(filename);
+                result.push(')');
+                i = close_pos + 1;
+                continue;
+            }
+            result.push(bytes[i] as char);
+            i += 1;
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    (result, first_host)
+}
+
+/// Returns true if two already-normalised CSS property values are equal under
+/// url()-filename-tail comparison (C3, M6 calibration).
+///
+/// Suppresses (treats as equal) when the url-insensitive forms are equal AND
+/// the host pair indicates migration noise rather than an author-controlled
+/// path change.  The guard condition is:
+///
+///   `(host_a != host_b) && (host_a.is_empty() || host_b.is_empty() || host_a != host_b)`
+///
+/// Written out plainly — suppress when AT LEAST ONE host is non-empty AND the
+/// two hosts are not the same:
+///
+/// - relative vs absolute (one host empty, one non-empty): own-origin was
+///   stripped by `normalize_url_origins`; the absolute side is a CDN/third-party.
+///   Migration noise → suppress.
+/// - absolute vs absolute, different hosts: cross-CDN migration → suppress.
+/// - both hosts equal (same CDN, different version path e.g. v1/ vs v2/):
+///   genuine author-controlled change → DO NOT suppress.
+/// - both hosts empty (both relative, same origin implied, e.g.
+///   url("assets/a.svg") vs url("images/a.svg")): author-controlled path
+///   change → DO NOT suppress.
+fn values_equal_c3(a: &str, b: &str) -> bool {
+    let (form_a, host_a) = url_insensitive_form(a);
+    let (form_b, host_b) = url_insensitive_form(b);
+    // Both relative (both hosts empty) → same-origin path change, not migration noise.
+    if host_a.is_empty() && host_b.is_empty() {
+        return false;
+    }
+    // Same non-empty host on both sides → same-host different-path, genuine change.
+    if !host_a.is_empty() && !host_b.is_empty() && host_a == host_b {
+        return false;
+    }
+    // Remaining cases: one or both hosts non-empty and they differ → migration noise.
+    form_a == form_b
 }
 
 fn collapse_whitespace(s: &str) -> String {
@@ -2935,6 +3165,336 @@ mod tests {
             issues.is_empty(),
             "v14 exact literal values must not emit a false style_changed (got {} issues)",
             issues.len()
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // C2: sub-pixel numeric epsilon unit tests (M6 calibration)
+    // -----------------------------------------------------------------------
+
+    /// C2-a: 19.5776px vs 19.6px — sub-pixel jitter → equal.
+    #[test]
+    fn test_c2_subpixel_line_height_equal() {
+        assert!(
+            values_equal_c2("19.5776px", "19.6px"),
+            "19.5776px vs 19.6px must be equal under C2 epsilon"
+        );
+    }
+
+    /// C2-b: 13.984px vs 14px — sub-pixel jitter → equal.
+    #[test]
+    fn test_c2_subpixel_font_size_equal() {
+        assert!(
+            values_equal_c2("13.984px", "14px"),
+            "13.984px vs 14px must be equal under C2 epsilon"
+        );
+    }
+
+    /// C2-c: 13px vs 14px — diff 1.0 >= epsilon 0.1 → NOT equal.
+    #[test]
+    fn test_c2_one_px_diff_not_equal() {
+        assert!(
+            !values_equal_c2("13px", "14px"),
+            "13px vs 14px must NOT be equal under C2 epsilon (diff 1.0 >= 0.1)"
+        );
+    }
+
+    /// C2-d: "0px none rgb(0, 0, 0)" vs "0px none rgb(80, 93, 111)" — rgb channel differs by >epsilon.
+    #[test]
+    fn test_c2_rgb_channel_diff_not_equal() {
+        assert!(
+            !values_equal_c2("0px none rgb(0, 0, 0)", "0px none rgb(80, 93, 111)"),
+            "rgb channel diff >epsilon must not be suppressed"
+        );
+    }
+
+    /// C2-e: values with differing non-numeric text → not equal.
+    #[test]
+    fn test_c2_mixed_text_differing_not_equal() {
+        assert!(
+            !values_equal_c2("solid 1px red", "dashed 1px red"),
+            "differing non-numeric tokens must not be equal"
+        );
+    }
+
+    /// C2-f: end-to-end: sub-pixel line-height jitter must NOT emit style_changed.
+    #[test]
+    fn test_c2_end_to_end_subpixel_suppressed() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("line-height", "19.6px")]);
+        let new_cs = styles(&[("line-height", "19.5776px")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://localhost:3000/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://localhost:3001/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "sub-pixel line-height jitter must not emit style_changed, got {} issues",
+            issues.len()
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // C3: url() filename-tail comparison unit tests (M6 calibration)
+    // -----------------------------------------------------------------------
+
+    /// C3-a: CDN vs localhost, same filename → equal.
+    #[test]
+    fn test_c3_cdn_vs_localhost_same_filename_equal() {
+        let cdn = r#"url("https://cdn.prod.website-files.com/abc123/images/icon.svg")"#;
+        let local = r#"url("http://localhost:3000/assets/images/icon.svg")"#;
+        assert!(
+            values_equal_c3(cdn, local),
+            "same filename on different hosts must be equal under C3"
+        );
+    }
+
+    /// C3-b: same hosts but different filenames → not equal.
+    #[test]
+    fn test_c3_same_host_different_filename_not_equal() {
+        let a = r#"url("http://localhost:3000/assets/icon-a.svg")"#;
+        let b = r#"url("http://localhost:3000/assets/icon-b.svg")"#;
+        assert!(
+            !values_equal_c3(a, b),
+            "different filenames must not be equal under C3"
+        );
+    }
+
+    /// C3-c: gradient values without url() are unaffected (C3 returns false, falls through).
+    #[test]
+    fn test_c3_gradient_without_url_not_equal() {
+        let a = "linear-gradient(red, blue)";
+        let b = "linear-gradient(green, yellow)";
+        assert!(
+            !values_equal_c3(a, b),
+            "gradient values without url() must not be equal under C3"
+        );
+    }
+
+    /// C3-d: mixed value where non-url parts differ → not equal.
+    #[test]
+    fn test_c3_mixed_non_url_parts_differ_not_equal() {
+        // Both have same url filename but the non-url part differs ("no-repeat" vs "repeat")
+        let a = r#"no-repeat url("https://cdn.prod.website-files.com/a/icon.svg")"#;
+        let b = r#"repeat url("http://localhost:3000/assets/icon.svg")"#;
+        assert!(
+            !values_equal_c3(a, b),
+            "differing non-url parts must not be equal under C3"
+        );
+    }
+
+    /// C3-f: relative (own-origin stripped) vs absolute CDN, same filename → equal.
+    /// This is the primary observed R3 flood: normalize_url_origins strips the old
+    /// side's own-origin url() to a relative form; the new side keeps a CDN absolute url().
+    #[test]
+    fn test_c3_relative_vs_absolute_cdn_same_filename_equal() {
+        // Old side: own-origin stripped to relative by normalize_url_origins.
+        // New side: CDN absolute URL (different host, not the page's origin).
+        let relative = r#"url("assets/images/x.avif")"#;
+        let cdn = r#"url("https://cdn.prod.website-files.com/abc123/images/x.avif")"#;
+        assert!(
+            values_equal_c3(relative, cdn),
+            "relative (own-origin stripped) vs CDN absolute, same filename must be equal under C3"
+        );
+        // Symmetric: cdn vs relative must also be equal.
+        assert!(
+            values_equal_c3(cdn, relative),
+            "CDN absolute vs relative (own-origin stripped), same filename must be equal under C3 (symmetric)"
+        );
+    }
+
+    /// C3-g: both hostless relative urls with different paths → NOT equal (author-controlled change).
+    #[test]
+    fn test_c3_both_relative_different_paths_not_equal() {
+        let a = r#"url("assets/a.svg")"#;
+        let b = r#"url("images/a.svg")"#;
+        assert!(
+            !values_equal_c3(a, b),
+            "both-hostless relative urls must NOT be equal under C3 (author-controlled path change)"
+        );
+    }
+
+    /// C3-e: end-to-end: two different CDN hosts serving the same filename must NOT emit
+    /// style_changed. Both URLs are external (neither is the page's own origin), so
+    /// normalize_url_origins doesn't strip them — C3 sees full absolute URLs from different hosts
+    /// with the same filename.
+    #[test]
+    fn test_c3_end_to_end_cross_cdn_same_filename_suppressed() {
+        let old_node = make_node("o1", Some("Hero"), None);
+        let new_node = make_node("n1", Some("Hero"), None);
+
+        // Both URLs are on different CDN hosts (neither is the page's origin) → external,
+        // not stripped by normalize_url_origins. C3 sees different hosts, same filename.
+        let old_cs = styles(&[(
+            "background-image",
+            r#"url("https://cdn.prod.website-files.com/abc123/images/icon.svg")"#,
+        )]);
+        let new_cs = styles(&[(
+            "background-image",
+            r#"url("https://assets.example-cdn.net/hash456/images/icon.svg")"#,
+        )]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://localhost:3000/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://localhost:3001/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "cross-CDN same-filename must not emit style_changed, got {} issues",
+            issues.len()
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // C1 v05-regression: dup-label node inside a link STILL emits style_changed
+    // when its computed styles differ (the label is not suppressed from style_diff).
+    // -----------------------------------------------------------------------
+
+    fn make_link_node(
+        id: &str,
+        text: Option<&str>,
+        bbox: [i32; 4],
+        seq_index: u32,
+    ) -> SemanticNode {
+        SemanticNode {
+            id: id.to_string(),
+            kind: "link".to_string(),
+            role: None,
+            text: text.map(str::to_string),
+            acc_name: None,
+            href: Some("/demo".to_string()),
+            image_alt: None,
+            bbox,
+            seq_index,
+            anchors: NodeAnchors {
+                text: text.map(str::to_string),
+                role: None,
+                href: Some("/demo".to_string()),
+                alt: None,
+                aria_label: None,
+                nearest_heading: None,
+                landmark: Some("main".to_string()),
+                ordinal_in_landmark: Some(1),
+            },
+            css_selector: Some(".button".to_string()),
+            raw_href: None,
+            src: None,
+            natural_width: None,
+            natural_height: None,
+            loaded: None,
+            heading_level: None,
+        }
+    }
+
+    fn make_text_node_with_bbox(
+        id: &str,
+        text: Option<&str>,
+        bbox: [i32; 4],
+        seq_index: u32,
+    ) -> SemanticNode {
+        SemanticNode {
+            id: id.to_string(),
+            kind: "text".to_string(),
+            role: None,
+            text: text.map(str::to_string),
+            acc_name: None,
+            href: None,
+            image_alt: None,
+            bbox,
+            seq_index,
+            anchors: NodeAnchors {
+                text: text.map(str::to_string),
+                role: None,
+                href: None,
+                alt: None,
+                aria_label: None,
+                nearest_heading: None,
+                landmark: Some("main".to_string()),
+                ordinal_in_landmark: Some(1),
+            },
+            css_selector: Some(".button_content".to_string()),
+            raw_href: None,
+            src: None,
+            natural_width: None,
+            natural_height: None,
+            loaded: None,
+            heading_level: None,
+        }
+    }
+
+    /// v05 regression (C1): a `.button_content` label div is a dup-label nested inside the
+    /// `<a class="button">` link. When computed styles on the label change (background-color),
+    /// style_changed MUST still be emitted — the C1 suppression only affects missing_text
+    /// emission in semantic_diff, NOT style_diff.
+    #[test]
+    fn test_c1_v05_regression_style_changed_still_emitted_for_dup_label() {
+        // Old: link (parent) + text label (dup-label, nested inside link bbox)
+        let old_link = make_link_node("old-link", Some("Get a Demo"), [100, 200, 200, 50], 0);
+        let old_label =
+            make_text_node_with_bbox("old-label", Some("Get a Demo"), [110, 210, 180, 30], 1);
+
+        // New: same structure with same text
+        let new_link = make_link_node("new-link", Some("Get a Demo"), [100, 200, 200, 50], 0);
+        let new_label =
+            make_text_node_with_bbox("new-label", Some("Get a Demo"), [110, 210, 180, 30], 1);
+
+        // Old label has a specific background-color; new label has a changed one.
+        let old_label_styles = styles(&[
+            ("background-color", "rgb(79, 70, 229)"),
+            ("padding", "12px 24px"),
+        ]);
+        let new_label_styles = styles(&[
+            ("background-color", "rgb(37, 99, 235)"),
+            ("padding", "12px 24px"),
+        ]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("old-link".to_string(), styles(&[]));
+        old_styles_map.insert("old-label".to_string(), old_label_styles);
+
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("new-link".to_string(), styles(&[]));
+        new_styles_map.insert("new-label".to_string(), new_label_styles);
+
+        let old_b = make_bundle(
+            "http://localhost:3000/",
+            vec![old_link, old_label],
+            old_styles_map,
+        );
+        let new_b = make_bundle(
+            "http://localhost:3001/",
+            vec![new_link, new_label],
+            new_styles_map,
+        );
+
+        // Pairs: link↔link (index 0↔0), label↔label (index 1↔1)
+        let outcome = make_outcome(vec![make_matched_pair(0, 0), make_matched_pair(1, 1)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+
+        let style_changed: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == crate::contract::IssueType::StyleChanged)
+            .collect();
+
+        assert!(
+            !style_changed.is_empty(),
+            "v05 regression: dup-label with changed computed style MUST emit style_changed; got 0 issues"
         );
     }
 }

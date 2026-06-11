@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T20-27-42Z",
+  "runId": "2026-06-10T23-52-06Z",
   "oldUrl": "http://localhost:3000/",
   "newUrl": "http://localhost:3012/",
   "parityProfile": "content-structure",
@@ -253,9 +253,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_04e3ea7c0b1a_diff.png",
-          "newCrop": "desktop/issues/issue_04e3ea7c0b1a_new.png",
-          "oldCrop": "desktop/issues/issue_04e3ea7c0b1a_old.png"
+          "diffCrop": "desktop/issues/issue_04e3ea7c0b1a-2_diff.png",
+          "newCrop": "desktop/issues/issue_04e3ea7c0b1a-2_new.png",
+          "oldCrop": "desktop/issues/issue_04e3ea7c0b1a-2_old.png"
         },
         "visual": {
           "changedPixels": 12805,
@@ -369,9 +369,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_1b3672476467_diff.png",
-          "newCrop": "desktop/issues/issue_1b3672476467_new.png",
-          "oldCrop": "desktop/issues/issue_1b3672476467_old.png"
+          "diffCrop": "desktop/issues/issue_1b3672476467-2_diff.png",
+          "newCrop": "desktop/issues/issue_1b3672476467-2_new.png",
+          "oldCrop": "desktop/issues/issue_1b3672476467-2_old.png"
         },
         "visual": {
           "changedPixels": 4824,
@@ -543,9 +543,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_283c81bff95d_diff.png",
-          "newCrop": "desktop/issues/issue_283c81bff95d_new.png",
-          "oldCrop": "desktop/issues/issue_283c81bff95d_old.png"
+          "diffCrop": "desktop/issues/issue_283c81bff95d-2_diff.png",
+          "newCrop": "desktop/issues/issue_283c81bff95d-2_new.png",
+          "oldCrop": "desktop/issues/issue_283c81bff95d-2_old.png"
         },
         "visual": {
           "changedPixels": 18687,
@@ -717,9 +717,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_3b2dc7c7905b_diff.png",
-          "newCrop": "desktop/issues/issue_3b2dc7c7905b_new.png",
-          "oldCrop": "desktop/issues/issue_3b2dc7c7905b_old.png"
+          "diffCrop": "desktop/issues/issue_3b2dc7c7905b-2_diff.png",
+          "newCrop": "desktop/issues/issue_3b2dc7c7905b-2_new.png",
+          "oldCrop": "desktop/issues/issue_3b2dc7c7905b-2_old.png"
         },
         "visual": {
           "changedPixels": 4117,
@@ -949,9 +949,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_4a6f399378c3_diff.png",
-          "newCrop": "desktop/issues/issue_4a6f399378c3_new.png",
-          "oldCrop": "desktop/issues/issue_4a6f399378c3_old.png"
+          "diffCrop": "desktop/issues/issue_4a6f399378c3-2_diff.png",
+          "newCrop": "desktop/issues/issue_4a6f399378c3-2_new.png",
+          "oldCrop": "desktop/issues/issue_4a6f399378c3-2_old.png"
         },
         "visual": {
           "changedPixels": 5863,
@@ -1355,9 +1355,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a3778c41a353_diff.png",
-          "newCrop": "desktop/issues/issue_a3778c41a353_new.png",
-          "oldCrop": "desktop/issues/issue_a3778c41a353_old.png"
+          "diffCrop": "desktop/issues/issue_a3778c41a353-2_diff.png",
+          "newCrop": "desktop/issues/issue_a3778c41a353-2_new.png",
+          "oldCrop": "desktop/issues/issue_a3778c41a353-2_old.png"
         },
         "visual": {
           "changedPixels": 12826,
@@ -2090,9 +2090,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b_old.png"
+          "diffCrop": "desktop/issues/issue_a609a79ce17b-2_diff.png",
+          "newCrop": "desktop/issues/issue_a609a79ce17b-2_new.png",
+          "oldCrop": "desktop/issues/issue_a609a79ce17b-2_old.png"
         },
         "visual": {
           "changedPixels": 1178,
@@ -2148,9 +2148,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b_old.png"
+          "diffCrop": "desktop/issues/issue_a609a79ce17b-3_diff.png",
+          "newCrop": "desktop/issues/issue_a609a79ce17b-3_new.png",
+          "oldCrop": "desktop/issues/issue_a609a79ce17b-3_old.png"
         },
         "visual": {
           "changedPixels": 2100,

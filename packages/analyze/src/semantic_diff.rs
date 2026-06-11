@@ -10,17 +10,94 @@
 //!
 //! DETERMINISM: no HashMap, BTreeMap or sort-by-stable-key everywhere.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use url::Url;
 
-use crate::config::{base_confidence, CHROME_PENALTY, IMAGE_DIM_RATIO_FLOOR, UNCERTAIN_MULTIPLIER};
+use crate::config::{
+    base_confidence, CHROME_PENALTY, DUP_LABEL_BBOX_TOLERANCE_PX, IMAGE_DIM_RATIO_FLOOR,
+    UNCERTAIN_MULTIPLIER,
+};
 use crate::contract::{
     Anchors, CaptureBundle, Issue, IssueCategory, IssueType, Locator, SemanticNode,
 };
 use crate::issue::compute_issue_id;
 use crate::matching::{norm_href, MatchBand, MatchOutcome, MatchStage, MissRecord};
 use crate::scoring::{compute_confidence, ParityProfile};
+
+// ---------------------------------------------------------------------------
+// C1: dup-label id set (M6 calibration, emission-side suppression only)
+// ---------------------------------------------------------------------------
+
+/// Normalise text for the dup-label comparison: trim whitespace, collapse
+/// internal whitespace, ASCII-lowercase.  Mirrors `matching::text_sim` tokens.
+fn norm_text_for_dup_filter(s: &str) -> String {
+    s.split_whitespace()
+        .map(|w| w.to_ascii_lowercase())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Returns the set of old-stream text-node ids that are "duplicate labels":
+/// a `text` node T is a dup-label when a `link` or `button` node L exists
+/// in the same stream satisfying ALL of:
+///   1. norm_text(T.text) == norm_text(L.text), both non-empty
+///   2. T.bbox is contained within L.bbox ± DUP_LABEL_BBOX_TOLERANCE_PX
+///
+/// Suppresses only `missing_text` emission for these nodes; they remain in
+/// all matcher / style / sequence inputs.
+pub fn dup_label_ids(nodes: &[SemanticNode]) -> BTreeSet<String> {
+    // Build a stable lookup of link/button text → list of their bboxes.
+    // Key: normalised text; value: vec of [lx, ly, lw, lh] (as f64 for tolerance math).
+    let mut container_bboxes: BTreeMap<String, Vec<[f64; 4]>> = BTreeMap::new();
+    for node in nodes {
+        if node.kind == "link" || node.kind == "button" {
+            let raw = node.text.as_deref().unwrap_or("");
+            let normed = norm_text_for_dup_filter(raw);
+            if normed.is_empty() {
+                continue;
+            }
+            let [lx, ly, lw, lh] = node.bbox;
+            container_bboxes
+                .entry(normed)
+                .or_default()
+                .push([lx as f64, ly as f64, lw as f64, lh as f64]);
+        }
+    }
+
+    let tol = DUP_LABEL_BBOX_TOLERANCE_PX;
+    let mut dup_ids: BTreeSet<String> = BTreeSet::new();
+
+    for node in nodes {
+        if node.kind != "text" {
+            continue;
+        }
+        let raw = node.text.as_deref().unwrap_or("");
+        let normed = norm_text_for_dup_filter(raw);
+        if normed.is_empty() {
+            continue;
+        }
+        let containers = match container_bboxes.get(&normed) {
+            Some(v) => v,
+            None => continue,
+        };
+        let [tx, ty, tw, th] = node.bbox;
+        let (tx, ty, tw, th) = (tx as f64, ty as f64, tw as f64, th as f64);
+        // Check containment: T fully within L ± tol
+        for &[lx, ly, lw, lh] in containers {
+            if tx >= lx - tol
+                && ty >= ly - tol
+                && tx + tw <= lx + lw + tol
+                && ty + th <= ly + lh + tol
+            {
+                dup_ids.insert(node.id.clone());
+                break;
+            }
+        }
+    }
+
+    dup_ids
+}
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -105,8 +182,18 @@ pub fn semantic_issues(
     }
 
     // 3. Missing old nodes in old-seq order (§5.4)
+    // C1 (M6 calibration): compute dup-label id set once for the old stream.
+    // text nodes whose id is in this set are dup-labels nested inside a link/button;
+    // suppress missing_text emission for them only.
+    let dup_ids = dup_label_ids(old_nodes);
+
     for miss in &outcome.missing_old {
         let old_node = &old_nodes[miss.idx];
+
+        // C1: skip missing_text for dup-label text nodes.
+        if old_node.kind == "text" && dup_ids.contains(&old_node.id) {
+            continue;
+        }
 
         // Chrome penalty by OLD node's landmark
         let base = base_confidence::CONTENT_ASSIGNMENT;
@@ -713,20 +800,26 @@ fn link_button_pair_issues(
 }
 
 /// Returns true if raw hrefs differ AND norm(href) values differ.
+///
+/// C4 (M6 calibration): uses cross-origin normalisation so that absolute links
+/// on either input origin are treated as same-site.  Evidence/remediation
+/// values keep their current raw forms — only the equality decision changes.
 fn raw_and_norm_hrefs_differ(
     old_raw: Option<&str>,
     new_raw: Option<&str>,
     old_page: &str,
     new_page: &str,
 ) -> bool {
+    use crate::matching::norm_href_cross_origin;
     match (old_raw, new_raw) {
         (None, None) => false,
         (Some(a), Some(b)) => {
             if a == b {
                 return false;
             }
-            let na = norm_href(a, old_page);
-            let nb = norm_href(b, new_page);
+            // C4: normalise each side against BOTH page origins.
+            let na = norm_href_cross_origin(a, old_page, new_page);
+            let nb = norm_href_cross_origin(b, new_page, old_page);
             na != nb
         }
         _ => false,
@@ -2955,6 +3048,150 @@ mod tests {
             "uncertain multiplier: got {} expected {}",
             issue.confidence,
             expected
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // C1: dup_label_ids helper tests (M6 calibration)
+    // -----------------------------------------------------------------------
+
+    fn make_c1_node_sd(
+        id: &str,
+        kind: &str,
+        text: Option<&str>,
+        bbox: [i32; 4],
+        seq_index: u32,
+    ) -> SemanticNode {
+        use crate::contract::NodeAnchors;
+        SemanticNode {
+            id: id.to_string(),
+            kind: kind.to_string(),
+            role: None,
+            text: text.map(str::to_string),
+            acc_name: None,
+            href: None,
+            image_alt: None,
+            bbox,
+            seq_index,
+            anchors: NodeAnchors {
+                text: text.map(str::to_string),
+                role: None,
+                href: None,
+                alt: None,
+                aria_label: None,
+                nearest_heading: None,
+                landmark: None,
+                ordinal_in_landmark: None,
+            },
+            css_selector: None,
+            raw_href: None,
+            src: None,
+            natural_width: None,
+            natural_height: None,
+            loaded: None,
+            heading_level: None,
+        }
+    }
+
+    /// C1-a (semantic_diff module): text node inside a link's bbox with matching text →
+    /// dup_label_ids returns the text node's id.
+    #[test]
+    fn test_sd_c1_dup_label_inside_link_in_set() {
+        let link = make_c1_node_sd("link1", "link", Some("Get a Demo"), [0, 0, 200, 50], 0);
+        let text = make_c1_node_sd("text1", "text", Some("Get a Demo"), [10, 10, 180, 30], 1);
+        let nodes = vec![link, text];
+        let set = dup_label_ids(&nodes);
+        assert!(
+            set.contains("text1"),
+            "text dup-label id must be in the set"
+        );
+        assert!(!set.contains("link1"), "link id must NOT be in the set");
+    }
+
+    /// C1-b: text node outside link bbox → NOT in set.
+    #[test]
+    fn test_sd_c1_equal_text_outside_bbox_not_in_set() {
+        let link = make_c1_node_sd("link1", "link", Some("Get a Demo"), [0, 0, 200, 50], 0);
+        let text = make_c1_node_sd("text1", "text", Some("Get a Demo"), [300, 10, 180, 30], 1);
+        let nodes = vec![link, text];
+        let set = dup_label_ids(&nodes);
+        assert!(!set.contains("text1"), "outside bbox must NOT be in set");
+    }
+
+    /// C1-c: different text, inside bbox → NOT in set.
+    #[test]
+    fn test_sd_c1_different_text_inside_bbox_not_in_set() {
+        let link = make_c1_node_sd("link1", "link", Some("Get a Demo"), [0, 0, 200, 50], 0);
+        let text = make_c1_node_sd("text1", "text", Some("Schedule Now"), [10, 10, 180, 30], 1);
+        let nodes = vec![link, text];
+        let set = dup_label_ids(&nodes);
+        assert!(!set.contains("text1"), "different text must NOT be in set");
+    }
+
+    /// C1-d: end-to-end: full (unfiltered) streams — old has link+dup-label text, new has only
+    /// link. semantic_issues must NOT emit missing_text for the dup-label text node.
+    #[test]
+    fn test_sd_c1_end_to_end_no_missing_text_for_dup_label() {
+        let old_link = make_c1_node_sd(
+            "old-link",
+            "link",
+            Some("Get a Demo"),
+            [100, 200, 200, 50],
+            0,
+        );
+        let old_text = make_c1_node_sd(
+            "old-text",
+            "text",
+            Some("Get a Demo"),
+            [110, 210, 180, 30],
+            1,
+        );
+        let new_link = make_c1_node_sd(
+            "new-link",
+            "link",
+            Some("Get a Demo"),
+            [100, 200, 200, 50],
+            0,
+        );
+
+        let old_b = make_bundle(
+            "http://old.com/",
+            "http://old.com/",
+            vec![old_link, old_text],
+        );
+        let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_link]);
+
+        let ctx = PageCtx {
+            old_final_url: old_b.page.final_url.clone(),
+            new_final_url: new_b.page.final_url.clone(),
+        };
+        let outcome = match_nodes(
+            &old_b.page.nodes,
+            &new_b.page.nodes,
+            &ctx,
+            old_b.page.page_height,
+            new_b.page.page_height,
+        );
+
+        // The old-text node must be in missing_old (no text node in new stream).
+        assert!(
+            outcome
+                .missing_old
+                .iter()
+                .any(|m| old_b.page.nodes[m.idx].id == "old-text"),
+            "old-text must be missing_old in unfiltered match"
+        );
+
+        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+
+        let missing_text: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::MissingText)
+            .collect();
+        assert!(
+            missing_text.is_empty(),
+            "C1: dup-label text node must NOT produce missing_text; got {} issues",
+            missing_text.len()
         );
     }
 

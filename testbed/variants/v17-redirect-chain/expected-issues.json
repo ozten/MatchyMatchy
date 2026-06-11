@@ -1,5 +1,5 @@
 {
-  "status": ["warn", "fail"],
+  "status": ["fail"],
   "required": [
     {
       "type": "url_redirect_chain",

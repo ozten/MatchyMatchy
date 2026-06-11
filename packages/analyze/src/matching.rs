@@ -75,6 +75,125 @@ pub struct PageCtx {
 // Similarity functions (pub(crate) — semantic_diff reuses norm_href)
 // ---------------------------------------------------------------------------
 
+/// Extract the origin (scheme+lowercase_host+explicit_non_default_port) from a URL.
+/// Returns an empty string if parsing fails or if scheme is not http/https.
+///
+/// Used for C4 cross-origin aliasing (M6 calibration).
+pub fn extract_href_origin(url_str: &str) -> String {
+    let parsed = match url::Url::parse(url_str) {
+        Ok(u) => u,
+        Err(_) => return String::new(),
+    };
+    let scheme = parsed.scheme();
+    if scheme != "http" && scheme != "https" {
+        return String::new();
+    }
+    let host = match parsed.host_str() {
+        Some(h) => h.to_ascii_lowercase(),
+        None => return String::new(),
+    };
+    let explicit_port = parsed.port();
+    let default_port: Option<u16> = match scheme {
+        "http" => Some(80),
+        "https" => Some(443),
+        _ => None,
+    };
+    let non_default_port = explicit_port.and_then(|p| {
+        if Some(p) == default_port {
+            None
+        } else {
+            Some(p)
+        }
+    });
+    if let Some(port) = non_default_port {
+        format!("{}://{}:{}", scheme, host, port)
+    } else {
+        format!("{}://{}", scheme, host)
+    }
+}
+
+/// Cross-origin normalisation for C4 (M6 calibration).
+///
+/// Normalise `href` treating BOTH `old_page_url` and `new_page_url` as
+/// "same site" — i.e. if the href's origin is either page's origin, reduce
+/// to path+query form.  This handles migration comparisons where links on the
+/// old side use the old absolute origin and links on the new side use the new
+/// absolute origin.
+///
+/// If the href's origin is neither, falls back to the standard `norm_href`
+/// behaviour (external = full absolute URL).
+pub fn norm_href_cross_origin(href: &str, own_page_url: &str, other_page_url: &str) -> String {
+    let trimmed = href.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        return trimmed.to_string();
+    }
+    // Try to resolve href as an absolute URL to check its origin.
+    if let Ok(resolved) = url::Url::parse(trimmed) {
+        let href_origin = extract_href_origin(resolved.as_str());
+        let own_origin = extract_href_origin(own_page_url);
+        let other_origin = extract_href_origin(other_page_url);
+        // If origin matches either page, strip to path+query (fragment already stripped by norm_href).
+        if !href_origin.is_empty() && (href_origin == own_origin || href_origin == other_origin) {
+            let mut r = resolved.clone();
+            r.set_fragment(None);
+            let mut path_query = r.path().to_string();
+            if let Some(q) = r.query() {
+                path_query.push('?');
+                path_query.push_str(q);
+            }
+            return path_query;
+        }
+    }
+    // Otherwise fall back to standard norm_href (uses own_page_url).
+    norm_href(trimmed, own_page_url)
+}
+
+/// href_sim using cross-origin aliasing (C4, M6 calibration).
+///
+/// Identical to `href_sim` except that each side is normalised against BOTH
+/// page URLs, so that absolute links on either origin are treated as same-site.
+/// Evidence / remediation values keep their current raw forms — only the
+/// equality/similarity decision changes.
+pub fn href_sim_cross_origin(
+    old_href: Option<&str>,
+    new_href: Option<&str>,
+    old_page: &str,
+    new_page: &str,
+) -> f64 {
+    match (old_href, new_href) {
+        (None, None) => 1.0,
+        (None, _) | (_, None) => 0.0,
+        (Some(a), Some(b)) => {
+            if a == b {
+                return 1.0;
+            }
+            let na = norm_href_cross_origin(a, old_page, new_page);
+            let nb = norm_href_cross_origin(b, new_page, old_page);
+            if na == nb {
+                return 1.0;
+            }
+            // Host-stripped path+query comparison.
+            let path_query_a = extract_path_query(&na);
+            let path_query_b = extract_path_query(&nb);
+            let (pa, qa) = match path_query_a {
+                Some(pq) => pq,
+                None => return 0.0,
+            };
+            let (pb, qb) = match path_query_b {
+                Some(pq) => pq,
+                None => return 0.0,
+            };
+            if pa == pb && qa == qb {
+                return 0.9;
+            }
+            if pa == pb {
+                return 0.7;
+            }
+            0.0
+        }
+    }
+}
+
 /// Normalise an href relative to its page's final URL (siteness-aware).
 ///
 /// Rules (M3.md §3.3):
@@ -427,7 +546,9 @@ fn identity_score(
     let mut signals: BTreeMap<String, f64> = BTreeMap::new();
     let score = match bk {
         BlockKind::LinkButton => {
-            let hs = href_sim(
+            // C4: use cross-origin href_sim so that links on either input origin
+            // are treated as same-site (M6 calibration).
+            let hs = href_sim_cross_origin(
                 old.raw_href.as_deref().or(old.href.as_deref()),
                 new.raw_href.as_deref().or(new.href.as_deref()),
                 old_page,
@@ -2163,5 +2284,80 @@ mod tests {
         );
         // Resolves to http://localhost:3014/products/connect/branded-call/pricing.html → /products/connect/branded-call/pricing.html
         assert_eq!(n, "/products/connect/branded-call/pricing.html");
+    }
+
+    // -----------------------------------------------------------------------
+    // C4: cross-origin href aliasing unit tests (M6 calibration)
+    // -----------------------------------------------------------------------
+
+    /// C4-a: old href has origin of old page, new href is root-relative → treated as equal → hrefSim 1.0.
+    #[test]
+    fn test_c4_old_origin_absolute_vs_relative_equal() {
+        // Old page: http://localhost:3000/ (or some origin)
+        // New page: https://www.hiya.com/
+        // Old link: https://www.hiya.com/state-of-the-call (uses NEW page's origin)
+        // New link: /state-of-the-call (relative)
+        // Both normalize to /state-of-the-call → hrefSim 1.0
+        let s = href_sim_cross_origin(
+            Some("https://www.hiya.com/state-of-the-call"),
+            Some("/state-of-the-call"),
+            "http://localhost:3000/",
+            "https://www.hiya.com/",
+        );
+        assert_eq!(
+            s, 1.0,
+            "C4: absolute link on new-page origin vs relative on new page must be 1.0, got {}",
+            s
+        );
+    }
+
+    /// C4-b: href origin is NEITHER input origin → unequal (changed_link_target preserved).
+    #[test]
+    fn test_c4_third_party_origin_unequal() {
+        // https://work.hiya.com/ is not old (localhost:3000) nor new (www.hiya.com)
+        let s = href_sim_cross_origin(
+            Some("https://work.hiya.com/y"),
+            Some("/y"),
+            "http://localhost:3000/",
+            "https://www.hiya.com/",
+        );
+        // work.hiya.com is not localhost:3000 or www.hiya.com → should NOT be aliased.
+        // norm_href("https://work.hiya.com/y", "http://localhost:3000/") = "https://work.hiya.com/y" (external)
+        // norm_href("/y", "https://www.hiya.com/") = "/y"
+        // These differ → hrefSim 0.9 (host-stripped paths: "/y" == "/y")
+        // Actually host-stripped paths ARE equal → 0.9, not 0.0 — that's the spec behaviour for
+        // host-stripped path match.  The test asserts < 1.0 (not an aliased 1.0).
+        assert!(
+            s < 1.0,
+            "C4: third-party origin must not be aliased to 1.0, got {}",
+            s
+        );
+    }
+
+    /// C4-c: trailing behaviour unchanged for same-origin relative links.
+    #[test]
+    fn test_c4_same_origin_relative_links_unchanged() {
+        // Both sides use relative hrefs on the same origin → existing behavior unchanged.
+        let s = href_sim_cross_origin(
+            Some("/pricing"),
+            Some("/pricing"),
+            "http://localhost:3000/",
+            "http://localhost:3001/",
+        );
+        assert_eq!(s, 1.0, "same relative href must be 1.0");
+    }
+
+    /// C4-d: norm_href_cross_origin: absolute href on new-page origin reduces to path.
+    #[test]
+    fn test_c4_norm_href_cross_origin_new_origin_reduces() {
+        let n = norm_href_cross_origin(
+            "https://www.hiya.com/state-of-the-call",
+            "http://localhost:3000/", // own page
+            "https://www.hiya.com/",  // other page
+        );
+        assert_eq!(
+            n, "/state-of-the-call",
+            "absolute href on other-page origin must reduce to path+query"
+        );
     }
 }

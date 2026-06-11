@@ -1,0 +1,966 @@
+{
+  "schemaVersion": "1.0",
+  "toolVersion": "0.1.0",
+  "runId": "2026-06-11T00-50-51Z",
+  "oldUrl": "http://localhost:3000/",
+  "newUrl": "https://www.hiya.com/products/connect/branded-call",
+  "parityProfile": "content-structure",
+  "status": "fail",
+  "agentSummary": {
+    "fixableNow": 7,
+    "byType": {
+      "changed_link_target": 6,
+      "changed_link_text": 1,
+      "visual_region_changed": 6
+    },
+    "clusterCount": 0,
+    "topFixes": [
+      "issue_4491fa260e43",
+      "issue_b02edcb462aa",
+      "issue_3a2bb6daa9b1",
+      "issue_430cd019cc1d",
+      "issue_7d6479288ac3"
+    ]
+  },
+  "scores": {
+    "visual": 0.9914490866816364,
+    "content": 0.125,
+    "structure": 1.0,
+    "style": 1.0,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 1.0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "fail",
+      "issues": [
+        "issue_ea92bdee7f79",
+        "issue_4cebeadfce8f",
+        "issue_40abd30d7c94",
+        "issue_29f91687cd9f",
+        "issue_a609a79ce17b",
+        "issue_8c1393568931",
+        "issue_b02edcb462aa",
+        "issue_4491fa260e43",
+        "issue_df30dc7a941b",
+        "issue_7d6479288ac3",
+        "issue_430cd019cc1d",
+        "issue_3a2bb6daa9b1",
+        "issue_7ef0b4f1fd21"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_4491fa260e43",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.54,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'pricing.html' to '/products/connect/pricing'",
+      "locator": {
+        "anchors": {
+          "text": "See pricing and sign up",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/pricing",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "main",
+          "ordinalInLandmark": 2
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          605,
+          6204,
+          230,
+          48
+        ],
+        "bboxNew": [
+          605,
+          6204,
+          230,
+          48
+        ],
+        "seqIndexOld": 147,
+        "seqIndexNew": 154
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.615,
+          "signals": {
+            "accName": 1.0,
+            "href": 0.0,
+            "identityScore": 0.45,
+            "text": 1.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "href": "/products/connect/pricing",
+          "resolved": "/products/connect/pricing"
+        },
+        "old": {
+          "href": "pricing.html",
+          "resolved": "/pricing.html"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/products/connect/pricing",
+            "See pricing and sign up"
+          ]
+        },
+        "from": "/products/connect/pricing",
+        "to": "pricing.html"
+      }
+    },
+    {
+      "id": "issue_b02edcb462aa",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.54,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'pricing.html' to '/products/connect/pricing'",
+      "locator": {
+        "anchors": {
+          "text": "See pricing and sign up",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/pricing",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          583,
+          230,
+          48
+        ],
+        "bboxNew": [
+          120,
+          583,
+          230,
+          48
+        ],
+        "seqIndexOld": 19,
+        "seqIndexNew": 26
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.615,
+          "signals": {
+            "accName": 1.0,
+            "href": 0.0,
+            "identityScore": 0.45,
+            "text": 1.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "href": "/products/connect/pricing",
+          "resolved": "/products/connect/pricing"
+        },
+        "old": {
+          "href": "pricing.html",
+          "resolved": "/pricing.html"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/products/connect/pricing",
+            "See pricing and sign up"
+          ]
+        },
+        "from": "/products/connect/pricing",
+        "to": "pricing.html"
+      }
+    },
+    {
+      "id": "issue_3a2bb6daa9b1",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.459,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'branded-call.html#' to '#'",
+      "locator": {
+        "anchors": {
+          "text": "Cookies Settings",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/branded-call#",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
+        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
+        "bboxOld": [
+          616,
+          6930,
+          92,
+          20
+        ],
+        "bboxNew": [
+          616,
+          6930,
+          98,
+          20
+        ],
+        "seqIndexOld": 199,
+        "seqIndexNew": 207
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.4946,
+          "signals": {
+            "accName": 0.6354,
+            "href": 0.0,
+            "identityScore": 0.2859,
+            "text": 0.6354,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 0.9388
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "href": "#",
+          "resolved": "#"
+        },
+        "old": {
+          "href": "branded-call.html#",
+          "resolved": "/branded-call.html"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "#",
+            "Cookie Settings"
+          ]
+        },
+        "from": "#",
+        "to": "branded-call.html#"
+      }
+    },
+    {
+      "id": "issue_430cd019cc1d",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.459,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'pricing.html' to '/products/connect/pricing'",
+      "locator": {
+        "anchors": {
+          "text": "View Plans",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/pricing",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "PRODUCTS",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(4) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(4) > a:nth-of-type(1)",
+        "bboxOld": [
+          306,
+          6617,
+          65,
+          18
+        ],
+        "bboxNew": [
+          306,
+          6617,
+          65,
+          18
+        ],
+        "seqIndexOld": 158,
+        "seqIndexNew": 166
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.615,
+          "signals": {
+            "accName": 1.0,
+            "href": 0.0,
+            "identityScore": 0.45,
+            "text": 1.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "href": "/products/connect/pricing",
+          "resolved": "/products/connect/pricing"
+        },
+        "old": {
+          "href": "pricing.html",
+          "resolved": "/pricing.html"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/products/connect/pricing",
+            "View Plans"
+          ]
+        },
+        "from": "/products/connect/pricing",
+        "to": "pricing.html"
+      }
+    },
+    {
+      "id": "issue_7d6479288ac3",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.459,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'branded-call.html' to '/products/connect/branded-call'",
+      "locator": {
+        "anchors": {
+          "text": "Branded Call",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/branded-call",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "PRODUCTS",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(3) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(3) > a:nth-of-type(1)",
+        "bboxOld": [
+          306,
+          6589,
+          78,
+          18
+        ],
+        "bboxNew": [
+          306,
+          6589,
+          78,
+          18
+        ],
+        "seqIndexOld": 157,
+        "seqIndexNew": 165
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.615,
+          "signals": {
+            "accName": 1.0,
+            "href": 0.0,
+            "identityScore": 0.45,
+            "text": 1.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "href": "/products/connect/branded-call",
+          "resolved": "/products/connect/branded-call"
+        },
+        "old": {
+          "href": "branded-call.html",
+          "resolved": "/branded-call.html"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/products/connect/branded-call",
+            "Branded Call"
+          ]
+        },
+        "from": "/products/connect/branded-call",
+        "to": "branded-call.html"
+      }
+    },
+    {
+      "id": "issue_7ef0b4f1fd21",
+      "type": "changed_link_text",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.459,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link text changed from 'Cookie Settings' to 'Cookies Settings'",
+      "locator": {
+        "anchors": {
+          "text": "Cookies Settings",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/branded-call#",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
+        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(4)",
+        "bboxOld": [
+          616,
+          6930,
+          92,
+          20
+        ],
+        "bboxNew": [
+          616,
+          6930,
+          98,
+          20
+        ],
+        "seqIndexOld": 199,
+        "seqIndexNew": 207
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.4946,
+          "signals": {
+            "accName": 0.6354,
+            "href": 0.0,
+            "identityScore": 0.2859,
+            "text": 0.6354,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 0.9388
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "text": "Cookies Settings"
+        },
+        "old": {
+          "text": "Cookie Settings"
+        }
+      },
+      "remediation": {
+        "action": "restore_text",
+        "findBy": {
+          "grep": [
+            "Cookies Settings"
+          ],
+          "near": "RESOURCES"
+        },
+        "from": "Cookies Settings",
+        "to": "Cookie Settings"
+      }
+    },
+    {
+      "id": "issue_df30dc7a941b",
+      "type": "changed_link_target",
+      "category": "content",
+      "severity": "error",
+      "confidence": 0.459,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G2",
+      "message": "Link target changed from 'number-registration.html' to '/products/connect/number-registration'",
+      "locator": {
+        "anchors": {
+          "text": "Number Registration",
+          "role": "link",
+          "href": "https://www.hiya.com/products/connect/number-registration",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "PRODUCTS",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(2) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(2) > a:nth-of-type(1)",
+        "bboxOld": [
+          306,
+          6561,
+          123,
+          18
+        ],
+        "bboxNew": [
+          306,
+          6561,
+          123,
+          18
+        ],
+        "seqIndexOld": 156,
+        "seqIndexNew": 164
+      },
+      "evidence": {
+        "match": {
+          "band": "uncertain",
+          "score": 0.615,
+          "signals": {
+            "accName": 1.0,
+            "href": 0.0,
+            "identityScore": 0.45,
+            "text": 1.0,
+            "tiebreakNearby": 1.0,
+            "tiebreakPos": 1.0,
+            "tiebreakSize": 1.0
+          },
+          "stage": "assignment"
+        },
+        "new": {
+          "href": "/products/connect/number-registration",
+          "resolved": "/products/connect/number-registration"
+        },
+        "old": {
+          "href": "number-registration.html",
+          "resolved": "/number-registration.html"
+        }
+      },
+      "remediation": {
+        "action": "update_link_target",
+        "findBy": {
+          "grep": [
+            "/products/connect/number-registration",
+            "Number Registration"
+          ]
+        },
+        "from": "/products/connect/number-registration",
+        "to": "number-registration.html"
+      }
+    },
+    {
+      "id": "issue_29f91687cd9f",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (668, 713) 90x32",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "listitem",
+          "href": null,
+          "alt": "Domestic & General logo",
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 8
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > img:nth-of-type(6)",
+        "bboxOld": [
+          668,
+          713,
+          90,
+          32
+        ],
+        "bboxNew": [
+          668,
+          713,
+          90,
+          32
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 29
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_29f91687cd9f_diff.png",
+          "newCrop": "desktop/issues/issue_29f91687cd9f_new.png",
+          "oldCrop": "desktop/issues/issue_29f91687cd9f_old.png"
+        },
+        "visual": {
+          "changedPixels": 1114,
+          "pageChangedRatio": 0.008550913318363511,
+          "regionBbox": [
+            668,
+            713,
+            90,
+            32
+          ],
+          "regionChangedRatio": 0.00011088019365215868
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_40abd30d7c94",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (120, 144) 240x56",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": "Hiya Connect Branded Call",
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > img:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          144,
+          240,
+          56
+        ],
+        "bboxNew": [
+          120,
+          144,
+          240,
+          56
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 15
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_40abd30d7c94_diff.png",
+          "newCrop": "desktop/issues/issue_40abd30d7c94_new.png",
+          "oldCrop": "desktop/issues/issue_40abd30d7c94_old.png"
+        },
+        "visual": {
+          "changedPixels": 5377,
+          "pageChangedRatio": 0.008550913318363511,
+          "regionBbox": [
+            120,
+            144,
+            240,
+            56
+          ],
+          "regionChangedRatio": 0.0005351910244772506
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_4cebeadfce8f",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (0, 64) 1440x49",
+      "locator": {
+        "anchors": {
+          "text": "🛠️",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": null,
+        "bboxOld": [
+          0,
+          64,
+          1440,
+          49
+        ],
+        "bboxNew": [
+          0,
+          64,
+          1440,
+          49
+        ],
+        "seqIndexOld": 0,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_4cebeadfce8f_diff.png",
+          "newCrop": "desktop/issues/issue_4cebeadfce8f_new.png",
+          "oldCrop": "desktop/issues/issue_4cebeadfce8f_old.png"
+        },
+        "visual": {
+          "changedPixels": 69226,
+          "pageChangedRatio": 0.008550913318363511,
+          "regionBbox": [
+            0,
+            64,
+            1440,
+            49
+          ],
+          "regionChangedRatio": 0.006890298281655599
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_8c1393568931",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (120, 6493) 88x93",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "link",
+          "href": "https://www.linkedin.com/company/hiyainc",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          6493,
+          88,
+          93
+        ],
+        "bboxNew": [
+          120,
+          6493,
+          88,
+          93
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 150
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_8c1393568931_diff.png",
+          "newCrop": "desktop/issues/issue_8c1393568931_new.png",
+          "oldCrop": "desktop/issues/issue_8c1393568931_old.png"
+        },
+        "visual": {
+          "changedPixels": 4084,
+          "pageChangedRatio": 0.008550913318363511,
+          "regionBbox": [
+            120,
+            6493,
+            88,
+            93
+          ],
+          "regionChangedRatio": 0.00040649435446626214
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_ea92bdee7f79",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (281, 25) 554x15",
+      "locator": {
+        "anchors": {
+          "text": "Products",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": "navigation",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          281,
+          25,
+          554,
+          15
+        ],
+        "bboxNew": [
+          281,
+          25,
+          554,
+          15
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 3
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_ea92bdee7f79_diff.png",
+          "newCrop": "desktop/issues/issue_ea92bdee7f79_new.png",
+          "oldCrop": "desktop/issues/issue_ea92bdee7f79_old.png"
+        },
+        "visual": {
+          "changedPixels": 2649,
+          "pageChangedRatio": 0.008550913318363511,
+          "regionBbox": [
+            281,
+            25,
+            554,
+            15
+          ],
+          "regionChangedRatio": 0.0002636639434331852
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_a609a79ce17b",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (1368, 924) 72x64",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": null,
+          "landmark": null,
+          "ordinalInLandmark": null
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": null,
+        "bboxOld": [
+          1368,
+          924,
+          72,
+          64
+        ],
+        "bboxNew": [
+          1368,
+          924,
+          72,
+          64
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_a609a79ce17b_diff.png",
+          "newCrop": "desktop/issues/issue_a609a79ce17b_new.png",
+          "oldCrop": "desktop/issues/issue_a609a79ce17b_old.png"
+        },
+        "visual": {
+          "changedPixels": 1508,
+          "pageChangedRatio": 0.008550913318363511,
+          "regionBbox": [
+            1368,
+            924,
+            72,
+            64
+          ],
+          "regionChangedRatio": 0.00015009634831908016
+        }
+      },
+      "remediation": null
+    }
+  ],
+  "clusters": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "ran",
+      "settled": "ran",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

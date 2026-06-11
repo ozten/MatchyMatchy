@@ -291,3 +291,127 @@ are the only timestamps and compare-golden.py excludes them; URLs are the fixed 
 artifact paths are relative, and the two-run byte-identity check passed." Non-blocking follow-ups
 noted for M6: (a) unify `locale` stamping across emitters (`component_swapped` emits null while
 visual issues emit "en-US"); (b) suffix-aware crop artifact naming for collision-suffixed issue ids.
+
+## 2026-06-10 — M6: hygiene `statusIn` tightened `["warn","fail"]` → `["fail"]` on v14–v17
+
+**What changed:** `statusIn` in `testbed/variants/{v14-trailing-slash,v15-locale-underscore,
+v16-locale-lowercase,v17-redirect-chain}/expected-issues.json` tightened from `["warn","fail"]`
+to `["fail"]`. No required matcher, forbidden assertion, anchor, or evidence field changed; no
+byte golden was re-recorded (the recorded goldens already read `status: "fail"`).
+
+**Why the old expectation was wrong (over-loose):** Spec §9 maps the Hygiene category to **fail**
+under both parity profiles, including the default `content-structure` the fixture runner uses.
+The implementation conforms: `scoring.rs::severity_for` returns `Error` for hygiene
+unconditionally, and `compute_status` yields `warn` only when the worst post-profile severity is
+`warning` — so a fixture whose single required issue is hygiene/error can never legitimately
+produce `warn`. The `"warn"` band was provisional looseness from initial authorship (the §9
+mapping was unimplemented then); it is unreachable for any §9-conforming implementation, so the
+tightened band cannot reject a correct future tool. This discharges the standing condition from
+the testbed-build entry above ("At M6 (calibration gate), revisit the ["warn","fail"] status
+bands on v14/v15") per docs/design/M6.md §7. v16/v17 are included beyond the condition's literal
+v14/v15 scope because they assert the identical band for the identical category-severity mapping;
+leaving them loose would be the real inconsistency. (v18 was authored `["fail"]` already.)
+
+**Closing caveat (auditor condition 2):** the tightening is valid only under the default profile
+the fixture runner uses. If a future config ever applies an explicit per-type severity override
+(§9: "explicit per-type severity config overrides them") to these fixtures, the band must be
+revisited via this same discipline.
+
+**Audit:** golden-auditor VERDICT: APPROVE (2026-06-10). Key verification quoted: "the band being
+removed is unreachable for any §9-conforming implementation, meaning the tightened band cannot
+reject a correct future tool. […] The justification is spec §9, not 'the code currently produces
+fail' — the goldens merely corroborate." Both conditions are satisfied by this entry.
+
+## 2026-06-10 — M6: v02/v03/v04/v07/v12/v19 re-recorded after suffix-aware crop naming (WP-A) and sequence-diff locale stamping (WP-B)
+
+**What changed:** `testbed/goldens/{v02-banner-added,v03-font-size,v04-font-family,
+v07-sections-swapped,v12-image-404,v19-container-gap}.diffresult.json` re-recorded from the
+verified `testbed/.runs/<variant>/diff-result.json` outputs (the exact files the auditor
+field-walked). No `expected-issues.json` changed; all 19 intent checks pass before and after.
+
+**Why the old goldens were superseded:** two deliberate behavior changes, designed in
+`docs/design/M6.md` §5–§6, discharging follow-ups (a) and (b) that the golden-auditor recorded
+in the M5 entry above:
+
+- **WP-A — suffix-aware crop artifacts (M6.md §5):** crop PNGs were previously written and
+  `evidence.artifacts` paths stamped using the content-addressed id *before*
+  `resolve_id_collisions` ran, so collision-suffixed issues (e.g. v03's `issue_a609a79ce17b-2`
+  …`-19`) all referenced and successively overwrote the SAME three crop files — n−1 of n
+  distinct region crops were destroyed. **The prior goldens therefore referenced
+  destroyed/aliased crop files; their artifact paths were never valid evidence** (auditor
+  condition 3). Crops are now written after collision resolution using each issue's FINAL id
+  (lib.rs deferred `pending_crops` pass; unit test `test_deferred_crop_suffix_aware`); the v03
+  run archive contains 150 per-suffix crop files with distinct bytes (auditor md5-verified).
+- **WP-B — locale stamping (M6.md §6):** `sequence_diff.rs` was the only emitter leaving
+  `issue.locale = null`; it now stamps the new page's `<html lang>` like every other emitter,
+  per the spec §7.1 Issue example (which shows `locale` stamped). Affects exactly v07's
+  `component_swapped`: null → `"en-US"`.
+
+**Spec grounding:** §7.1 hashes only type+viewport+anchors+styleProperty and explicitly
+excludes artifact paths (and locale) from the id hash — hence the auditor-confirmed invariance
+of all ids, counts, type multisets, severities, confidences, anchors, and ordering across all
+six files. Divergences were **field-verified as confined to** `evidence.artifacts` path strings
+on collision-suffixed issues (210 path diffs, 0 pattern violations: each new path embeds the
+owning issue's final suffixed id) **plus v07's single `locale` field**.
+
+**Determinism:** two-run byte-identity check on v03 (highest collision count, 758 issues)
+passed before promotion (auditor condition 2).
+
+**Audit:** golden-auditor VERDICT (pasted verbatim, key passage): "This satisfies approval
+ground 3 — re-recording after sound, designed behavior changes. I field-walked all six
+golden/run pairs myself: divergences are exactly (a) evidence.artifacts path strings on
+collision-suffixed issues, where I programmatically verified the old path embeds the base id
+and the new path embeds the owning issue's final suffixed id (0 pattern violations across 210
+artifact-path diffs), and (b) one field, v07 component_swapped.locale null → 'en-US', matching
+the variant page's <html lang=\"en-US\"> and the spec §7.1 Issue example which stamps locale.
+[…] The old goldens encoded a genuine defect: in v03, issue_a609a79ce17b and its 17
+collision-suffixed siblings all pointed at the same three crop files, destroying n−1 distinct
+region crops — the run archive now contains 150 per-suffix crop files with distinct bytes
+(md5-verified), so the new goldens are strictly more truthful evidence, not weaker detection.
+[…] v07's intent file asserts nothing about locale or artifacts, so no required/forbidden
+assertion is affected. VERDICT: APPROVE."
+
+## 2026-06-11 — M6: v08 re-recorded after dup-label missing_text suppression (calibration fix C1)
+
+**What changed:** `testbed/goldens/v08-cta-removed.diffresult.json` re-recorded from the
+verified `testbed/.runs/v08-cta-removed/diff-result.json`. No `expected-issues.json` changed;
+all 19 intent checks pass before and after; the other 18 goldens are byte-identical.
+
+**Defect class:** duplicate-label double-count. Webflow-style markup nests a label `<div>`
+inside `<a>`/`<button>`; capture emits both a link/button node and a text node with identical
+text inside the link's bbox. v08's golden encoded TWO issues for ONE removed CTA
+(`missing_link` + `missing_text`, both 'Get a Demo'); on the M6 real calibration pair the same
+mechanism produced false `missing_text` for elements that survived a nesting change
+('Get started', 'Log in' nav CTAs). Fix (C1, emission-side): `semantic_diff::dup_label_ids`
+(BTreeMap/BTreeSet, normalized-text equality + bbox containment within
+`DUP_LABEL_BBOX_TOLERANCE_PX = 2.0`) gates ONLY `missing_text` emission in the missing-old
+loop. An earlier stream-filtering design was rejected when the testbed caught it suppressing
+v05's legitimate `style_changed` issues (the label div carries the button's computed styles) —
+full account in `docs/calibration-note.md` §3 F1, which also freezes the tolerance constant
+(auditor condition 2).
+
+**Spec grounds:** §6.1 (the link node carries the label text as its own identity signal),
+§6.2/§8 item 4 (one defect must not double-count), §12 M6 (tune against observed false
+positives), §13.1.16 (zero-false-missing noise floor).
+
+**Exact delta (auditor-verified):** issues 2→1 (`missing_text` `issue_2a38225dffb3` removed;
+surviving `missing_link` `issue_289f0009bd4c` byte-identical in every field), content score
+1/3→1/2 (mechanical `1/(1+n)`), `fixableNow`/`topFixes` 2→1, status stays `fail`. The dropped
+issue's remediation was a strict subset of the surviving issue's — zero agent work lost.
+
+**Carry-forward (auditor condition 4, non-blocking):** the suppression is old-stream /
+`missing_text` only. When `added_*` emission lands post-v1, the symmetric new-stream dup-label
+suppression must be implemented with its own fixture, or this false-positive class returns on
+the added side.
+
+**Audit:** golden-auditor VERDICT: APPROVE (2026-06-11), pasted verbatim (key passage): "This
+is a legitimate re-record after a sound behavior change (approval ground 3), not teaching to
+the test: the old golden encoded a double-count defect — two issues for one removed element —
+contradicting the spec's one-defect-one-issue economy (§6.2 line 373, §8.4) and the §13.1.16
+zero-false-missing noise floor that §12 M6 exists to enforce. […] I independently rebuilt from
+source, reproduced the proposed output byte-for-byte, confirmed two-run determinism
+(BTreeSet/BTreeMap implementation, emission-scoped to the missing-old loop only), and confirmed
+the delta is exactly as claimed with the surviving issue unchanged in every field." Conditions:
+(1) this entry; (2) calibration note — satisfied by `docs/calibration-note.md`; (3) full
+`make verify` re-confirmation — run after this promotion, output in the M6 report; (4) the
+carry-forward above.
