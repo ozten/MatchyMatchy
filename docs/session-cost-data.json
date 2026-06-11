@@ -1,0 +1,780 @@
+{
+  "sessions": [
+    {
+      "short": "c6a19882",
+      "label": "Document-review (spec)",
+      "active_s": 3069,
+      "span_s": 3873,
+      "orch_cost": 13.4086,
+      "sub_cost": 3.9919,
+      "total_cost": 17.4005,
+      "n_subagents": 6,
+      "agent_types": {
+        "compound-engineering:document-review:coherence-reviewer": 1,
+        "compound-engineering:document-review:feasibility-reviewer": 1,
+        "compound-engineering:document-review:scope-guardian-reviewer": 1,
+        "compound-engineering:document-review:adversarial-document-reviewer": 1,
+        "compound-engineering:document-review:product-lens-reviewer": 1,
+        "compound-engineering:document-review:security-lens-reviewer": 1
+      },
+      "user_turns": 17,
+      "first_ts": "2026-06-10T15:57:24.092Z",
+      "last_ts": "2026-06-10T17:01:57.297Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 21728,
+          "read": 3393918,
+          "w5m": 0,
+          "w1h": 308695,
+          "out": 72470,
+          "cost": 13.408598,
+          "msgs": 30
+        }
+      },
+      "sub_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 31958,
+          "read": 77217,
+          "w5m": 131865,
+          "w1h": 0,
+          "out": 37992,
+          "cost": 3.9447095,
+          "msgs": 11
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 6,
+          "read": 10431,
+          "w5m": 22399,
+          "w1h": 0,
+          "out": 3636,
+          "cost": 0.04722785,
+          "msgs": 2
+        }
+      }
+    },
+    {
+      "short": "dce700da",
+      "label": "Testbed build (golden + variants)",
+      "active_s": 2993,
+      "span_s": 2993,
+      "orch_cost": 13.6058,
+      "sub_cost": 9.6237,
+      "total_cost": 23.2294,
+      "n_subagents": 9,
+      "agent_types": {
+        "fixture-builder": 5,
+        "code-implementer": 1,
+        "test-runner": 2,
+        "golden-auditor": 1
+      },
+      "user_turns": 22,
+      "first_ts": "2026-06-10T17:02:30.178Z",
+      "last_ts": "2026-06-10T17:52:23.275Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 21034,
+          "read": 5417024,
+          "w5m": 0,
+          "w1h": 218633,
+          "out": 72115,
+          "cost": 13.605774000000004,
+          "msgs": 56
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 364,
+          "read": 11143522,
+          "w5m": 584036,
+          "w1h": 0,
+          "out": 52804,
+          "cost": 6.3263436,
+          "msgs": 334
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 24,
+          "read": 29113,
+          "w5m": 15524,
+          "w1h": 0,
+          "out": 560,
+          "cost": 0.025140299999999997,
+          "msgs": 6
+        },
+        "claude-fable-5": {
+          "fresh_in": 546,
+          "read": 951410,
+          "w5m": 177644,
+          "w1h": 0,
+          "out": 1895,
+          "cost": 3.27217,
+          "msgs": 18
+        }
+      }
+    },
+    {
+      "short": "2ef0c415",
+      "label": "README + LICENSE",
+      "active_s": 719,
+      "span_s": 1893,
+      "orch_cost": 1.4078,
+      "sub_cost": 0,
+      "total_cost": 1.4078,
+      "n_subagents": 0,
+      "agent_types": {},
+      "user_turns": 4,
+      "first_ts": "2026-06-10T17:14:45.544Z",
+      "last_ts": "2026-06-10T17:46:18.921Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 7137,
+          "read": 261029,
+          "w5m": 0,
+          "w1h": 39449,
+          "out": 5729,
+          "cost": 1.4078290000000002,
+          "msgs": 6
+        }
+      },
+      "sub_by_model": {}
+    },
+    {
+      "short": "084e6723",
+      "label": "M1 \u2014 implement",
+      "active_s": 3147,
+      "span_s": 3312,
+      "orch_cost": 24.2769,
+      "sub_cost": 5.0328,
+      "total_cost": 29.3097,
+      "n_subagents": 5,
+      "agent_types": {
+        "code-implementer": 3,
+        "test-runner": 2
+      },
+      "user_turns": 23,
+      "first_ts": "2026-06-10T17:53:01.677Z",
+      "last_ts": "2026-06-10T18:48:13.293Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 7856,
+          "read": 11426749,
+          "w5m": 0,
+          "w1h": 446073,
+          "out": 77003,
+          "cost": 24.276919000000003,
+          "msgs": 78
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 320,
+          "read": 11531440,
+          "w5m": 315175,
+          "w1h": 0,
+          "out": 18310,
+          "cost": 4.916948250000001,
+          "msgs": 183
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 136,
+          "read": 602485,
+          "w5m": 38810,
+          "w1h": 0,
+          "out": 1394,
+          "cost": 0.115867,
+          "msgs": 28
+        }
+      }
+    },
+    {
+      "short": "1f2a8b9d",
+      "label": "M2 \u2014 implement",
+      "active_s": 3266,
+      "span_s": 3266,
+      "orch_cost": 23.094,
+      "sub_cost": 6.8108,
+      "total_cost": 29.9048,
+      "n_subagents": 8,
+      "agent_types": {
+        "code-implementer": 4,
+        "fixture-builder": 2,
+        "test-runner": 2
+      },
+      "user_turns": 30,
+      "first_ts": "2026-06-10T18:48:20.185Z",
+      "last_ts": "2026-06-10T19:42:45.870Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 9158,
+          "read": 10762150,
+          "w5m": 81,
+          "w1h": 390230,
+          "out": 88694,
+          "cost": 23.0940425,
+          "msgs": 73
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 2532,
+          "read": 14669458,
+          "w5m": 550910,
+          "w1h": 0,
+          "out": 14665,
+          "cost": 6.694320900000001,
+          "msgs": 200
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 105,
+          "read": 412509,
+          "w5m": 45633,
+          "w1h": 0,
+          "out": 3615,
+          "cost": 0.11647215,
+          "msgs": 37
+        }
+      }
+    },
+    {
+      "short": "a19ef7e3",
+      "label": "M3 \u2014 implement",
+      "active_s": 3416,
+      "span_s": 3503,
+      "orch_cost": 27.7157,
+      "sub_cost": 5.9614,
+      "total_cost": 33.6771,
+      "n_subagents": 10,
+      "agent_types": {
+        "test-runner": 5,
+        "code-implementer": 4,
+        "golden-auditor": 1
+      },
+      "user_turns": 26,
+      "first_ts": "2026-06-10T19:42:58.038Z",
+      "last_ts": "2026-06-10T20:41:21.393Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 11487,
+          "read": 12875447,
+          "w5m": 0,
+          "w1h": 481301,
+          "out": 101988,
+          "cost": 27.715737000000004,
+          "msgs": 65
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 10079,
+          "read": 10147467,
+          "w5m": 297533,
+          "w1h": 0,
+          "out": 14367,
+          "cost": 4.405730850000001,
+          "msgs": 133
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 171,
+          "read": 572743,
+          "w5m": 68636,
+          "w1h": 0,
+          "out": 2910,
+          "cost": 0.1577903,
+          "msgs": 51
+        },
+        "claude-fable-5": {
+          "fresh_in": 544,
+          "read": 302271,
+          "w5m": 71663,
+          "w1h": 0,
+          "out": 3887,
+          "cost": 1.3978485000000003,
+          "msgs": 17
+        }
+      }
+    },
+    {
+      "short": "af7bfbbb",
+      "label": "M2 \u2014 commit",
+      "active_s": 152,
+      "span_s": 152,
+      "orch_cost": 1.0576,
+      "sub_cost": 0.0226,
+      "total_cost": 1.0802,
+      "n_subagents": 1,
+      "agent_types": {
+        "test-runner": 1
+      },
+      "user_turns": 4,
+      "first_ts": "2026-06-10T19:48:03.057Z",
+      "last_ts": "2026-06-10T19:50:34.869Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 7990,
+          "read": 329677,
+          "w5m": 0,
+          "w1h": 22800,
+          "out": 3840,
+          "cost": 1.057577,
+          "msgs": 9
+        }
+      },
+      "sub_by_model": {
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 16,
+          "read": 16366,
+          "w5m": 14633,
+          "w1h": 0,
+          "out": 534,
+          "cost": 0.022613849999999998,
+          "msgs": 3
+        }
+      }
+    },
+    {
+      "short": "d252f89a",
+      "label": "M4 \u2014 implement",
+      "active_s": 4837,
+      "span_s": 4837,
+      "orch_cost": 37.1513,
+      "sub_cost": 14.357,
+      "total_cost": 51.5083,
+      "n_subagents": 10,
+      "agent_types": {
+        "golden-auditor": 2,
+        "fixture-builder": 1,
+        "code-implementer": 4,
+        "test-runner": 3
+      },
+      "user_turns": 36,
+      "first_ts": "2026-06-10T20:41:34.732Z",
+      "last_ts": "2026-06-10T22:02:11.583Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 15359,
+          "read": 20327629,
+          "w5m": 0,
+          "w1h": 525131,
+          "out": 123349,
+          "cost": 37.15128899999999,
+          "msgs": 104
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 1040,
+          "read": 24963879,
+          "w5m": 1109688,
+          "w1h": 0,
+          "out": 25350,
+          "cost": 12.033863699999998,
+          "msgs": 319
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 496,
+          "read": 4658325,
+          "w5m": 420280,
+          "w1h": 0,
+          "out": 9727,
+          "cost": 1.0403134999999997,
+          "msgs": 111
+        },
+        "claude-fable-5": {
+          "fresh_in": 542,
+          "read": 239858,
+          "w5m": 64034,
+          "w1h": 0,
+          "out": 4742,
+          "cost": 1.282803,
+          "msgs": 16
+        }
+      }
+    },
+    {
+      "short": "1b3f77ae",
+      "label": "M5 \u2014 implement",
+      "active_s": 4407,
+      "span_s": 5382,
+      "orch_cost": 17.3353,
+      "sub_cost": 6.6588,
+      "total_cost": 23.994,
+      "n_subagents": 6,
+      "agent_types": {
+        "Explore": 1,
+        "test-runner": 3,
+        "code-implementer": 1,
+        "golden-auditor": 1
+      },
+      "user_turns": 21,
+      "first_ts": "2026-06-10T22:02:38.972Z",
+      "last_ts": "2026-06-10T23:32:20.944Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 9872,
+          "read": 8896621,
+          "w5m": 0,
+          "w1h": 267891,
+          "out": 59642,
+          "cost": 17.335261000000003,
+          "msgs": 70
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 109,
+          "read": 9510980,
+          "w5m": 658183,
+          "w1h": 0,
+          "out": 10912,
+          "cost": 5.48548725,
+          "msgs": 99
+        },
+        "claude-fable-5": {
+          "fresh_in": 273,
+          "read": 183878,
+          "w5m": 31940,
+          "w1h": 0,
+          "out": 2532,
+          "cost": 0.712458,
+          "msgs": 9
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 203,
+          "read": 2212001,
+          "w5m": 149513,
+          "w1h": 0,
+          "out": 10505,
+          "cost": 0.46081935,
+          "msgs": 62
+        }
+      }
+    },
+    {
+      "short": "dc24ae1c",
+      "label": "M6 \u2014 implement",
+      "active_s": 6948,
+      "span_s": 7379,
+      "orch_cost": 39.6004,
+      "sub_cost": 11.8013,
+      "total_cost": 51.4017,
+      "n_subagents": 11,
+      "agent_types": {
+        "code-implementer": 2,
+        "golden-auditor": 3,
+        "test-runner": 6
+      },
+      "user_turns": 39,
+      "first_ts": "2026-06-10T23:32:29.018Z",
+      "last_ts": "2026-06-11T01:35:28.169Z",
+      "orch_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 13276,
+          "read": 19900781,
+          "w5m": 0,
+          "w1h": 621544,
+          "out": 142719,
+          "cost": 39.60037099999999,
+          "msgs": 111
+        }
+      },
+      "sub_by_model": {
+        "claude-fable-5": {
+          "fresh_in": 1204,
+          "read": 1384925,
+          "w5m": 150125,
+          "w1h": 0,
+          "out": 8515,
+          "cost": 3.6992775,
+          "msgs": 49
+        },
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 408,
+          "read": 2238690,
+          "w5m": 201731,
+          "w1h": 0,
+          "out": 11271,
+          "cost": 0.53279575,
+          "msgs": 103
+        },
+        "claude-sonnet-4-6": {
+          "fresh_in": 6483,
+          "read": 15323511,
+          "w5m": 718900,
+          "w1h": 0,
+          "out": 17124,
+          "cost": 7.5692373,
+          "msgs": 171
+        }
+      }
+    },
+    {
+      "short": "6b5dda71",
+      "label": "curl-install GH action / release",
+      "active_s": 3649,
+      "span_s": 48105,
+      "orch_cost": 7.607,
+      "sub_cost": 0.0321,
+      "total_cost": 7.6391,
+      "n_subagents": 1,
+      "agent_types": {
+        "test-runner": 1
+      },
+      "user_turns": 17,
+      "first_ts": "2026-06-10T23:33:17.881Z",
+      "last_ts": "2026-06-11T12:55:02.682Z",
+      "orch_by_model": {
+        "claude-opus-4-8": {
+          "fresh_in": 11204,
+          "read": 4800294,
+          "w5m": 0,
+          "w1h": 327153,
+          "out": 75173,
+          "cost": 7.607022000000001,
+          "msgs": 62
+        }
+      },
+      "sub_by_model": {
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 50,
+          "read": 91370,
+          "w5m": 16237,
+          "w1h": 0,
+          "out": 514,
+          "cost": 0.032053250000000005,
+          "msgs": 8
+        }
+      }
+    },
+    {
+      "short": "285dac11",
+      "label": "M7 \u2014 implement",
+      "active_s": 3925,
+      "span_s": 13391,
+      "orch_cost": 19.6336,
+      "sub_cost": 4.8526,
+      "total_cost": 24.4861,
+      "n_subagents": 7,
+      "agent_types": {
+        "code-implementer": 2,
+        "fixture-builder": 1,
+        "test-runner": 3,
+        "golden-auditor": 1
+      },
+      "user_turns": 31,
+      "first_ts": "2026-06-11T01:35:34.588Z",
+      "last_ts": "2026-06-11T05:18:45.432Z",
+      "orch_by_model": {
+        "claude-opus-4-8": {
+          "fresh_in": 9032,
+          "read": 15531305,
+          "w5m": 0,
+          "w1h": 867943,
+          "out": 125733,
+          "cost": 19.633567499999998,
+          "msgs": 85
+        }
+      },
+      "sub_by_model": {
+        "claude-sonnet-4-6": {
+          "fresh_in": 1382,
+          "read": 5987998,
+          "w5m": 317258,
+          "w1h": 0,
+          "out": 20437,
+          "cost": 3.2968179000000006,
+          "msgs": 156
+        },
+        "claude-opus-4-8": {
+          "fresh_in": 9666,
+          "read": 1020180,
+          "w5m": 146306,
+          "w1h": 0,
+          "out": 3316,
+          "cost": 1.5557325,
+          "msgs": 21
+        }
+      }
+    },
+    {
+      "short": "a9c0bcdb",
+      "label": "M8 \u2014 implement",
+      "active_s": 4239,
+      "span_s": 26847,
+      "orch_cost": 18.4846,
+      "sub_cost": 2.8809,
+      "total_cost": 21.3654,
+      "n_subagents": 5,
+      "agent_types": {
+        "code-implementer": 2,
+        "test-runner": 2,
+        "golden-auditor": 1
+      },
+      "user_turns": 33,
+      "first_ts": "2026-06-11T05:18:52.026Z",
+      "last_ts": "2026-06-11T12:46:19.331Z",
+      "orch_by_model": {
+        "claude-opus-4-8": {
+          "fresh_in": 9379,
+          "read": 18756603,
+          "w5m": 0,
+          "w1h": 638313,
+          "out": 107049,
+          "cost": 18.484551500000002,
+          "msgs": 112
+        }
+      },
+      "sub_by_model": {
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 154,
+          "read": 786594,
+          "w5m": 54231,
+          "w1h": 0,
+          "out": 2805,
+          "cost": 0.16062715,
+          "msgs": 43
+        },
+        "claude-sonnet-4-6": {
+          "fresh_in": 78,
+          "read": 4414241,
+          "w5m": 150694,
+          "w1h": 0,
+          "out": 4711,
+          "cost": 1.9602738,
+          "msgs": 74
+        },
+        "claude-opus-4-8": {
+          "fresh_in": 283,
+          "read": 618253,
+          "w5m": 62215,
+          "w1h": 0,
+          "out": 2423,
+          "cost": 0.75996025,
+          "msgs": 14
+        }
+      }
+    },
+    {
+      "short": "0ad6c1f9",
+      "label": "New-test-case capability Q&A",
+      "active_s": 452,
+      "span_s": 452,
+      "orch_cost": 0.9253,
+      "sub_cost": 0.2664,
+      "total_cost": 1.1917,
+      "n_subagents": 1,
+      "agent_types": {
+        "Explore": 1
+      },
+      "user_turns": 5,
+      "first_ts": "2026-06-11T12:46:35.540Z",
+      "last_ts": "2026-06-11T12:54:07.912Z",
+      "orch_by_model": {
+        "claude-opus-4-8": {
+          "fresh_in": 6318,
+          "read": 172066,
+          "w5m": 0,
+          "w1h": 58101,
+          "out": 9068,
+          "cost": 0.925333,
+          "msgs": 5
+        }
+      },
+      "sub_by_model": {
+        "claude-haiku-4-5-20251001": {
+          "fresh_in": 27,
+          "read": 1573289,
+          "w5m": 54710,
+          "w1h": 0,
+          "out": 8129,
+          "cost": 0.2663884,
+          "msgs": 53
+        }
+      }
+    },
+    {
+      "short": "a5cf1e83",
+      "label": "This cost-analysis session",
+      "active_s": 476,
+      "span_s": 476,
+      "orch_cost": 1.0268,
+      "sub_cost": 0,
+      "total_cost": 1.0268,
+      "n_subagents": 0,
+      "agent_types": {},
+      "user_turns": 4,
+      "first_ts": "2026-06-11T12:47:54.124Z",
+      "last_ts": "2026-06-11T12:55:49.707Z",
+      "orch_by_model": {
+        "claude-opus-4-8": {
+          "fresh_in": 6324,
+          "read": 307333,
+          "w5m": 0,
+          "w1h": 38082,
+          "out": 18429,
+          "cost": 1.0268315000000001,
+          "msgs": 8
+        }
+      },
+      "sub_by_model": {}
+    }
+  ],
+  "totals": {
+    "active": 45693.83600000001,
+    "span": 125861.026,
+    "orch": 246.33070299999997,
+    "sub": 72.29209164999999,
+    "total": 318.62279465000006,
+    "subag": 80,
+    "turns": 312
+  },
+  "model_totals": {
+    "claude-fable-5": {
+      "fresh_in": 159964,
+      "read": 96730584,
+      "w5m": 627352,
+      "w1h": 3321747,
+      "out": 807112,
+      "cost": 212.962664,
+      "msgs": 722
+    },
+    "claude-haiku-4-5-20251001": {
+      "fresh_in": 1796,
+      "read": 13203916,
+      "w5m": 1102337,
+      "w1h": 0,
+      "out": 55600,
+      "cost": 2.9781088499999995,
+      "msgs": 507
+    },
+    "claude-sonnet-4-6": {
+      "fresh_in": 22387,
+      "read": 107692496,
+      "w5m": 4702377,
+      "w1h": 0,
+      "out": 178680,
+      "cost": 52.68902355,
+      "msgs": 1669
+    },
+    "claude-opus-4-8": {
+      "fresh_in": 52206,
+      "read": 41206034,
+      "w5m": 208521,
+      "w1h": 1929592,
+      "out": 341191,
+      "cost": 49.99299825,
+      "msgs": 307
+    }
+  },
+  "agent_type_totals": {
+    "compound-engineering:document-review:coherence-reviewer": 1,
+    "compound-engineering:document-review:feasibility-reviewer": 1,
+    "compound-engineering:document-review:scope-guardian-reviewer": 1,
+    "compound-engineering:document-review:adversarial-document-reviewer": 1,
+    "compound-engineering:document-review:product-lens-reviewer": 1,
+    "compound-engineering:document-review:security-lens-reviewer": 1,
+    "fixture-builder": 9,
+    "code-implementer": 23,
+    "test-runner": 30,
+    "golden-auditor": 10,
+    "Explore": 2
+  }
+}
