@@ -5,7 +5,13 @@ crisp DoD in spec §12, which makes the evaluator's job (and your auditing job) 
 fresh session per milestone keeps Fable's context clean. (`/goal` allows one active goal per
 session anyway.)
 
-## Per-milestone pattern (repeat for M1 → M7)
+## Per-milestone pattern (repeat for M1 → M8)
+
+> **Numbering note (2026-06-11):** this file originally predated spec v3, which deferred
+> capability probes to post-v1 and renumbered §12 (M6 = real-pair calibration, M7 = a11y +
+> network, M8 = reporters/profiles/migration loop). The M6–M8 entries below now match spec v3;
+> never paste a goal that demands capability detectors/probes or the capability issue types —
+> spec §7.3 reserves those for post-v1 and CLAUDE.md makes the spec authoritative.
 
 ```
 /implement-milestone M1
@@ -65,26 +71,44 @@ then immediately:
 
 ---
 
-## M6 — Capability probes + a11y + network
+## M6 — Real-pair calibration gate ✅ done 2026-06-11
+
+Completed (commit `bd795bd`): three real pairs run and triaged, all matcher/visual constants
+frozen unchanged, four FP-class fixes (C1–C4) landed under golden discipline. Record:
+`docs/calibration-note.md`, `docs/design/M6.md`, `calibration/`. If thresholds ever change,
+recalibrate per spec §12 M6 against the archived-pair procedure in the note; the goal below is
+kept only for such a re-run.
 
 ```
-/implement-milestone M6
-```
-then immediately:
-```
-/goal Milestone M6 of docs/prds/page-pair-diff-spec.md is done per its DoD: docs/design/M6.md exists and lists the capability detectors and the shallow safe probes with their safety constraints (no production form submission or auth action without explicit opt-in flags); the testbed contains the variants this milestone needs — if variants for a broken mobile menu, missing accordion or tab behavior, a newly 404ing asset, and a new console error do not exist, they have been added via fixture-builder with manifests and hand-authored expected-issues.json, including any small interactive widgets that must first be added to the golden in a documented, changelogged way or built as a dedicated golden-plus-variant pair if the captured golden has no interactive widgets to break; the capture layer detects section 11 capabilities from rendered signals, runs shallow probes asserting DOM or visibility change, records network request outcomes and console messages, and runs axe-core on both pages; the analyze layer emits missing_capability, nonfunctional_capability, changed_capability, accessibility_regression, accessibility_improved, network_error, and console_error, scoring new-only network and console failures against the new page while failures present on both are noted but not scored; fixture runs shown in conversation demonstrate the broken-mobile-menu variant yields nonfunctional_capability, the missing-accordion-behavior variant yields nonfunctional_capability or missing_capability per its expected-issues.json, the 404-asset variant yields network_error naming the failed URL, and the console-error variant yields console_error with the message in evidence; `make verify` output has been shown exiting 0; the determinism spot-check has been shown passing; and any expectation changes have an APPROVE verdict from golden-auditor recorded in docs/golden-changelog.md. Surface all verification output in conversation. Stop and report instead of continuing if blocked on the same failure for 3 consecutive turns, or after 80 turns.
+/goal Milestone M6 of docs/prds/page-pair-diff-spec.md is done per its DoD: docs/design/M6.md exists; the tool has been run end-to-end against at least one real old/new pair of the actual target page (not a testbed fixture), with the capture bundles archived and their SHA-256s recorded; every issue in the resulting DiffResult has been triaged into true-positive (defect or drift), false-positive (tool or noise), or artifact buckets with the triage tables shown in conversation, and there are zero unexplained missing or added issues; matcher weights, identityFloor, matchFloor/noMatchCeil, and the visual thresholds have each been confirmed or tuned against the observed false positives and negatives, with a written calibration note in docs/ recording the findings and the final frozen values, and config.rs annotated that the defaults are frozen; a live-vs-live noise-floor run has been shown producing zero issues; a determinism double-analyze of the real-pair bundles has been shown byte-identical modulo runId; `make verify` output has been shown exiting 0 across all testbed fixtures; and any expectation or golden changes have an APPROVE verdict from golden-auditor recorded in docs/golden-changelog.md. Surface all verification output in conversation. Stop and report instead of continuing if blocked on the same failure for 3 consecutive turns, or after 80 turns.
 ```
 
 ---
 
-## M7 — Reporters + parity profiles
+## M7 — A11y + network diffs (G8)
 
 ```
 /implement-milestone M7
 ```
 then immediately:
 ```
-/goal Milestone M7 of docs/prds/page-pair-diff-spec.md is done per its DoD: docs/design/M7.md exists; the analyze layer renders the same DiffResult to HTML (side-by-side screenshots, region jump links, issue filters, fix-value-ordered issue list per section 7.2), Markdown, and JSON, with the JSON issues array sorted by fix value as the agent work queue and the agentSummary block first in the file; the three parity profiles strict-visual, content-structure, and capability-only are implemented per the section 9 severity table with explicit per-type severity config overriding profile defaults; the CLI supports the section 14 flags including --profile, --fail-on, --json, --html, and --markdown, and exits 0 on pass, 1 on a failed --fail-on threshold, and 2 on tool or runtime error; a single run against a styled variant such as v06-gradient-removed has been shown producing all three report formats, and the same run has been shown under content-structure versus strict-visual demonstrating the profile switch changes the pass or fail status as specified, plus an exit-code demonstration of 0, 1, and 2 cases; the full fixture suite across all variants has been run with a pass table shown and every variant green against its expected-issues.json and recorded golden; the section 15 invariant checklist has been walked item by item in conversation with evidence for each, confirming every goal G1 through G6 has at least one passing fixture; `make verify` output has been shown exiting 0; the determinism spot-check has been shown passing; and any expectation changes have an APPROVE verdict from golden-auditor recorded in docs/golden-changelog.md. Surface all verification output in conversation. Stop and report instead of continuing if blocked on the same failure for 3 consecutive turns, or after 80 turns.
+/goal Milestone M7 of docs/prds/page-pair-diff-spec.md is done per its DoD: docs/design/M7.md exists; the capture layer records axe-core results for both pages plus network request outcomes and console messages in the CaptureBundle per section 4.3; the analyze layer emits accessibility_regression, accessibility_improved, network_error, and console_error per sections 7.3 and 11, scoring new-only network and console failures against the new page while failures present on both pages are noted but not scored against it; the testbed contains the variants this milestone needs — v12-image-404 already covers the newly-404ing asset, and if variants for a new console error and a seeded accessibility regression do not exist they have been added via fixture-builder with manifests and hand-authored expected-issues.json audited by golden-auditor; fixture runs shown in conversation demonstrate the 404-asset variant yields network_error naming the failed URL, the console-error variant yields console_error with the message in evidence, and the seeded-a11y-regression variant yields accessibility_regression; no capability issue types are emitted anywhere (missing_capability, nonfunctional_capability, changed_capability, and capability_added are reserved post-v1 per section 7.3); `make verify` output has been shown exiting 0; the determinism spot-check has been shown passing; and any expectation changes have an APPROVE verdict from golden-auditor recorded in docs/golden-changelog.md. Surface all verification output in conversation. Stop and report instead of continuing if blocked on the same failure for 3 consecutive turns, or after 80 turns.
+```
+
+Expect v12's golden to legitimately churn when network_error starts co-firing alongside
+broken_image — its intent file already allows either; the golden-discipline clause covers the
+audited re-record.
+
+---
+
+## M8 — Reporters, profiles, migration loop
+
+```
+/implement-milestone M8
+```
+then immediately:
+```
+/goal Milestone M8 of docs/prds/page-pair-diff-spec.md is done per its DoD: docs/design/M8.md exists; the analyze layer renders the same DiffResult to static HTML (side-by-side screenshots and a fix-value-ordered issue list per section 7.2 — no interactive filters or region-jump navigation per section 2, all page-derived strings HTML-escaped with a restrictive CSP and no inline event handlers per section 15), Markdown, and JSON, with the JSON issues array sorted by fix value as the agent work queue and the agentSummary block first in the file; the two v1 parity profiles strict-visual and content-structure are implemented per the section 9 severity table (capability-only stays deferred post-v1) with explicit per-type severity config overriding profile defaults; the --baseline accept-list keyed on stable issue ids suppresses matching issues from issues and from scoring/status while counting them in suppressed with their ids, demonstrated by baselining a real issue and re-running; deterministic clustering per section 7.4 groups issues sharing type plus changed style property, or type plus landmark, at clusterMin or larger, demonstrated by a seeded global-style defect producing one cluster referencing all member issues with agentSummary.clusterCount correct and topFixes able to reference a cluster id; the CLI supports the section 14 flags including --profile, --fail-on, --json, --html, and --markdown, and exits 0 on pass, 1 on a failed --fail-on threshold, and 2 on tool or runtime error; a single run against a styled variant such as v06-gradient-removed has been shown producing all three report formats, and the same run has been shown under content-structure versus strict-visual demonstrating the profile switch changes the pass or fail status as specified, plus an exit-code demonstration of 0, 1, and 2 cases; the full fixture suite across all variants has been run with a pass table shown and every variant green against its expected-issues.json and recorded golden; the section 15 invariant checklist has been walked item by item in conversation with evidence for each, confirming every goal G1 through G8 has at least one passing fixture and that the M6 real-pair calibration gate is recorded complete in docs/calibration-note.md; `make verify` output has been shown exiting 0; the determinism spot-check has been shown passing; and any expectation changes have an APPROVE verdict from golden-auditor recorded in docs/golden-changelog.md. Surface all verification output in conversation. Stop and report instead of continuing if blocked on the same failure for 3 consecutive turns, or after 80 turns.
 ```
 
 ## The "refine expectations honestly" instruction
