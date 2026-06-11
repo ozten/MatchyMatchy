@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-v13-render-equivalent serve script — port 3013, serves site/, SO_REUSEADDR, no caching variance.
+v13-render-equivalent serve script — port 47013, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3013
+PORT = 47013
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

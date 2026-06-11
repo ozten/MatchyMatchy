@@ -1,6 +1,6 @@
 {
   "name": "v12-image-404",
-  "port": 3012,
+  "port": 47012,
   "change": "Deleted the asset file assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png so the <img> tag in index.html references a path that returns 404.",
   "edit": "Deleted file: site/assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png (75.7KB). index.html is untouched — the <img> element at char 87829 still references assets/images/673b4d11b8fb561f6d7d8ccd_bc_performance-analysis_us.png.",
   "goals": ["G7", "technical"],

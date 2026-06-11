@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Variant v11-broken-link — port 3011, serves site/, SO_REUSEADDR, no caching variance.
+Variant v11-broken-link — port 47011, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3011
+PORT = 47011
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

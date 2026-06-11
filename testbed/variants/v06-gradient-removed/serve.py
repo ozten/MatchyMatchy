@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-v06-gradient-removed serve script — port 3006, serves site/, SO_REUSEADDR, no caching variance.
+v06-gradient-removed serve script — port 47006, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3006
+PORT = 47006
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

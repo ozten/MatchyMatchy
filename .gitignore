@@ -12,3 +12,7 @@ calibration/.capture/
 target/
 node_modules/
 packages/capture/dist/
+
+# Matchy's isolated Playwright browser cache (kept separate from the shared
+# ~/.cache/ms-playwright used by agent-browser; see docs/playwright-setup.md)
+.pw-browsers/

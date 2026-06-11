@@ -21,6 +21,7 @@ any CWD.
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,13 @@ RUNS_DIR = SCRIPT_DIR / ".runs"
 CONTRACT_DIR = REPO_DIR / "contract"
 
 DEFAULT_MATCHY = REPO_DIR / "target" / "release" / "matchy"
-GOLDEN_URL = "http://localhost:3000/"
+GOLDEN_URL = "http://localhost:47000/"
+
+# Matchy uses a repo-local Playwright browser cache so it never touches the
+# shared ~/.cache/ms-playwright (see docs/playwright-setup.md). matchy spawns
+# `node capture.cjs`, which inherits this env var. setdefault so an explicit
+# override from the environment still wins.
+os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(REPO_DIR / ".pw-browsers"))
 
 SEVERITY_RANK = {"info": 0, "warning": 1, "error": 2, "critical": 3}
 

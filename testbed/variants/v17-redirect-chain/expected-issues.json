@@ -5,7 +5,7 @@
       "type": "url_redirect_chain",
       "goal": "G5",
       "anchors": { "hrefContains": "/start" },
-      "evidence": { "fromContains": "/start", "toContains": "localhost:3017/" },
+      "evidence": { "fromContains": "/start", "toContains": "localhost:47017/" },
       "note": "Navigating to /start traverses two 301 hops (/start → /mid → /); spec §10.1 emits url_redirect_chain when the chain has more than one hop, with the full chain in evidence and remediation collapsing the link to the final URL."
     }
   ],

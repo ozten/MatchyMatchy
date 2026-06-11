@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Variant v08-cta-removed — port 3008, serves site/, SO_REUSEADDR, no caching variance.
+Variant v08-cta-removed — port 47008, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3008
+PORT = 47008
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-v18-status-mismatch serve script — port 3018.
+v18-status-mismatch serve script — port 47018.
 GET /products/connect/branded-call -> 404 with self-contained rendered error page.
 Every other path also returns 404 with the same error page.
 Content-Type: text/html for all responses.
@@ -12,7 +12,7 @@ import http.server
 import socketserver
 import os
 
-PORT = 3018
+PORT = 47018
 
 ERROR_PAGE = b"""<!DOCTYPE html>
 <html lang="en">

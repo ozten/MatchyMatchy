@@ -1,11 +1,11 @@
 """
-v10-paragraph-removed serve script — port 3010, serves site/, SO_REUSEADDR, no caching variance.
+v10-paragraph-removed serve script — port 47010, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3010
+PORT = 47010
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):

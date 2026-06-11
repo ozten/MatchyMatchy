@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-v15-locale-underscore serve script — port 3015.
+v15-locale-underscore serve script — port 47015.
 Maps URL prefix /es_MX/products/connect/branded-call (no trailing slash) to site/ directory.
 GET /es_MX/products/connect/branded-call          -> site/index.html (200 directly, no redirect)
 GET /es_MX/products/connect/<anything>            -> site/<anything> (assets resolve via parent dir)
@@ -18,7 +18,7 @@ import socketserver
 import os
 import urllib.parse
 
-PORT = 3015
+PORT = 47015
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 PAGE_PREFIX = "/es_MX/products/connect/branded-call"
 PAGE_PREFIX_SLASH = PAGE_PREFIX + "/"

@@ -1,10 +1,10 @@
 {
   "name": "v16-locale-lowercase",
-  "port": 3016,
+  "port": 47016,
   "change": "No content change. Custom server maps /es-mx/products/connect/branded-call (lowercase region subtag, hyphen separator) to site/; responds 200 directly — no trailing-slash redirect. Lowercase region in locale tag (es-mx vs es-MX) is the violation under test (spec §10.2).",
   "edit": "serve.py only — custom prefix handler with /es-mx/products/connect/branded-call prefix, 200 on no-trailing-slash URL",
   "goals": ["G6"],
   "knockOnEffects": [],
   "diffSummary": "site/ is byte-for-byte identical to golden/site/. Only serve.py differs (custom locale-lowercase path-prefix handler).",
-  "urlUnderTest": "http://localhost:3016/es-mx/products/connect/branded-call"
+  "urlUnderTest": "http://localhost:47016/es-mx/products/connect/branded-call"
 }

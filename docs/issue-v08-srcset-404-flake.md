@@ -1,6 +1,6 @@
 # Issue: flaky `network_error` on v08 from unvendored `srcset` variants
 
-**Status:** Open — blocks `v0.1.0` release
+**Status:** RESOLVED 2026-06-11 — fix plan executed; `make verify` green; see resolution below.
 **Found:** 2026-06-11, during pre-release `make verify`
 **Severity:** Release blocker (testbed defect, not a product defect)
 **Area:** testbed fixtures / golden suite
@@ -115,11 +115,35 @@ the expectation is forbidden.
 
 ## Acceptance criteria
 
-- [ ] All 4 `-p-NNN` variants present on disk and return 200 on every variant server.
-- [ ] `v08-cta-removed` fresh output = `{ missing_link }` only, matching the committed
-      golden, across 5+ consecutive runs.
-- [ ] `make verify` exits 0 (full suite, all variants).
-- [ ] No golden expectation weakened to achieve the above.
+- [x] All 4 `-p-NNN` variants present on disk and return 200 on every variant server.
+      (Present in all 22 site dirs; serve 200 wherever the page actually requests them — root path
+      for normal variants, prefix path for the locale variants v15/v16; v18 returns 404 for *all*
+      paths by design, which is its own tested violation.)
+- [x] `v08-cta-removed` fresh output = `{ missing_link }` only, matching the committed
+      golden, across 5+ consecutive runs. (Verified 5/5: `network_error` = 0 every run.)
+- [x] `make verify` exits 0 (full suite, all 21 variants + M8 + goldens + determinism).
+- [x] No golden expectation weakened. (Only v04 needed re-recording; the golden-auditor APPROVED it
+      after confirming the delta is purely alt-text-artifact removal with zero font-family/G1 loss.)
+
+## Resolution (2026-06-11)
+
+Fix-plan step 1 executed: the four `-p-NNN.webp` variants were vendored as byte copies of their base
+images into all 22 site `assets/images/` dirs (88 files). Encoding nuance: the BCLC base is stored
+on disk with a literal `%20` in its name, but the server URL-decodes request paths, so the three BCLC
+variants were created with **real spaces** in their filenames (the form the decoded request resolves
+to). With every `srcset` candidate now returning 200, the new-only 404 that produced `network_error`
+can no longer occur — the flake is eliminated structurally, not probabilistically.
+
+Re-running the full golden suite (fix-plan step 3), **only `v04-font-family`** required a re-record:
+its golden had been recorded while the broken hero rendered alt text, which v04's font-family swap
+contaminated into 28 spurious `visual_region_changed` + 1 `page_height_changed` artifacts. The
+re-record (golden-auditor APPROVE) removes exactly those artifacts with no change to the 454
+font-family `style_changed` detections. All other 20 goldens were byte-identical, so the repair did
+not silently mutate them. Full record: `docs/golden-changelog.md` (2026-06-11 srcset entry).
+
+The non-blocking follow-up below (capture requesting different `srcset` candidates run-to-run) is now
+unobservable in output because all candidates serve identical base bytes; it remains a real
+capture-determinism question worth tracking but no longer affects the testbed.
 
 ## Follow-up (non-blocking)
 

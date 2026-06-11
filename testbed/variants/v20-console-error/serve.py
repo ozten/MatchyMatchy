@@ -1,11 +1,11 @@
 """
-v20-console-error serve script — port 3020, serves site/, SO_REUSEADDR, no caching variance.
+v20-console-error serve script — port 47020, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3020
+PORT = 47020
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):

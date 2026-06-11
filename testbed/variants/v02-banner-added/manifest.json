@@ -1,6 +1,6 @@
 {
   "name": "v02-banner-added",
-  "port": 3002,
+  "port": 47002,
   "change": "A promo banner div is inserted as the first child of the main slot-placeholder, immediately before the first section.",
   "edit": "site/index.html: inserted <div class=\"promo-banner\" ...> immediately after <div class=\"slot-placeholder\"> at char 73500 (first occurrence), before the opening <section class=\"section-zero\">",
   "goals": ["visual"],

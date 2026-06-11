@@ -20,6 +20,7 @@ All paths resolve relative to this script so it runs from any CWD.
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -31,7 +32,11 @@ VARIANTS_DIR = SCRIPT_DIR / "variants"
 RUNS_DIR = SCRIPT_DIR / ".runs"
 MATCHY = REPO_DIR / "target" / "release" / "matchy"
 
-GOLDEN_URL = "http://localhost:3000/"
+# Repo-local Playwright browser cache (see docs/playwright-setup.md); matchy's
+# spawned capture process inherits it. setdefault lets an explicit env override win.
+os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(REPO_DIR / ".pw-browsers"))
+
+GOLDEN_URL = "http://localhost:47000/"
 SUBJECT = "v05-cta-style"
 
 # Exact CSP the renderer must emit (M8.md §5.1, spec §15).

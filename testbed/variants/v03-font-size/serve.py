@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-v03-font-size serve script — port 3003, serves site/, SO_REUSEADDR, no caching variance.
+v03-font-size serve script — port 47003, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3003
+PORT = 47003
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

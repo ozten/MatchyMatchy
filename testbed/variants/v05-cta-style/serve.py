@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-v05-cta-style serve script — port 3005, serves site/, SO_REUSEADDR, no caching variance.
+v05-cta-style serve script — port 47005, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3005
+PORT = 47005
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

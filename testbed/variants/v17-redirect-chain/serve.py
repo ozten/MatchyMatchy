@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-v17-redirect-chain serve script — port 3017.
+v17-redirect-chain serve script — port 47017.
 GET /start  -> 301 Location /mid
 GET /mid    -> 301 Location /
 GET /       -> 200 site/index.html
@@ -14,7 +14,7 @@ import socketserver
 import os
 import urllib.parse
 
-PORT = 3017
+PORT = 47017
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

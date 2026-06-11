@@ -2,8 +2,8 @@
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
   "runId": "2026-06-10T19-31-02Z",
-  "oldUrl": "http://localhost:3000/",
-  "newUrl": "http://localhost:3018/products/connect/branded-call",
+  "oldUrl": "http://localhost:47000/",
+  "newUrl": "http://localhost:47018/products/connect/branded-call",
   "parityProfile": "content-structure",
   "status": "fail",
   "agentSummary": {
@@ -71,11 +71,11 @@
       "evidence": {
         "new": {
           "statusCode": 404,
-          "url": "http://localhost:3018/products/connect/branded-call"
+          "url": "http://localhost:47018/products/connect/branded-call"
         },
         "old": {
           "statusCode": 200,
-          "url": "http://localhost:3000/"
+          "url": "http://localhost:47000/"
         }
       },
       "remediation": {

@@ -1,6 +1,17 @@
 .PHONY: testbed-up testbed-down testbed-check build verify fixture
 
 # ---------------------------------------------------------------------------
+# Playwright browser isolation
+# ---------------------------------------------------------------------------
+# Matchy keeps its Chromium in a repo-local cache instead of the shared
+# ~/.cache/ms-playwright. This makes the checkout self-contained and avoids
+# clobbering any other tool's browsers (e.g. agent-browser, which pins its own
+# chromium build in the shared cache). Exported so every recipe — npm install's
+# postinstall, capture runs spawned by matchy, the testbed harnesses — inherits
+# it. See docs/playwright-setup.md.
+export PLAYWRIGHT_BROWSERS_PATH := $(CURDIR)/.pw-browsers
+
+# ---------------------------------------------------------------------------
 # Testbed server management
 # ---------------------------------------------------------------------------
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Variant v12-image-404 — port 3012, serves site/, SO_REUSEADDR, no caching variance.
+Variant v12-image-404 — port 47012, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3012
+PORT = 47012
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

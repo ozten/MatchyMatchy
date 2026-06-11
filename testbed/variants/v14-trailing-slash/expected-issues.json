@@ -4,7 +4,7 @@
     {
       "type": "url_trailing_slash",
       "goal": "G5",
-      "note": "newUrl http://localhost:3014/products/connect/branded-call/ carries a trailing slash in violation of the 'never' policy (spec §10.1); remediation must rewrite to the no-slash form."
+      "note": "newUrl http://localhost:47014/products/connect/branded-call/ carries a trailing slash in violation of the 'never' policy (spec §10.1); remediation must rewrite to the no-slash form."
     }
   ],
   "forbidden": [

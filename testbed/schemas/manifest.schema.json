@@ -12,8 +12,8 @@
     },
     "port": {
       "type": "integer",
-      "minimum": 3001,
-      "maximum": 3099
+      "minimum": 47001,
+      "maximum": 47099
     },
     "change": {
       "description": "One sentence: the single deliberate change relative to golden.",
@@ -48,7 +48,7 @@
     "urlUnderTest": {
       "description": "For URL/locale-hygiene variants: the exact new-page URL to feed the tool.",
       "type": "string",
-      "pattern": "^http://localhost:[0-9]{4}/"
+      "pattern": "^http://localhost:[0-9]{5}/"
     }
   }
 }

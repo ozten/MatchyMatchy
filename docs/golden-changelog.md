@@ -606,3 +606,151 @@ coverage.
 Conditions 1–3 from that verdict are satisfied by this entry (changelog record + pasted verdict)
 and the M8.md §8 correction above. Substantive verdict: APPROVE (A–D all hold); the sole blocker was
 this paperwork.
+
+---
+
+## 2026-06-11 — Testbed port-range migration 3000–3021 → 47000–47021; v11 golden re-recorded
+
+**What changed.** The testbed's fixed port range was migrated by a uniform `+44000` offset
+(golden `3000→47000`, variants `3001..3021 → 47001..47021`) to escape a collision with an
+unrelated long-running `next-server` occupying port 3001 on the build machine. User-directed
+("migrate the port range to a less used range. It is okay to change the code or config"). The
+move touched only testbed/build wiring — `serve.py` (`PORT`), `manifest.json` (`port` +
+`urlUnderTest`), `run-all.py` (`GOLDEN_PORT`), `check-fixture.py`/`check-m8.py` (`GOLDEN_URL`),
+`manifest.schema.json` (port `minimum`/`maximum` 3001/3099 → 47001/47099 and the `urlUnderTest`
+pattern `[0-9]{4}` → `[0-9]{5}`) — plus a `localhost:30NN → localhost:47NN` substitution inside
+the goldens and the v14/v17 `expected-issues.json`. No site content was touched (site assets
+contain zero `localhost:30NN` refs; bare 30xx numbers in floats/issue-ids were deliberately left
+alone — the substitution is scoped to the unambiguous `localhost:port` form). Transform encoded in
+`scripts/migrate-ports.py`; 163 substitutions.
+
+**Goldens: substitution sufficed for 20 of 21.** After the `localhost:port` substitution, fresh
+new-port captures match the recorded goldens for 20 variants (the 16 that matched immediately, plus
+v01/v08/v09 which match on any flake-free run — see the pre-existing srcset note below). **Only
+`v11-broken-link` required a fresh re-record**, because its issue `id`s are content-addressed
+SHA-256 hashes over `anchors.href` (which embeds the port — `packages/analyze/src/issue.rs::compute_issue_id`),
+so substituting the URL strings left the derived hashes stale. The re-record changed exactly the
+three ids `4b9058597867→97d291f9bb0d`, `8f3cdee4603f→eb914dfb7592`, `4e86118dfdea→bb5b728ea168`
+(and the topFixes/viewports ordering keyed off them). Issue count (3), types (`broken_link`,
+`changed_link_target`, `url_protocol_downgrade`), severities, evidence, anchors, scores, and
+`status:fail` are unchanged. v11 is deterministic (two-run byte-identity) and the re-recorded golden
+matches a fresh run.
+
+**Spec justification.** CLAUDE.md "Golden discipline" re-record clause (an approved, user-directed
+config change genuinely alters output → golden re-recorded to match) and spec §15 determinism
+(content-addressed ids are stable under identical inputs and *must* change under changed inputs —
+the resolved URL is a changed input). No expectation was weakened; v11's intent file
+(`required: broken_link`, `forbidden: missing_link`) and manifest goals G2+G7 remain fully exercised.
+
+**Pre-existing issues surfaced but NOT addressed here (out of migration scope).** The full
+`make verify` is currently blocked by the **already-documented srcset-404 flake**
+(`docs/issue-v08-srcset-404-flake.md`): four unvendored `-p-NNN.webp` images 404 intermittently,
+producing a spurious `network_error` on v01/v08/v09 (and, with the related run-to-run `srcset`
+visual variance, an unstable `visual_region_changed` count on v04). This is port-independent and
+pre-existing — proven by clean runs matching the substituted goldens. Per that doc, the network_error
+must **not** be blessed into a golden; the fix is to vendor the four images. No golden was re-recorded
+to accommodate the flake.
+
+**Audit (golden-auditor, 2026-06-11): APPROVE**, pasted verbatim:
+
+```
+VERDICT: APPROVE
+EXPECTATION(S):
+- testbed/goldens/v11-broken-link.diffresult.json (re-recorded golden, the change under review)
+- Compared against /tmp/v11-golden-HEAD.json (pre-migration committed golden)
+REASONING: This is the legitimate re-record case under CLAUDE.md "Golden discipline" / spec §15: an
+approved, user-directed config change (port migration) genuinely alters output, and the golden is
+re-recorded to match. I verified, not trusted, every difference. After reversing the port substitution
+(localhost:3011->47011, localhost:3000->47000), the three claimed id substitutions, and blanking runId,
+the normalized new file is byte-identical to the original. The raw unified diff shows every changed line
+falls into exactly the three claimed buckets: the oldUrl/newUrl/runId header, the three content-addressed
+ids (in agentSummary.topFixes, viewports[].issues[], and issues[].id — the only ordering keyed off them),
+and port substrings inside URL fields (message, anchors.href, evidence URLs, remediation findBy.grep/from/
+to). I independently reproduced all six ids from packages/analyze/src/issue.rs compute_issue_id (SHA-256
+over a U+001F-joined canonical string that includes anchors.href), using the real anchor values; all six
+matched exactly, proving the id deltas are necessary consequences of the port change and not values pasted
+to force a pass. There is zero semantic drift: issue count (3), types (broken_link/changed_link_target/
+url_protocol_downgrade), severities, confidences, scores, status: fail, anchor text/role/landmark/heading/
+ordinal, css selectors, bboxes, seqIndexes, match sub-scores (0.945; accName/href/text), determinism, and
+remediation actions are all unchanged. The v11 intent tier (expected-issues.json required broken_link,
+forbidden missing_link) and manifest goals G2+G7 remain fully exercised, so no real defect detection was
+weakened.
+CONDITIONS: Add a docs/golden-changelog.md entry (dated 2026-06-11) recording: (1) what changed — testbed
+port migration 3000-3021 -> 47000-47021 (+44000) to avoid a port-3001 collision, user-directed; 20/21
+goldens updated by pure localhost:30NN->localhost:47NN string substitution; (2) why v11 alone required a
+fresh re-record — its issue ids are content-addressed SHA-256 hashes over anchors.href (which embeds the
+port), so substituting URL strings left the derived id hashes stale; the three ids changed
+4b9058597867->97d291f9bb0d, 8f3cdee4603f->eb914dfb7592, 4e86118dfdea->bb5b728ea168; (3) spec justification
+— CLAUDE.md "Golden discipline" re-record clause and spec §15 determinism; (4) paste this APPROVE verdict.
+No code fix is required; the id-recompute behavior is correct as designed.
+```
+
+---
+
+## 2026-06-11 — srcset-404 testbed defect fixed; v04-font-family golden re-recorded
+
+**What changed.** Executed the fix in `docs/issue-v08-srcset-404-flake.md`: vendored the four
+unvendored responsive-image `srcset` variants (`67caf62e…_A-LIGN_ISO-27001-p-500.webp` and
+`691ca7f9…_Case Studies_BCLC_hero image-p-{500,800,1080}.webp`) into all 22 site dirs as
+byte-for-byte copies of their base images — 88 files. The three BCLC variants are written with
+**real spaces** in their filenames (the on-disk base has literal `%20`, but the server URL-decodes
+the requested path, so only real-space files actually serve 200). All four candidates now return
+200 on every variant server, so the flaky new-only `network_error` can no longer fire. No existing
+site file was modified or renamed; no code changed. Then **`testbed/goldens/v04-font-family.diffresult.json`
+was re-recorded** from a verified, deterministic fresh run.
+
+**Why the old v04 golden was superseded.** It was recorded while the BCLC hero `<img>` was broken
+(404). A broken image renders its **alt text**, and that alt text was subject to v04's global
+`font-family` swap (Nunito Sans → Georgia), contaminating the diff with artifacts that vanish once
+the image renders. The repaired-hero output is strictly more truthful (the page renders as intended).
+Spec/discipline grounds: CLAUDE.md "Golden discipline" re-record clause (an approved testbed-defect
+fix genuinely alters output → golden re-recorded) and spec §3.3/§15 determinism; the fix is the
+issue-doc's own fix-plan step 1.
+
+**Exact delta (independently auditor-verified).** Net 515 → 486 issues. `style_changed` 454 → 454
+(count identical) — all 454 are `font-family` Nunito Sans → Georgia in both goldens; 6 differ only in
+`bboxNew` (downstream y-shift from the now-rendered hero), so their content-addressed ids rotated on
+geometry alone with identical text/heading/landmark/role/evidence/remediation. Removed:
+`visual_region_changed` 60 → 32 (−28 alt-text-vs-image artifacts) and `page_height_changed` 1 → 0
+(−1 alt-text reflow artifact). `status` stays `warn`; `suppressed` unchanged; scores identical except
+`visual` 0.862 → 0.979 (the natural consequence of the cleaner, artifact-free visual diff). The
+required G1 anchor (`Spam, robocalls, and scams` → Georgia) is present and the forbidden H1
+font-family change absent, in both goldens — intent fully exercised.
+
+**Blast radius.** Re-running the full suite after vendoring, **only v04's golden changed**; the other
+20 goldens remained byte-identical (the alt-text artifact only produced a *diff* on v04, whose change
+affects text rendering — for identical/other variants the broken hero rendered identically on both
+sides). This discharges the issue-doc fix-plan step 3 ("confirm the repair did not silently mutate
+other goldens") for the current suite. Determinism: three consecutive fresh v04 captures were
+byte-identical (486/32/0/0).
+
+**Audit (golden-auditor, 2026-06-11): APPROVE**, pasted verbatim:
+
+```
+VERDICT: APPROVE
+EXPECTATION(S): /home/admin/MatchyMatchy/testbed/goldens/v04-font-family.diffresult.json
+(re-recorded vs /tmp/v04-golden-prererecord.json)
+REASONING: This is a legitimate re-record under CLAUDE.md golden discipline rule 3 / spec §3.3: the
+hero <img> was 404ing and rendering as alt text, so the repaired-hero page produces correct layout —
+an approved testbed-defect fix documented in docs/issue-v08-srcset-404-flake.md (root cause:
+unvendored srcset variants; fix plan step 1). Every difference is attributable to the repair with no
+weakening: all 454 style_changed are font-family and all 454 deltas are exactly "Nunito Sans"→Georgia
+in both goldens (0 non-conforming), the required G1 anchor "Spam, robocalls, and scams"→Georgia is
+present, and the forbidden H1 "Reach more customers" font-family change is absent in both. The 6
+"anchor shifts" are 1:1 same-text/heading/landmark/role pairs whose only locator delta is bboxNew
+(downstream y-shift from the now-rendered hero), with identical evidence, message, and remediation —
+so the content-addressed id rotated purely on geometry, not semantics; visual_region_changed 60→32
+and page_height_changed 1→0 are the expected removal of the alt-text-vs-image visual artifact, not a
+weakened detector. G1 traceability (spec §1) and the intent file
+testbed/variants/v04-font-family/expected-issues.json are still fully exercised.
+CONDITIONS: Add a docs/golden-changelog.md entry recording: v04-font-family golden re-recorded after
+the srcset-404 hero-repair (cross-reference docs/issue-v08-srcset-404-flake.md); old expectation was
+contaminated by an unvendored-asset testbed defect (broken hero rendered as alt text); net 515→486
+issues = removal of 28 visual_region_changed + 1 page_height_changed alt-text artifacts plus 6
+bbox-only id rotations, with zero font-family/G1 loss. Paste this APPROVE verdict into that entry.
+Also confirm the same hero repair did not silently mutate other early-milestone goldens (issue-doc
+fix-plan step 3) — out of scope for this single-golden audit but required before tagging v0.1.0.
+```
+
+Condition satisfied by this entry; the blast-radius paragraph above records the full-suite
+confirmation that only v04 changed.

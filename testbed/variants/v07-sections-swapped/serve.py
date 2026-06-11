@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Variant v07-sections-swapped — port 3007, serves site/, SO_REUSEADDR, no caching variance.
+Variant v07-sections-swapped — port 47007, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3007
+PORT = 47007
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

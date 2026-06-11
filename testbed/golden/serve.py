@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Golden serve script — port 3000, serves site/, SO_REUSEADDR, no caching variance.
+Golden serve script — port 47000, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3000
+PORT = 47000
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 

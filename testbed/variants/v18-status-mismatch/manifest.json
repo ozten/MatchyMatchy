@@ -1,11 +1,11 @@
 {
   "name": "v18-status-mismatch",
-  "port": 3018,
+  "port": 47018,
   "change": "New URL returns a rendered 404 error page while old returns 200 (status parity violation under test, spec §10.1 status_code_mismatch short-circuit).",
   "edit": "serve.py only — all paths return HTTP 404 with a self-contained inline-CSS error page; site/ is present for schema/convention uniformity but is never served",
   "goals": ["G5"],
   "knockOnEffects": [],
   "diffSummary": "site/ is byte-for-byte identical to golden/site/ (included for convention uniformity; serve.py never reads it). serve.py returns 404 for every request.",
-  "urlUnderTest": "http://localhost:3018/products/connect/branded-call",
+  "urlUnderTest": "http://localhost:47018/products/connect/branded-call",
   "expectedHttpStatus": 404
 }

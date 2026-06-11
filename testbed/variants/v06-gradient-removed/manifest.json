@@ -1,6 +1,6 @@
 {
   "name": "v06-gradient-removed",
-  "port": 3006,
+  "port": 47006,
   "change": "Remove the background gradient from the hero page-section by setting background-image to none on the rule that provably matches the static HTML.",
   "edit": "assets/css/hiya-shared.min.css — selector .page-section:where(.w-variant-56a9f9bb-f508-ed23-b766-cf8eee922a17): background-image: linear-gradient(180deg,var(--primary--brand-100),var(--neutral--gray-100)90%) -> none",
   "selectorProof": "index.html contains: class=\"page-section w-variant-56a9f9bb-f508-ed23-b766-cf8eee922a17\" — the literal class required by the :where() selector is present in the static markup",

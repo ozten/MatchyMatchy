@@ -33,7 +33,7 @@ PIDS_FILE = SCRIPT_DIR / ".pids.json"
 MANIFEST_SCHEMA_PATH = SCHEMAS_DIR / "manifest.schema.json"
 EXPECTED_ISSUES_SCHEMA_PATH = SCHEMAS_DIR / "expected-issues.schema.json"
 
-GOLDEN_PORT = 3000
+GOLDEN_PORT = 47000
 TCP_POLL_INTERVAL = 0.25  # seconds between connection attempts
 TCP_TIMEOUT = 20  # seconds total wait
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-v14-trailing-slash serve script — port 3014.
+v14-trailing-slash serve script — port 47014.
 Maps URL prefix /products/connect/branded-call/ to site/ directory.
 GET /products/connect/branded-call/          -> site/index.html
 GET /products/connect/branded-call/assets/... -> site/assets/...
@@ -12,7 +12,7 @@ import socketserver
 import os
 import urllib.parse
 
-PORT = 3014
+PORT = 47014
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 PAGE_PREFIX = "/products/connect/branded-call"
 PAGE_PREFIX_SLASH = PAGE_PREFIX + "/"

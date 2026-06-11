@@ -2,8 +2,8 @@
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
   "runId": "2026-06-11T01-01-26Z",
-  "oldUrl": "http://localhost:3000/",
-  "newUrl": "http://localhost:3008/",
+  "oldUrl": "http://localhost:47000/",
+  "newUrl": "http://localhost:47008/",
   "parityProfile": "content-structure",
   "status": "fail",
   "agentSummary": {

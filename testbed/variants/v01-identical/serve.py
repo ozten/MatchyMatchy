@@ -1,11 +1,11 @@
 """
-v01-identical serve script — port 3001, serves site/, SO_REUSEADDR, no caching variance.
+v01-identical serve script — port 47001, serves site/, SO_REUSEADDR, no caching variance.
 """
 import http.server
 import socketserver
 import os
 
-PORT = 3001
+PORT = 47001
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):

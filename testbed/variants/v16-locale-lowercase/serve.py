@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-v16-locale-lowercase serve script — port 3016.
+v16-locale-lowercase serve script — port 47016.
 Maps URL prefix /es-mx/products/connect/branded-call (lowercase region, hyphen separator) to site/.
 GET /es-mx/products/connect/branded-call          -> site/index.html (200 directly, no redirect)
 GET /es-mx/products/connect/<anything>            -> site/<anything> (assets resolve via parent dir)
@@ -18,7 +18,7 @@ import socketserver
 import os
 import urllib.parse
 
-PORT = 3016
+PORT = 47016
 SITE_DIR = os.path.join(os.path.dirname(__file__), "site")
 PAGE_PREFIX = "/es-mx/products/connect/branded-call"
 PAGE_PREFIX_SLASH = PAGE_PREFIX + "/"
