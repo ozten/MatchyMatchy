@@ -1,6 +1,8 @@
 //! matchy-analyze library crate.
 
 pub mod a11y_diff;
+pub mod baseline;
+pub mod clustering;
 pub mod config;
 pub mod contract;
 pub mod doctor;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T23-51-42Z",
+  "runId": "2026-06-11T05-57-12Z",
   "oldUrl": "http://localhost:3000/",
   "newUrl": "http://localhost:3007/",
   "parityProfile": "content-structure",
@@ -12,13 +12,11 @@
       "component_swapped": 1,
       "visual_region_changed": 5
     },
-    "clusterCount": 0,
+    "clusterCount": 1,
     "topFixes": [
       "issue_5b7b988e2998",
-      "issue_8e8483310c5c",
-      "issue_8e8483310c5c-2",
-      "issue_a3778c41a353",
-      "issue_a3778c41a353-2"
+      "cluster_ebe4318e14cf",
+      "issue_a609a79ce17b"
     ]
   },
   "scores": {
@@ -485,7 +483,20 @@
       "remediation": null
     }
   ],
-  "clusters": [],
+  "clusters": [
+    {
+      "id": "cluster_ebe4318e14cf",
+      "issueIds": [
+        "issue_8e8483310c5c",
+        "issue_8e8483310c5c-2",
+        "issue_a3778c41a353",
+        "issue_a3778c41a353-2"
+      ],
+      "sharedProperty": null,
+      "sharedLandmark": "main",
+      "summary": "4 visual_region_changed issues in main"
+    }
+  ],
   "suppressed": {
     "count": 0,
     "ids": []

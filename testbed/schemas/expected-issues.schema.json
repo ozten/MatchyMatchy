@@ -29,6 +29,18 @@
       "type": "integer",
       "minimum": 0
     },
+    "clusters": {
+      "description": "Optional assertions on DiffResult.clusters (M8, spec §7.4). Each 'required' matcher pins a cluster by its shared key.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/clusterMatcher" }
+        }
+      }
+    },
     "notes": {
       "description": "Intent statement plus any accepted knock-on issues declared in the variant manifest.",
       "type": "string",
@@ -86,6 +98,23 @@
         "note": { "type": "string" }
       },
       "not": { "required": ["type", "anyOfTypes"] }
+    },
+    "clusterMatcher": {
+      "description": "Match clusters by shared key (property or landmark), then assert size/membership.",
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        { "required": ["sharedProperty"] },
+        { "required": ["sharedLandmark"] }
+      ],
+      "properties": {
+        "sharedProperty": { "type": "string" },
+        "sharedLandmark": { "type": "string" },
+        "minMembers": { "type": "integer", "minimum": 1 },
+        "exactlyOne": { "type": "boolean" },
+        "memberType": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "note": { "type": "string" }
+      }
     }
   }
 }

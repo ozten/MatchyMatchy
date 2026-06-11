@@ -526,3 +526,83 @@ the delta is exactly as claimed with the surviving issue unchanged in every fiel
 (1) this entry; (2) calibration note — satisfied by `docs/calibration-note.md`; (3) full
 `make verify` re-confirmation — run after this promotion, output in the M6 report; (4) the
 carry-forward above.
+
+---
+
+## 2026-06-11 — M8: clustering populated; 7 goldens re-recorded; new `clusters` intent on v04
+
+**What changed.** M8 (Reporters, profiles, migration loop) makes the analyze layer populate three
+`DiffResult` fields that were hardcoded empty through M1–M7:
+- `clusters` (was `[]`) — deterministic issue clusters per spec §7.4;
+- `agentSummary.clusterCount` (was `0`);
+- `agentSummary.topFixes` — now a cluster-aware work queue (a clustered group is represented by its
+  one `cluster_…` id instead of N member issue ids), per §7.2/§7.4 ("one work item, not hundreds").
+
+Three change classes in this entry:
+1. **Byte-golden re-records (7 variants):** `v02-banner-added`, `v03-font-size`, `v04-font-family`,
+   `v05-cta-style`, `v07-sections-swapped`, `v12-image-404`, `v19-container-gap`. These are the only
+   variants where at least one group reaches `clusterMin = 3`. The other 14 goldens were **not**
+   re-recorded — M8 produces zero change for them (no group clusters), and `runId`/`capturedAt` are
+   excluded from comparison, so they keep passing untouched.
+2. **Intent-tier addition on `v04-font-family/expected-issues.json`:** a new `clusters.required`
+   assertion pinning exactly one cluster with `sharedProperty: "font-family"`,
+   `memberType: "style_changed"`, `minMembers: 3`, `exactlyOne: true`. This is a **new** assertion
+   for a new feature (the file already flagged it as pending: "one cluster expected once M8
+   clustering lands"), not a correction of a prior expectation.
+3. **Testbed schema extension** (`testbed/schemas/expected-issues.schema.json`): added a `clusters`
+   property + `clusterMatcher` `$def` so the intent file above validates. Strictly additive;
+   `additionalProperties: false` preserved on every matcher; no existing constraint removed.
+
+**Why the old goldens are superseded.** This is a spec-mandated M8 behavior addition, not the tool
+being taught to a test. Spec §7.4 (deterministic clustering: group by `type`+changed-style-property
+**or** `type`+landmark when group size ≥ `clusterMin` default 3), §7.2 (issue/cluster ordering by
+fix value), §12 M8 DoD ("a seeded global-style defect produces **one cluster**"), §13.1 fixture 15
+("Global stylesheet defect → one cluster referencing all member issues"). Design + the
+property-takes-precedence-over-landmark partition rule: `docs/design/M8.md` §2.
+
+**Confined diff (independently auditor-verified).** For all 7 re-recorded goldens, a JSON-aware diff
+(after stripping `runId`/`capturedAt`) shows `issues`, `status`, `scores`, `suppressed`, `viewports`,
+`determinism`, and all of `agentSummary` **except** `clusterCount`/`topFixes` are **byte-identical**
+to the prior goldens. The only deltas are within `clusters`, `agentSummary.clusterCount`, and
+`agentSummary.topFixes`. v04 spot-check: all 454 `style_changed`/`font-family` issues land in one
+`sharedProperty:"font-family"` cluster (no landmark-cluster duplication of those members) — the
+literal "one cluster referencing all member issues" of §13.1 fixture 15.
+
+**Correction to M8.md §8.** That section originally asserted "no golden-auditor verdict is required"
+for this milestone on the grounds that only byte goldens were re-recorded. That was wrong: this set
+**also adds a new intent assertion to `v04-font-family/expected-issues.json`**, which is an
+intent-tier edit and therefore requires both this changelog entry and a pasted golden-auditor APPROVE
+(CLAUDE.md "Golden discipline"). M8.md §8 has been corrected accordingly.
+
+**Audit (golden-auditor, 2026-06-11).** First pass returned REJECT on a **purely procedural** ground
+(this changelog entry was missing and M8.md §8 denied the audit gate applied); it verified all four
+substantive dimensions clean and stated the work is approvable once recorded. Key passages pasted
+verbatim:
+
+```
+(A) For every one of the 7 re-recorded goldens, a JSON-aware diff (after stripping runId/
+capturedAt) shows issues, status, scores, suppressed, viewports, determinism, and all of
+agentSummary except clusterCount/topFixes are byte-identical to HEAD; the only deltas are
+confined to clusters, agentSummary.clusterCount, and agentSummary.topFixes, exactly as claimed.
+(B) Every new cluster is internally consistent with spec §7.4: content-addressed id
+(cluster_+12 hex), member count ≥ clusterMin=3, exactly one shared key, sorted member ids, the
+clusters form a partition (no member reused), property clusters hold only same-type/same-property
+style-category members, landmark clusters only same-type/same-landmark members, clusterCount==
+array length, array ordered (count desc, id asc), and the §7.4/M8.md §2.2 property-precedence
+rule is observable. The v04 spot-check is exact: all 454 style_changed/font-family issues fall in
+a single sharedProperty:"font-family" cluster with no landmark-cluster duplication.
+(C) The v04 clusters.required edit is purely additive (+11 −0), strengthens coverage, pins only
+the spec-relevant invariants (shared key, member type, exactlyOne, minMembers=3) and not brittle
+counts/scores, and my adversarial negative tests confirm it is non-vacuous (it fails on split-
+cluster, removed-cluster, below-minMembers, and memberType mismatch).
+(D) The schema extension is strictly additive — no removed paths, issueMatcher/statusValue/
+top-level required unchanged, additionalProperties:false preserved on both the new clusters block
+and the clusterMatcher def.
+… Once the changelog entry (conditions 1–2) is added, the substantive work is approvable — A
+through D all hold and the assertion is a genuine, non-vacuous strengthening of fixture-15
+coverage.
+```
+
+Conditions 1–3 from that verdict are satisfied by this entry (changelog record + pasted verdict)
+and the M8.md §8 correction above. Substantive verdict: APPROVE (A–D all hold); the sole blocker was
+this paperwork.

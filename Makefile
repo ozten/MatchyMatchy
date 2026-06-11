@@ -37,17 +37,17 @@ endif
 # ---------------------------------------------------------------------------
 
 verify:
-	@echo "=== 1/6  cargo build + test ==="
+	@echo "=== 1/7  cargo build + test ==="
 	cargo build --release
 	cargo test
 
-	@echo "=== 2/6  capture build + test ==="
+	@echo "=== 2/7  capture build + test ==="
 	cd packages/capture && npm install --no-audit --no-fund && npm run build && npm test
 
-	@echo "=== 3/6  testbed servers ==="
+	@echo "=== 3/7  testbed servers ==="
 	python3 testbed/run-all.py check
 
-	@echo "=== 4/6  M1+M2+M3+M4+M5 fixture gate ==="
+	@echo "=== 4/7  M1–M8 fixture gate (issues + clusters) ==="
 	python3 testbed/check-fixture.py v01-identical
 	python3 testbed/check-fixture.py v02-banner-added
 	python3 testbed/check-fixture.py v03-font-size
@@ -70,7 +70,10 @@ verify:
 	python3 testbed/check-fixture.py v20-console-error
 	python3 testbed/check-fixture.py v21-a11y-lang
 
-	@echo "=== 5/6  golden comparisons ==="
+	@echo "=== 5/7  M8 acceptance (reporters, profiles, baseline) ==="
+	python3 testbed/check-m8.py
+
+	@echo "=== 6/7  golden comparisons ==="
 	@if [ -d testbed/goldens ] && [ -n "$$(ls testbed/goldens/*.diffresult.json 2>/dev/null)" ]; then \
 		for golden in testbed/goldens/*.diffresult.json; do \
 			variant=$$(basename "$$golden" .diffresult.json); \
@@ -82,7 +85,7 @@ verify:
 		echo "  no goldens yet — skipping golden comparison"; \
 	fi
 
-	@echo "=== 6/6  determinism spot-check ==="
+	@echo "=== 7/7  determinism spot-check ==="
 	python3 testbed/determinism-check.py v02-banner-added
 	python3 testbed/determinism-check.py v08-cta-removed
 	python3 testbed/determinism-check.py v06-gradient-removed

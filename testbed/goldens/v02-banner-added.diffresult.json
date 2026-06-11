@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-10T23-51-14Z",
+  "runId": "2026-06-11T05-56-39Z",
   "oldUrl": "http://localhost:3000/",
   "newUrl": "http://localhost:3002/",
   "parityProfile": "content-structure",
@@ -12,13 +12,13 @@
       "page_height_changed": 1,
       "visual_region_changed": 53
     },
-    "clusterCount": 0,
+    "clusterCount": 2,
     "topFixes": [
-      "issue_04e3ea7c0b1a",
-      "issue_0cd97ed74003",
-      "issue_139e304de043",
-      "issue_150b113de4ab",
-      "issue_1b3672476467"
+      "cluster_0bbbfc17db16",
+      "cluster_ebe4318e14cf",
+      "issue_2c8595b75643",
+      "issue_a609a79ce17b",
+      "issue_a609a79ce17b-10"
     ]
   },
   "scores": {
@@ -3212,7 +3212,58 @@
       "remediation": null
     }
   ],
-  "clusters": [],
+  "clusters": [
+    {
+      "id": "cluster_ebe4318e14cf",
+      "issueIds": [
+        "issue_04e3ea7c0b1a",
+        "issue_0cd97ed74003",
+        "issue_139e304de043",
+        "issue_150b113de4ab",
+        "issue_1b3672476467",
+        "issue_273158a690b9",
+        "issue_283c81bff95d",
+        "issue_29f91687cd9f",
+        "issue_29f91687cd9f-2",
+        "issue_2bf212b3a7db",
+        "issue_340d6574b60d",
+        "issue_3f7dbfd55fa9",
+        "issue_59a5ce5df1cf",
+        "issue_77fb14aa331f",
+        "issue_8e8483310c5c",
+        "issue_a3778c41a353",
+        "issue_a819b7e0b3b8",
+        "issue_bc5cdc712354",
+        "issue_bd92e9f72101",
+        "issue_beaa4c47b27b",
+        "issue_c0ace9ed85bd",
+        "issue_c5d05b2c69f5",
+        "issue_cccf147dc9a1",
+        "issue_d109a925bc92",
+        "issue_ea51e4d2a2e3",
+        "issue_eedb8ea4de7f",
+        "issue_f08c7c176c92",
+        "issue_f0e510bdf857",
+        "issue_f0e510bdf857-2",
+        "issue_f849d4d8e47d"
+      ],
+      "sharedProperty": null,
+      "sharedLandmark": "main",
+      "summary": "30 visual_region_changed issues in main"
+    },
+    {
+      "id": "cluster_0bbbfc17db16",
+      "issueIds": [
+        "issue_1f138e296ba5",
+        "issue_2c9867de75c6",
+        "issue_8c1393568931",
+        "issue_b0f78d9544e4"
+      ],
+      "sharedProperty": null,
+      "sharedLandmark": "contentinfo",
+      "summary": "4 visual_region_changed issues in contentinfo"
+    }
+  ],
   "suppressed": {
     "count": 0,
     "ids": []

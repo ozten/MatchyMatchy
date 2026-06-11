@@ -47,7 +47,7 @@ struct Cli {
     viewport: Vec<String>,
 
     /// Parity profile: content-structure (default) or strict-visual
-    #[arg(long, default_value = "content-structure", global = false)]
+    #[arg(long, default_value = "content-structure", global = true)]
     profile: String,
 
     /// CSS selectors to hide (visibility:hidden)
@@ -71,12 +71,24 @@ struct Cli {
     no_stub_random: bool,
 
     /// Fail on issues at or above this severity (info|warning|error|critical|never)
-    #[arg(long, default_value = "error", global = false)]
+    #[arg(long, default_value = "error", global = true)]
     fail_on: String,
 
     /// Always write JSON (reserved/no-op in M1 — JSON is always written)
     #[arg(long, global = false, default_value_t = true)]
     json: bool,
+
+    /// Write a static HTML report (report.html) alongside the JSON output
+    #[arg(long, global = true, default_value_t = false)]
+    html: bool,
+
+    /// Write a Markdown report (report.md) alongside the JSON output
+    #[arg(long, global = true, default_value_t = false)]
+    markdown: bool,
+
+    /// Path to baseline accept-list JSON (array of {"id": "..."}).
+    #[arg(long, global = true)]
+    baseline: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -119,7 +131,15 @@ fn main() {
             }
         }
         Some(CliCommand::Analyze(args)) => {
-            match run_analyze(&args.old_bundle, &args.new_bundle, &args.out, &cli.profile) {
+            match run_analyze(
+                &args.old_bundle,
+                &args.new_bundle,
+                &args.out,
+                &cli.profile,
+                cli.baseline.as_deref(),
+                cli.html,
+                cli.markdown,
+            ) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {:#}", e);
@@ -143,6 +163,9 @@ fn main() {
                         !cli.no_freeze_time,
                         !cli.no_stub_random,
                         &cli.fail_on,
+                        cli.baseline.as_deref(),
+                        cli.html,
+                        cli.markdown,
                     ) {
                         Ok(code) => code,
                         Err(e) => {
@@ -183,6 +206,9 @@ fn run_full(
     freeze_time: bool,
     stub_random: bool,
     fail_on: &str,
+    baseline_arg: Option<&str>,
+    html: bool,
+    markdown: bool,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
     let out_path = PathBuf::from(out_dir);
@@ -192,6 +218,12 @@ fn run_full(
     let profile = ParityProfile::parse(profile_str).unwrap_or(ParityProfile::ContentStructure);
 
     let viewports = parse_viewports(viewport_args);
+
+    let baseline = match baseline_arg {
+        Some(p) => matchy_analyze::baseline::load(std::path::Path::new(p))
+            .context("failed to load --baseline")?,
+        None => matchy_analyze::baseline::Baseline::default(),
+    };
 
     let mut viewport_analyses: Vec<ViewportAnalysis> = Vec::new();
 
@@ -255,10 +287,23 @@ fn run_full(
         }
     }
 
-    let result = assemble_diff_result(&run_id, old_url, new_url, &profile, viewport_analyses);
+    let result = assemble_diff_result(
+        &run_id,
+        old_url,
+        new_url,
+        &profile,
+        viewport_analyses,
+        &baseline,
+    );
     write_diff_result(&result, &out_path)?;
+    if html {
+        matchy_analyze::report::html::write_html(&result, &out_path)?;
+    }
+    if markdown {
+        matchy_analyze::report::markdown::write_markdown(&result, &out_path)?;
+    }
 
-    let exit_code = compute_exit_code(&result.status, fail_on);
+    let exit_code = compute_exit_code(&result, fail_on);
     Ok(exit_code)
 }
 
@@ -271,6 +316,9 @@ fn run_analyze(
     new_bundle_arg: &str,
     out_dir: &str,
     profile_str: &str,
+    baseline_arg: Option<&str>,
+    html: bool,
+    markdown: bool,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
     let out_path = PathBuf::from(out_dir);
@@ -278,6 +326,12 @@ fn run_analyze(
     let new_bundle_path = PathBuf::from(new_bundle_arg);
 
     let profile = ParityProfile::parse(profile_str).unwrap_or(ParityProfile::ContentStructure);
+
+    let baseline = match baseline_arg {
+        Some(p) => matchy_analyze::baseline::load(std::path::Path::new(p))
+            .context("failed to load --baseline")?,
+        None => matchy_analyze::baseline::Baseline::default(),
+    };
 
     let old_bundle = load_bundle(&old_bundle_path)?;
     let new_bundle = load_bundle(&new_bundle_path)?;
@@ -333,10 +387,23 @@ fn run_analyze(
         new_det: new_bundle.determinism,
     };
 
-    let result = assemble_diff_result(&run_id, &old_url, &new_url, &profile, vec![vp_analysis]);
+    let result = assemble_diff_result(
+        &run_id,
+        &old_url,
+        &new_url,
+        &profile,
+        vec![vp_analysis],
+        &baseline,
+    );
     write_diff_result(&result, &out_path)?;
+    if html {
+        matchy_analyze::report::html::write_html(&result, &out_path)?;
+    }
+    if markdown {
+        matchy_analyze::report::markdown::write_markdown(&result, &out_path)?;
+    }
 
-    Ok(compute_exit_code(&result.status, "error"))
+    Ok(compute_exit_code(&result, "error"))
 }
 
 // ---------------------------------------------------------------------------
@@ -511,39 +578,36 @@ fn parse_viewport_arg(s: &str) -> Option<ViewportConfig> {
     })
 }
 
-fn compute_exit_code(status: &matchy_analyze::contract::Status, fail_on: &str) -> i32 {
-    use matchy_analyze::contract::Status;
-    match fail_on {
-        "never" => 0,
-        "info" => match status {
-            Status::Pass => 0,
-            _ => 1,
-        },
-        "warning" => match status {
-            Status::Pass | Status::Warn => {
-                if matches!(status, Status::Warn) {
-                    1
-                } else {
-                    0
-                }
-            }
-            _ => 1,
-        },
-        "error" => match status {
-            Status::Fail => 1,
-            Status::Error => 1,
-            _ => 0,
-        },
-        "critical" => {
-            // Only fail on critical (we don't track critical vs error separately in Status)
-            match status {
-                Status::Fail | Status::Error => 1,
-                _ => 0,
-            }
-        }
-        _ => match status {
-            Status::Fail | Status::Error => 1,
-            _ => 0,
-        },
+/// Compute the exit code based on the worst severity in kept issues and the fail-on threshold.
+///
+/// fail_on values: "never" → 0; "info"|"warning"|"error"|"critical" → rank-based;
+/// unknown → defaults to "error" behaviour.
+/// Exit codes: 0 = threshold not met; 1 = threshold met; 2 = tool error (set by caller).
+fn compute_exit_code(result: &matchy_analyze::contract::DiffResult, fail_on: &str) -> i32 {
+    if fail_on == "never" {
+        return 0;
+    }
+
+    // Map threshold string to severity rank.
+    let threshold_rank: i64 = match fail_on {
+        "info" => 0,
+        "warning" => 1,
+        "error" => 2,
+        "critical" => 3,
+        _ => 2, // default to "error"
+    };
+
+    // Compute max severity rank over kept issues; -1 if no issues.
+    let max_rank: i64 = result
+        .issues
+        .iter()
+        .map(|i| i.severity.rank() as i64)
+        .max()
+        .unwrap_or(-1);
+
+    if max_rank >= threshold_rank {
+        1
+    } else {
+        0
     }
 }

@@ -284,6 +284,59 @@ def evaluate_expected_issues(
             all_pass = False
             rows.append(("maxIssues", "FAIL", f"{count} issues > cap {cap}"))
 
+    # --- clusters (M8) ---
+    # expected["clusters"]["required"] is a list of cluster matchers, each with any of:
+    #   sharedProperty / sharedLandmark : match clusters whose field equals this
+    #   minMembers   : each matching cluster must have >= this many issueIds
+    #   exactlyOne   : exactly one cluster must match the sharedProperty/sharedLandmark filter
+    #   memberType   : every member id must resolve to an issue of this type
+    clusters_spec = expected.get("clusters")
+    if isinstance(clusters_spec, dict):
+        clusters: list[dict] = diff_result.get("clusters", [])
+        issues_by_id = {i.get("id"): i for i in issues}
+        for ci, cm in enumerate(clusters_spec.get("required", [])):
+            # Filter clusters by the shared key the matcher constrains.
+            def _key_match(c: dict) -> bool:
+                if "sharedProperty" in cm and c.get("sharedProperty") != cm["sharedProperty"]:
+                    return False
+                if "sharedLandmark" in cm and c.get("sharedLandmark") != cm["sharedLandmark"]:
+                    return False
+                return True
+
+            matched = [c for c in clusters if _key_match(c)]
+            problems: list[str] = []
+
+            if cm.get("exactlyOne") and len(matched) != 1:
+                problems.append(f"expected exactly 1 matching cluster, got {len(matched)}")
+            if not matched:
+                problems.append("no cluster matched the shared-key filter")
+
+            for c in matched:
+                members = c.get("issueIds", [])
+                if "minMembers" in cm and len(members) < cm["minMembers"]:
+                    problems.append(
+                        f"cluster {c.get('id')} has {len(members)} members < minMembers {cm['minMembers']}"
+                    )
+                if "memberType" in cm:
+                    bad = [
+                        m for m in members
+                        if (issues_by_id.get(m) or {}).get("type") != cm["memberType"]
+                    ]
+                    if bad:
+                        problems.append(
+                            f"cluster {c.get('id')} has {len(bad)} member(s) not of type {cm['memberType']}"
+                        )
+
+            key_desc = cm.get("sharedProperty") or cm.get("sharedLandmark") or repr(cm)
+            if problems:
+                all_pass = False
+                rows.append((f"clusters[{ci}]", "FAIL", f"{key_desc}: {'; '.join(problems)}"))
+            else:
+                detail = f"{key_desc}: {len(matched)} cluster(s)"
+                if matched and matched[0].get("issueIds"):
+                    detail += f", {len(matched[0]['issueIds'])} members"
+                rows.append((f"clusters[{ci}]", "PASS", detail))
+
     return all_pass, rows
 
 

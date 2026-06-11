@@ -19,5 +19,16 @@
     { "type": "missing_text" },
     { "type": "changed_text", "note": "Glyph/metric changes must not be misread as content edits." }
   ],
+  "clusters": {
+    "required": [
+      {
+        "sharedProperty": "font-family",
+        "memberType": "style_changed",
+        "minMembers": 3,
+        "exactlyOne": true,
+        "note": "Spec §13.1 fixture 15 / §12 M8 DoD: the global font-family defect must collapse into ONE cluster referencing all its member style_changed issues — one work item, not hundreds."
+      }
+    ]
+  },
   "notes": "One CSS variable edited: --_typography---fonts--secondary-font '\"Nunito Sans\",sans-serif' -> 'Georgia,serif', cascading to all paragraph tiers. Accepted knock-ons per manifest: global visual_region_changed, page_height_changed, many sibling style_changed(font-family) issues — this is the spec §13.1 fixture 15 global-defect/cluster candidate (one cluster expected once M8 clustering lands)."
 }

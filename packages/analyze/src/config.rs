@@ -69,6 +69,9 @@ pub mod base_confidence {
     pub const A11Y: f64 = 0.95;
 }
 
+/// Minimum group size to emit a cluster (spec §7.4 clusterMin default).
+pub const CLUSTER_MIN: usize = 3;
+
 /// Minimum style similarity for ancestor pairing (M4.md §3.2).
 pub const ANCESTOR_MIN_SIMILARITY: f64 = 0.6;
 
