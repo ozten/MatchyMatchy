@@ -654,9 +654,43 @@ matchy --old https://old.example.com/about \
        --json --html --markdown
 
 matchy doctor        # verify node/playwright/chromium and print remediation steps
+
+matchy analyze \
+       --old-bundle ./report/desktop/old.bundle.json \
+       --new-bundle ./report/desktop/new.bundle.json \
+       --out ./replay \
+       --profile content-structure \
+       --baseline accepted.json \
+       --scope main \
+       --fail-on warning \
+       --html --markdown
 ```
 
-Exit codes: `0` pass; `1` failed configured threshold (`--fail-on`, evaluated on post-profile severities); `2` tool/runtime error (page load failure on both pages, browser crash, capture failure, schema violation).
+Exit codes (all subcommands): `0` pass or below threshold; `1` issues at or above `--fail-on` severity; `2` tool/IO/schema error (page load failure on both pages, browser crash, capture failure, missing bundle, schema violation).
+
+### `matchy analyze` — offline replay from saved bundles
+
+`matchy analyze` is a fully-supported, documented entrypoint. It replays two previously-captured `CaptureBundle` JSON files through the same analysis engine as `matchy run`, producing a byte-deterministic `DiffResult` with no browser, network, or Playwright required.
+
+**Flags:**
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--old-bundle PATH` | required | Path to the old `CaptureBundle` JSON (e.g. `<out>/desktop/old.bundle.json`) |
+| `--new-bundle PATH` | required | Path to the new `CaptureBundle` JSON |
+| `--out DIR` | required | Output directory; `diff-result.json` (and optional `report.html`/`report.md`) are written here |
+| `--profile` | `content-structure` | Parity profile; same semantics as `matchy run` |
+| `--baseline PATH` | none | Accept-list JSON suppressing known issues by id; same format as `matchy run` |
+| `--scope ROLE` | all | Restrict scoring/issues to the given landmark roles |
+| `--fail-on LEVEL` | `error` | Exit `1` when any issue reaches this severity (`info`/`warning`/`error`/`critical`/`never`) |
+| `--image-dims-mode` | `strict` | Same semantics as `matchy run` |
+| `--html` / `--markdown` | off | Write additional report formats alongside the JSON |
+
+**Exit codes:** `0` = clean or all issues below `--fail-on` threshold; `1` = one or more issues at or above threshold; `2` = tool/IO error (missing bundle file, schema parse failure, missing screenshot PNG).
+
+**Note on `--viewport`:** the flag is irrelevant to `analyze` — the bundle already carries its own viewport name and dimensions from capture time. Passing `--viewport` to `analyze` has no effect.
+
+**Screenshot resolution:** `analyze` resolves each screenshot as `bundle_path.parent().parent()/<screenshots.fullPage>`. Bundles captured by `matchy run` are written to `<out>/<viewport>/old.bundle.json` and screenshots to `<out>/<viewport>/old.png`, so `parent().parent()` points back to `<out>` and the path resolves correctly. When using frozen bundles (e.g. `testbed/pairs/<case>/<viewport>/old.bundle.json`), preserve the `<viewport>/` subdirectory nesting and commit the PNG files alongside the bundles.
 
 ### Runtime requirements (documented, not bundled)
 

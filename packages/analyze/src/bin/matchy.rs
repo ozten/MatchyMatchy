@@ -114,7 +114,12 @@ struct Cli {
 enum CliCommand {
     /// Verify runtime environment
     Doctor,
-    /// Run analysis from existing bundles (for determinism verification)
+    /// Replay two saved bundles offline and produce a DiffResult byte-deterministically.
+    ///
+    /// Supports the full global flag set: --profile, --baseline, --scope, --fail-on,
+    /// --image-dims-mode, --html, --markdown. --viewport is irrelevant (the bundle
+    /// carries its own viewport). Exit codes: 0 = clean/below threshold; 1 = issues at
+    /// or above --fail-on severity; 2 = tool/IO/schema error.
     Analyze(AnalyzeArgs),
 }
 
@@ -168,6 +173,7 @@ fn main() {
                 cli.html,
                 cli.markdown,
                 image_dims_mode,
+                &cli.fail_on,
             ) {
                 Ok(code) => code,
                 Err(e) => {
@@ -408,18 +414,17 @@ fn run_self_check(
 
         // The first old capture already exists with prefix "old".
         // Capture a second time with prefix "old-selfcheck".
-        let sc_config =
-            build_capture_config(&matchy_analyze::orchestrate::CaptureConfigParams {
-                url: old_url,
-                prefix: "old-selfcheck",
-                out_dir: out_path,
-                viewport: vp,
-                freeze_time,
-                stub_random,
-                hide_selectors: hide,
-                mask_selectors: mask,
-                click_selectors: click,
-            });
+        let sc_config = build_capture_config(&matchy_analyze::orchestrate::CaptureConfigParams {
+            url: old_url,
+            prefix: "old-selfcheck",
+            out_dir: out_path,
+            viewport: vp,
+            freeze_time,
+            stub_random,
+            hide_selectors: hide,
+            mask_selectors: mask,
+            click_selectors: click,
+        });
         let sc_bundle_path = match run_capture(capture_script, &sc_config) {
             Ok(p) => p,
             Err(e) => {
@@ -523,6 +528,7 @@ fn run_analyze(
     html: bool,
     markdown: bool,
     image_dims_mode: ImageDimensionsMode,
+    fail_on: &str,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
     let out_path = PathBuf::from(out_dir);
@@ -614,7 +620,7 @@ fn run_analyze(
         matchy_analyze::report::markdown::write_markdown(&result, &out_path)?;
     }
 
-    Ok(compute_exit_code(&result, "error"))
+    Ok(compute_exit_code(&result, fail_on))
 }
 
 // ---------------------------------------------------------------------------
