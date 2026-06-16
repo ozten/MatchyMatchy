@@ -55,8 +55,15 @@ export function redactUrl(url: string, redactParams: string[]): string {
 
 /**
  * Default sensitive query parameter names to redact.
+ *
+ * This set is a SUPERSET of the privacy gate's SECRET_NAMES
+ * (testbed/pair_privacy.py) so that a clean capture of a real page will
+ * always pass the gate — params arrive already redacted to the "…redacted…"
+ * sentinel before any bundle is written.  Keep these two sets in sync:
+ * capture ⊇ gate is the invariant (capture redacts everything the gate checks).
  */
 export const DEFAULT_REDACT_PARAMS = [
+  // Original set (mirrors _CAPTURE_DEFAULT_REDACT in pair_privacy.py)
   "token",
   "sig",
   "signature",
@@ -64,4 +71,16 @@ export const DEFAULT_REDACT_PARAMS = [
   "auth",
   "apikey",
   "access_token",
+  // Extended set (mirrors _EXTRA_SECRET_NAMES in pair_privacy.py)
+  "api_key",
+  "sid",
+  "password",
+  "passwd",
+  "pwd",
+  "secret",
+  "client_secret",
+  "bearer",
+  "jwt",
+  "session",
+  "sessionid",
 ];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeText, redactUrl } from "../src/normalize.js";
+import { normalizeText, redactUrl, DEFAULT_REDACT_PARAMS } from "../src/normalize.js";
 
 describe("normalizeText", () => {
   it("replaces NBSP with regular space", () => {
@@ -123,5 +123,87 @@ describe("redactUrl", () => {
     const result = redactUrl(url, SENSITIVE_PARAMS);
     expect(result).not.toContain("mytoken123");
     expect(result).toContain("…redacted…");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFAULT_REDACT_PARAMS — gate symmetry (R5 redaction-hygiene)
+// These tests verify capture ⊇ gate: every param in pair_privacy.py
+// SECRET_NAMES is redacted by DEFAULT_REDACT_PARAMS before bundle write.
+// ---------------------------------------------------------------------------
+describe("DEFAULT_REDACT_PARAMS gate symmetry", () => {
+  it("redacts api_key (Weglot and similar API key query params)", () => {
+    const url = "https://cdn.weglot.com/widget?api_key=wg_secret123&other=keep";
+    const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+    expect(result).not.toContain("wg_secret123");
+    expect(result).toContain("api_key=…redacted…");
+    expect(result).toContain("other=keep");
+  });
+
+  it("redacts sid (Google Analytics / Bing / LeadFeeder session params)", () => {
+    const url = "https://www.google-analytics.com/collect?v=1&sid=abc123xyz&t=event";
+    const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+    expect(result).not.toContain("abc123xyz");
+    expect(result).toContain("sid=…redacted…");
+    expect(result).toContain("t=event");
+  });
+
+  it("redacts api_key and sid together while leaving non-sensitive params", () => {
+    const url = "https://x.com/a?api_key=wg_secret&sid=abc&foo=bar";
+    const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+    expect(result).not.toContain("wg_secret");
+    expect(result).not.toContain("=abc");
+    expect(result).toContain("api_key=…redacted…");
+    expect(result).toContain("sid=…redacted…");
+    expect(result).toContain("foo=bar");
+  });
+
+  it("redacts password / passwd / pwd", () => {
+    for (const param of ["password", "passwd", "pwd"]) {
+      const url = `https://example.com/login?${param}=hunter2`;
+      const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+      expect(result, `${param} should be redacted`).not.toContain("hunter2");
+      expect(result).toContain(`${param}=…redacted…`);
+    }
+  });
+
+  it("redacts secret and client_secret", () => {
+    const url = "https://auth.example.com/token?client_secret=cs_xyz&secret=s_abc";
+    const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+    expect(result).not.toContain("cs_xyz");
+    expect(result).not.toContain("s_abc");
+    expect(result).toContain("client_secret=…redacted…");
+    expect(result).toContain("secret=…redacted…");
+  });
+
+  it("redacts bearer and jwt", () => {
+    const url = "https://api.example.com/v1?bearer=tok_abc&jwt=eyJhbGc";
+    const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+    expect(result).not.toContain("tok_abc");
+    expect(result).not.toContain("eyJhbGc");
+    expect(result).toContain("bearer=…redacted…");
+    expect(result).toContain("jwt=…redacted…");
+  });
+
+  it("redacts session / sessionid", () => {
+    const url = "https://example.com/app?session=sess_xyz&sessionid=sid_abc";
+    const result = redactUrl(url, DEFAULT_REDACT_PARAMS);
+    expect(result).not.toContain("sess_xyz");
+    expect(result).not.toContain("sid_abc");
+    expect(result).toContain("session=…redacted…");
+    expect(result).toContain("sessionid=…redacted…");
+  });
+
+  it("contains all gate secret names", () => {
+    // Ensure the default list covers every name in pair_privacy.py SECRET_NAMES
+    const gateSecretNames = new Set([
+      "token", "sig", "signature", "key", "auth", "apikey", "access_token",
+      "password", "passwd", "pwd", "secret", "client_secret",
+      "bearer", "jwt", "session", "sessionid", "sid", "api_key",
+    ]);
+    const defaultSet = new Set(DEFAULT_REDACT_PARAMS.map((p) => p.toLowerCase()));
+    for (const name of gateSecretNames) {
+      expect(defaultSet.has(name), `DEFAULT_REDACT_PARAMS missing gate secret: ${name}`).toBe(true);
+    }
   });
 });

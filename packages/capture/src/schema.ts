@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_REDACT_PARAMS } from "./normalize.js";
 
 // ─── Determinism step status ───────────────────────────────────────────────
 export const DeterminismStepSchema = z.enum(["ran", "failed", "skipped"]);
@@ -42,17 +43,7 @@ export const CaptureConfigSchema = z.object({
   maskSelectors: z.array(z.string()).default([]),
   clickBeforeCapture: z.array(z.string()).default([]),
   maxTextLength: z.number().int().positive().default(500),
-  redactParams: z
-    .array(z.string())
-    .default([
-      "token",
-      "sig",
-      "signature",
-      "key",
-      "auth",
-      "apikey",
-      "access_token",
-    ]),
+  redactParams: z.array(z.string()).default(DEFAULT_REDACT_PARAMS),
   probeLinks: z.boolean().default(false),
 });
 export type CaptureConfig = z.infer<typeof CaptureConfigSchema>;
