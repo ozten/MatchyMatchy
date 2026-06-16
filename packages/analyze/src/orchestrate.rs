@@ -431,6 +431,13 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
         mask_selectors: mask_selectors.to_vec(),
         click_before_capture: click_selectors.to_vec(),
         max_text_length: 500,
+        // Credential/secret query-param names redacted from every recorded URL.
+        // MUST stay a superset of the privacy gate's SECRET_NAMES
+        // (testbed/pair_privacy.py) and mirror DEFAULT_REDACT_PARAMS in
+        // packages/capture/src/normalize.ts — capture ⊇ gate is the invariant, so
+        // a clean capture of a real page is never blocked by the freeze gate.
+        // (This Rust list is the runtime source: matchy passes it to capture.cjs,
+        // overriding the TS schema default. Keep all three in sync.)
         redact_params: vec![
             "token".to_string(),
             "sig".to_string(),
@@ -439,6 +446,17 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
             "auth".to_string(),
             "apikey".to_string(),
             "access_token".to_string(),
+            "api_key".to_string(),
+            "sid".to_string(),
+            "password".to_string(),
+            "passwd".to_string(),
+            "pwd".to_string(),
+            "secret".to_string(),
+            "client_secret".to_string(),
+            "bearer".to_string(),
+            "jwt".to_string(),
+            "session".to_string(),
+            "sessionid".to_string(),
         ],
         // Probe links for BOTH sides (M3.md D4: old-side probes feed broken_link parity —
         // pre-existing 404s on both sides are suppressed, keeping v01 at zero issues).
