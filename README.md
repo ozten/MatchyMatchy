@@ -159,11 +159,39 @@ Run `matchy doctor` after installing — it checks each requirement and prints t
 | Target | What it does |
 |---|---|
 | `make build` | `cargo build --release` + `packages/capture` npm install and bundle |
-| `make verify` | Full CI gate: build, unit tests, testbed servers, M1 fixture checks, golden comparisons, determinism spot-check |
+| `make verify` | Full CI gate: build, unit tests, testbed servers, M1 fixture checks, M8 acceptance, **Tier-3 real-pair gate**, golden comparisons, determinism spot-check |
 | `make fixture VARIANT=vNN` | Run `check-fixture.py` for one variant (e.g. `VARIANT=v02-banner-added`) |
+| `make pair CASE=pNN-…` | Replay + assert one Tier-3 real-pair fixture hermetically (`check-pair.py`) |
+| `make pair-add CASE=… URL_OLD=… URL_NEW=… [PROFILE= VIEWPORT= HIDE= MASK=]` | Capture a real old/new URL pair, run the privacy gate, freeze it, and scaffold a fixture |
+| `make pair-refresh CASE=…` | Re-capture an existing pair from its recorded flags (golden-discipline event) |
 | `make testbed-up` | Start all testbed HTTP servers (golden + variants) |
 | `make testbed-down` | Stop all testbed servers |
 | `make testbed-check` | Verify all servers respond HTTP 200 and manifests validate |
+
+### Regression fixtures: three tiers
+
+The testbed has three tiers of regression fixtures, all gated by `make verify`:
+
+- **Tier 1 — synthetic variants** (`testbed/variants/`): one deliberate single-change permutation per variant, served locally. Precise feature tests with hand-authored `expected-issues.json` intent.
+- **Tier 2 — calibration pairs** (gitignored, run-once): real URLs captured during M6 calibration; not a permanent gate.
+- **Tier 3 — real-pair regression fixtures** (`testbed/pairs/`): any real old/new URL pair where matchy misses a defect or floods noise, frozen into a deterministic, hermetic, CI-gated test. This is the convenience tier for the *"I hit a real example, add it to the bench, fix the tool"* loop.
+
+**The Tier-3 loop:**
+
+```
+make pair-add CASE=pNN-slug URL_OLD=<old> URL_NEW=<new> [HIDE=…]   # capture once (only network step)
+  → privacy gate (credential token-scan fail-closed + human PII/ownership review)
+  → freeze bundles + screenshots under testbed/pairs/<case>/<viewport>/
+  → scaffold pair.json (expectedState defaults "red") + an EMPTY expected-issues.json stub
+
+matchy explain --old-bundle … --new-bundle … --anchor "text=…"     # triage: classify the diff offline
+  → hand-author expected-issues.json (what matchy SHOULD emit); set demonstrates / expectedState / knownDrift
+
+make pair CASE=pNN-slug                                            # assert hermetically (no servers/network)
+make verify                                                        # the Tier-3 gate runs every committed pair
+```
+
+Fixtures replay from **frozen bundles** via `matchy analyze` — no Chromium, Playwright, testbed servers, or network — so they run in minimal CI. Every run re-checks the SHA-256 integrity of both bundles (mismatch is a hard error). A fixture is **`expectedState: "red"`** when it locks a defect matchy cannot yet handle: `check-pair.py` reports it as a gate-safe **XFAIL** (exit 0) so a *"commit red, fix later"* TDD entry does not break `main`. When the fix lands, flip `expectedState` to `"green"`. Committed captures are redaction-clean (credential params are scrubbed and the freeze gate fails closed otherwise); see [Privacy and network behavior](#privacy-and-network-behavior). The seed fixture `p01-hiya-number-registration` locks a real broken-link regression caught in a Webflow-staging → localhost rebuild.
 
 ## License
 
