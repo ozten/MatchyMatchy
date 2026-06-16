@@ -4,6 +4,15 @@ testbed/.pids.json
 testbed/.runs/
 __pycache__/
 
+# Tier-3 real-pair regression fixtures are INTENTIONALLY tracked.
+# testbed/pairs/**  contains:
+#   pair.json, expected-issues.json, baseline.json (manifest + intent)
+#   <viewport>/*.bundle.json  (frozen hermetic capture bundles)
+#   <viewport>/*.png          (frozen screenshots — analyze hard-requires these)
+# This negation guard prevents any future broad testbed/* ignore from
+# accidentally swallowing the fixtures.
+!testbed/pairs/
+
 # M6 calibration: capture bundles + screenshots stay local (SHA-256s recorded in
 # docs/calibration-note.md); only diff-results under calibration/<pair>/ are committed
 calibration/.capture/
