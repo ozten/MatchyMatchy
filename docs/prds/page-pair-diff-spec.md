@@ -692,6 +692,53 @@ Exit codes (all subcommands): `0` pass or below threshold; `1` issues at or abov
 
 **Screenshot resolution:** `analyze` resolves each screenshot as `bundle_path.parent().parent()/<screenshots.fullPage>`. Bundles captured by `matchy run` are written to `<out>/<viewport>/old.bundle.json` and screenshots to `<out>/<viewport>/old.png`, so `parent().parent()` points back to `<out>` and the path resolves correctly. When using frozen bundles (e.g. `testbed/pairs/<case>/<viewport>/old.bundle.json`), preserve the `<viewport>/` subdirectory nesting and commit the PNG files alongside the bundles.
 
+### `matchy explain` — offline node triage
+
+`matchy explain` is a hermetic, read-only triage probe. It locates a node by anchor string, node id, or CSS selector across two frozen `CaptureBundle` JSON files and prints a per-side computed-style + bbox table, highlighting which properties differ. No browser, network, Playwright, or analysis engine is involved — it surfaces only data already present in the bundles. It adds no new analysis capability.
+
+**Purpose:** classify a real-pair diff as a false-negative (matchy missed a defect) or false-positive (matchy flagged drift that isn't real) by inspecting the raw style/bbox facts that the analysis engine consumed.
+
+```bash
+matchy explain \
+       --old-bundle ./pairs/p01/desktop/old.bundle.json \
+       --new-bundle ./pairs/p01/desktop/new.bundle.json \
+       --anchor "text=Get started" \
+       --props background-image,color,font-size
+```
+
+**Locator forms (exactly one required):**
+
+| Flag | Semantics |
+|---|---|
+| `--anchor "key=value"` | Substring match on the named anchor field. `key` ∈ `{text, role, href, nearestHeading}`. Matched against `node.anchors.<field>`, falling back to the equivalent `SemanticNode` field where both exist. Case-sensitive. |
+| `--node <id>` | Exact match on `SemanticNode.id` (e.g. `node_42`). |
+| `--selector "<css>"` | Exact match on `SemanticNode.cssSelector`, falling back to substring if no exact match is found. |
+
+When multiple nodes match, the one with the lowest `(seqIndex, id)` is selected — the same total-order tie-break used throughout the analysis layer.
+
+**`--props` flag:** comma-separated list of CSS property names to display (e.g. `color,font-family,gap`). When omitted, the output shows only properties that **differ** between the two sides (diff-only default), plus the four bbox pseudo-properties `bbox.x/y/w/h` when they differ. `<absent>` is shown when a property exists on one side only.
+
+**Output:** a deterministic table sorted alphabetically by property name.
+
+```
+property          old                                    new     changed?
+----------------  -------------------------------------  ------  --------
+background-image  linear-gradient(90deg, #0070f3, ...)  none    CHANGED
+bbox.x            100                                   100
+bbox.y            200                                   210     CHANGED
+```
+
+**Exit codes:**
+
+| Condition | Exit code |
+|---|---|
+| Node resolved on both sides | `0` |
+| Node resolved on one side only (asymmetry reported to stdout) | `0` |
+| Node not found on either side | `2` (message on stderr) |
+| Bad locator syntax / IO error | `2` |
+
+A one-side match is a legitimate triage finding (the element was added or removed), not an error.
+
 ### Runtime requirements (documented, not bundled)
 
 The curl installer (`install.sh`) delivers exactly two artifacts: the `matchy` binary and the bundled `capture.cjs`. It never installs Node or browsers. The host must already provide, on `PATH`:

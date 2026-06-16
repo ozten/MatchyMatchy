@@ -121,6 +121,16 @@ enum CliCommand {
     /// carries its own viewport). Exit codes: 0 = clean/below threshold; 1 = issues at
     /// or above --fail-on severity; 2 = tool/IO/schema error.
     Analyze(AnalyzeArgs),
+    /// Hermetic computed-style / bbox triage probe over two frozen bundles.
+    ///
+    /// Locates a node by anchor string, node id, or CSS selector on each side
+    /// independently and prints a per-side computed-style + bbox table highlighting
+    /// differences.  No browser, network, or analysis engine involved — surfaces only
+    /// data already in the bundles.
+    ///
+    /// Exit codes: 0 = node resolved on at least one side; 2 = node not found on
+    /// either side, or bad locator syntax.
+    Explain(ExplainArgs),
 }
 
 #[derive(Args, Debug)]
@@ -136,6 +146,43 @@ struct AnalyzeArgs {
     /// Output directory
     #[arg(long, short = 'o')]
     out: String,
+}
+
+#[derive(Args, Debug)]
+#[group(required = true, multiple = false)]
+struct ExplainLocator {
+    /// Anchor locator: key=value where key ∈ {text, role, href, nearestHeading}.
+    /// Substring match, case-sensitive.
+    #[arg(long)]
+    anchor: Option<String>,
+
+    /// Node-id locator: exact match on SemanticNode.id (e.g. node_42).
+    #[arg(long)]
+    node: Option<String>,
+
+    /// CSS-selector locator: exact match on SemanticNode.cssSelector, falling
+    /// back to substring match when no exact match is found.
+    #[arg(long)]
+    selector: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct ExplainArgs {
+    /// Path to old CaptureBundle JSON
+    #[arg(long)]
+    old_bundle: String,
+
+    /// Path to new CaptureBundle JSON
+    #[arg(long)]
+    new_bundle: String,
+
+    #[command(flatten)]
+    locator: ExplainLocator,
+
+    /// Comma-separated list of CSS properties to show (e.g. color,font-family,gap).
+    /// Default: show only properties that differ between the two sides (diff-only).
+    #[arg(long)]
+    props: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +222,15 @@ fn main() {
                 image_dims_mode,
                 &cli.fail_on,
             ) {
+                Ok(code) => code,
+                Err(e) => {
+                    eprintln!("error: {:#}", e);
+                    2
+                }
+            }
+        }
+        Some(CliCommand::Explain(args)) => {
+            match run_explain(args) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {:#}", e);
@@ -512,6 +568,67 @@ fn run_self_check(
     };
 
     Ok(vec![warning])
+}
+
+// ---------------------------------------------------------------------------
+// matchy explain subcommand handler
+// ---------------------------------------------------------------------------
+
+fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
+    use matchy_analyze::explain::{explain, format_report, Locator, ResolutionStatus};
+
+    // Parse the locator from the exactly-one required flag group.
+    let (locator, locator_str) = if let Some(anchor) = &args.locator.anchor {
+        let loc = Locator::parse_anchor(anchor).map_err(|e| anyhow::anyhow!("{}", e))?;
+        (loc, format!("--anchor \"{}\"", anchor))
+    } else if let Some(node_id) = &args.locator.node {
+        (Locator::NodeId(node_id.clone()), format!("--node {}", node_id))
+    } else if let Some(sel) = &args.locator.selector {
+        (Locator::Selector(sel.clone()), format!("--selector \"{}\"", sel))
+    } else {
+        // Clap enforces the required group, so this branch is unreachable.
+        eprintln!("error: exactly one of --anchor, --node, or --selector is required");
+        return Ok(2);
+    };
+
+    // Load bundles.
+    let old_bundle_path = PathBuf::from(&args.old_bundle);
+    let new_bundle_path = PathBuf::from(&args.new_bundle);
+    let old_bundle = load_bundle(&old_bundle_path)
+        .with_context(|| format!("failed to load old bundle: {}", args.old_bundle))?;
+    let new_bundle = load_bundle(&new_bundle_path)
+        .with_context(|| format!("failed to load new bundle: {}", args.new_bundle))?;
+
+    // Parse --props if given.
+    let props_vec: Option<Vec<String>> = args.props.as_ref().map(|p| {
+        p.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    });
+    let props_slice = props_vec.as_deref();
+
+    // Run the pure explain function.
+    let report = explain(&old_bundle, &new_bundle, &locator, props_slice);
+
+    // Check resolution status.
+    let both_not_found = report.old.status == ResolutionStatus::NotFound
+        && report.new.status == ResolutionStatus::NotFound;
+
+    if both_not_found {
+        eprintln!(
+            "error: node not found for locator {} in either bundle",
+            locator_str
+        );
+        return Ok(2);
+    }
+
+    // Print the formatted table.
+    let output = format_report(&report, &locator_str);
+    print!("{}", output);
+
+    // Exit 0 on single-side match too (a legitimate triage finding).
+    Ok(0)
 }
 
 // ---------------------------------------------------------------------------

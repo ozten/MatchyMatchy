@@ -7,6 +7,7 @@ pub mod config;
 pub mod contract;
 pub mod doctor;
 pub mod egress;
+pub mod explain;
 pub mod hygiene;
 pub mod issue;
 pub mod locale;
