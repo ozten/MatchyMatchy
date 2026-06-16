@@ -1,0 +1,17 @@
+{
+  "status": "fail",
+  "required": [
+    {
+      "type": "broken_link",
+      "anchors": {
+        "textContains": "See Branded Call Plans",
+        "hrefContains": "/products/connect/pricing"
+      },
+      "minSeverity": "error",
+      "note": "LOCKED SIGNAL (true-positive). The 'See Branded Call Plans' CTA in <main> links to /products/connect/pricing, which returns 200 on the Webflow-staging old page but 404 on the localhost rebuild. matchy correctly emits a broken_link error. This is the real migration regression this fixture exists to lock; if a future change stops catching it, that is a false-negative regression."
+    }
+  ],
+  "forbidden": [],
+  "maxIssues": 280,
+  "notes": "Tier-3 real-pair seed: Webflow-staging -> localhost rebuild migration of the Hiya Connect number-registration page. The single asserted signal is the broken_link true-positive (required[0]). The remaining incidental migration drift is NOT individually asserted but is bounded by maxIssues (current run: 272) and catalogued in pair.json.knownDrift: the global nav/footer menu is not yet ported to the rebuild (most missing_link/missing_text under the RESOURCES/SOLUTIONS/PRODUCTS/CONSIDERING-HIYA landmarks), the Weglot translation widget is absent (ENGLISH missing_button + per-language requests), homepage links gained an /en-US locale prefix (changed_link_target), and the rebuild's CSS differs broadly from Webflow (style_changed). status=fail reflects these genuine differences. maxIssues guards against a future noise flood on these frozen bundles (golden-discipline: adjust with a docs/golden-changelog.md entry if a deliberate analyzer change moves the count)."
+}

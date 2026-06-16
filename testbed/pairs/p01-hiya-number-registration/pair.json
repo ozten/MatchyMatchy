@@ -1,0 +1,41 @@
+{
+  "caseId": "p01-hiya-number-registration",
+  "description": "Real Webflow-staging -> localhost rebuild migration of the Hiya Connect number-registration page. Locks a true-positive broken-link regression: the 'See Branded Call Plans' CTA in <main> targets /products/connect/pricing, which 200s on staging but 404s on the rebuild, and matchy catches it. Surrounded by extensive incidental migration drift (see knownDrift). Proves the Tier-3 capture -> freeze -> explain -> assert loop end-to-end on a real page.",
+  "demonstrates": "true-positive",
+  "discoveredVia": "Real migration QA: Webflow staging vs in-progress localhost rebuild (make pair-add)",
+  "goals": ["G7"],
+  "profile": "content-structure",
+  "viewport": "desktop",
+  "old": {
+    "url": "https://hiya-com-temp-43830deaa570809d11aa88b1f.webflow.io/products/connect/number-registration",
+    "finalUrl": "https://hiya-com-temp-43830deaa570809d11aa88b1f.webflow.io/products/connect/number-registration",
+    "capturedAt": "2026-06-16T21:55:56.046Z",
+    "sha256": "d644dd50149b4aab582d7b269d8b633f90a8c213bf04328e7f8428b09bffb863",
+    "chromiumBuild": "148.0.7778.0"
+  },
+  "new": {
+    "url": "http://localhost:3001/products/connect/number-registration",
+    "finalUrl": "http://localhost:3001/products/connect/number-registration",
+    "capturedAt": "2026-06-16T21:56:01.079Z",
+    "sha256": "fd19cfa4d9b301604d54143a792e73ec7a1a5bc002aff9180bf953f58b4facc3",
+    "chromiumBuild": "148.0.7778.0"
+  },
+  "captureFlags": [
+    "--profile",
+    "content-structure",
+    "--viewport",
+    "desktop=1440x1000"
+  ],
+  "baseline": null,
+  "knownDrift": [
+    "Global nav/footer menu not yet ported to the localhost rebuild: most of the 35 missing_link + 14 missing_text issues are nav/footer entries under the RESOURCES / SOLUTIONS / PRODUCTS / CONSIDERING-HIYA landmarks (Developer Docs, Carriers, Contact us, Trust Center, Events, Blog, Press Kit, Terms of Service, etc.).",
+    "Weglot translation widget absent on the rebuild: the 'ENGLISH' language switcher (missing_button) and its per-language slug requests do not exist on localhost.",
+    "Homepage links gained an /en-US locale prefix on the rebuild: '/' -> '/en-US' (changed_link_target, uncertain band).",
+    "Top-nav dropdown button labels are empty on the rebuild (changed_link_text: Resources / Products / Solutions / Why Hiya?).",
+    "Broad CSS differences between Webflow staging and the rebuild account for the ~185 style_changed issues.",
+    "Decorative icon SVG (fi_x.svg, served from website-files.com) is absent on the rebuild (missing_image)."
+  ],
+  "frozen": true,
+  "refreshPolicy": "never",
+  "expectedState": "green"
+}
