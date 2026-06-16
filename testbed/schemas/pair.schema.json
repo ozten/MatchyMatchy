@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ppd-testbed-pair",
+  "title": "page-pair-diff testbed real-pair provenance manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "caseId",
+    "description",
+    "demonstrates",
+    "discoveredVia",
+    "goals",
+    "profile",
+    "viewport",
+    "old",
+    "new",
+    "captureFlags",
+    "baseline",
+    "frozen",
+    "refreshPolicy",
+    "expectedState"
+  ],
+  "properties": {
+    "caseId": {
+      "description": "Stable identifier for the case; prefix p + two-or-more digits + slug.",
+      "type": "string",
+      "pattern": "^p[0-9]{2,}-[a-z0-9-]+$"
+    },
+    "description": {
+      "description": "Human-readable summary of the case.",
+      "type": "string",
+      "minLength": 1
+    },
+    "demonstrates": {
+      "description": "Classification of the defect or scenario this case exercises.",
+      "type": "string",
+      "enum": ["false-negative", "false-positive", "true-positive", "mixed"]
+    },
+    "discoveredVia": {
+      "description": "How this case was found (e.g. manual audit, user report).",
+      "type": "string",
+      "minLength": 1
+    },
+    "goals": {
+      "description": "Spec §1 goals this case exercises.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^G[1-8]$"
+      }
+    },
+    "profile": {
+      "description": "Capture profile name used (e.g. desktop-en).",
+      "type": "string"
+    },
+    "viewport": {
+      "description": "Subdirectory name the frozen bundles live under (e.g. desktop).",
+      "type": "string"
+    },
+    "old": {
+      "description": "Provenance for the 'old' (baseline) page capture.",
+      "$ref": "#/$defs/captureRecord"
+    },
+    "new": {
+      "description": "Provenance for the 'new' (changed) page capture.",
+      "$ref": "#/$defs/captureRecord"
+    },
+    "captureFlags": {
+      "description": "CLI flags passed to the capture tool when freezing this pair.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "baseline": {
+      "description": "Path to a baseline suppression file, or null if none.",
+      "type": ["string", "null"]
+    },
+    "knownDrift": {
+      "description": "Free-text descriptions of accepted/expected drift between captures.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "frozen": {
+      "description": "Must be true; signals this manifest is locked and captures are immutable.",
+      "const": true
+    },
+    "refreshPolicy": {
+      "description": "When this pair may be re-captured.",
+      "type": "string",
+      "enum": ["never", "on-demand"]
+    },
+    "expectedState": {
+      "description": "Whether this case should currently pass (green) or is locked pending FN/FP resolution (red).",
+      "type": "string",
+      "enum": ["green", "red"]
+    }
+  },
+  "$defs": {
+    "captureRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "finalUrl", "capturedAt", "sha256", "chromiumBuild"],
+      "properties": {
+        "url": {
+          "description": "Requested URL.",
+          "type": "string"
+        },
+        "finalUrl": {
+          "description": "URL after redirects.",
+          "type": "string"
+        },
+        "capturedAt": {
+          "description": "ISO 8601 date-time when the capture was frozen.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "SHA-256 hex digest of the frozen bundle.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "chromiumBuild": {
+          "description": "Chromium build string used for capture.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
