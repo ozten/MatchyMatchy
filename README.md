@@ -69,6 +69,14 @@ Useful flags:
 
 A config file mirrors all flags and adds tuning for matching thresholds, stabilization, visual thresholds, redaction, and egress.
 
+### Other commands
+
+- **`matchy doctor`** — verify Node.js, Playwright, and Chromium are present and print the exact fix for anything missing.
+- **`matchy analyze --old-bundle <path> --new-bundle <path> --out <dir>`** — re-run analysis offline from two previously-saved `CaptureBundle` JSON files, with no browser, network, or Playwright. Produces a byte-deterministic `DiffResult`. Honors the global `--profile`, `--baseline`, `--scope`, and `--fail-on` flags and the same `0`/`1`/`2` exit codes as a full run (`--viewport` is irrelevant — the bundle carries its own).
+- **`matchy explain --old-bundle <path> --new-bundle <path> --anchor "text=…"`** — read-only triage probe. Locates one element across the two bundles — by `--anchor "<key>=<value>"` (key ∈ `text`/`role`/`href`/`nearestHeading`), `--node <id>`, or `--selector "<css>"` — and prints its per-side computed-style + bbox values, diff-only by default (or restricted with `--props color,gap,…`). Use it to fact-check why an issue was or wasn't flagged. Hermetic: no browser or network.
+
+The full CLI reference (flags, exit codes, screenshot resolution) lives in [`docs/prds/page-pair-diff-spec.md`](docs/prds/page-pair-diff-spec.md) §14.
+
 ## The DiffResult contract
 
 The JSON output is the primary product; the HTML report is just one renderer of it. It opens with a machine-first triage block:
