@@ -259,14 +259,28 @@ def run_capture(
 
     print(f"  Running capture: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
+    # Exit 0 = pass, exit 1 = differences found (both are successful captures).
+    # Exit 2 = hard error (Playwright/Chromium/network/config failure).
+    if result.returncode == 2:
         print(
-            f"ERROR: matchy capture exited {result.returncode}.\n"
+            f"ERROR: matchy capture exited {result.returncode} (hard error).\n"
             f"  stdout: {result.stdout[:1000]}\n"
             f"  stderr: {result.stderr[:1000]}",
             file=sys.stderr,
         )
         sys.exit(2)
+    if result.returncode not in (0, 1):
+        print(
+            f"ERROR: matchy capture exited {result.returncode} (unexpected exit code).\n"
+            f"  stdout: {result.stdout[:1000]}\n"
+            f"  stderr: {result.stderr[:1000]}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    # Print any stderr warnings (e.g. self-check failures, stabilizer retries) for the log.
+    if result.stderr.strip():
+        for line in result.stderr.strip().splitlines():
+            print(f"  [matchy stderr] {line}")
 
 
 # ---------------------------------------------------------------------------
