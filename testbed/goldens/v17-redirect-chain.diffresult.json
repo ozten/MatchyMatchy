@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "toolVersion": "0.1.0",
   "runId": "2026-06-11T22-08-59Z",
   "oldUrl": "http://localhost:47000/",
@@ -12,6 +12,7 @@
       "url_redirect_chain": 1
     },
     "clusterCount": 0,
+    "regionCount": 0,
     "topFixes": [
       "issue_bac5d61ccae1"
     ]
@@ -103,6 +104,7 @@
     }
   ],
   "clusters": [],
+  "regions": [],
   "suppressed": {
     "count": 0,
     "ids": []

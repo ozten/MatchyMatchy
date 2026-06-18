@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "toolVersion": "0.1.0",
   "runId": "2026-06-11T22-07-26Z",
   "oldUrl": "http://localhost:47000/",
@@ -14,6 +14,7 @@
       "visual_region_changed": 50
     },
     "clusterCount": 6,
+    "regionCount": 0,
     "topFixes": [
       "cluster_60c3ac612c94",
       "cluster_86bdc098d7a7",
@@ -54669,6 +54670,7 @@
       "summary": "4 visual_region_changed issues in contentinfo"
     }
   ],
+  "regions": [],
   "suppressed": {
     "count": 0,
     "ids": []

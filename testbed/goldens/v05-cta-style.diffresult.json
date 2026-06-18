@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "toolVersion": "0.1.0",
   "runId": "2026-06-11T22-07-48Z",
   "oldUrl": "http://localhost:47000/",
@@ -12,6 +12,7 @@
       "style_changed": 15
     },
     "clusterCount": 3,
+    "regionCount": 0,
     "topFixes": [
       "cluster_5d1089cefb78",
       "cluster_986daf748f33",
@@ -1143,6 +1144,7 @@
       "summary": "3 style_changed issues share background-color"
     }
   ],
+  "regions": [],
   "suppressed": {
     "count": 0,
     "ids": []

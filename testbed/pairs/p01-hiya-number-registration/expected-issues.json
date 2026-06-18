@@ -8,10 +8,20 @@
         "hrefContains": "/products/connect/pricing"
       },
       "minSeverity": "error",
-      "note": "LOCKED SIGNAL (true-positive). The 'See Branded Call Plans' CTA in <main> links to /products/connect/pricing, which returns 200 on the Webflow-staging old page but 404 on the localhost rebuild. matchy correctly emits a broken_link error. This is the real migration regression this fixture exists to lock; if a future change stops catching it, that is a false-negative regression."
+      "note": "LOCKED SIGNAL (true-positive). The 'See Branded Call Plans' CTA in <main> links to /products/connect/pricing, which returns 200 on the Webflow-staging old page but 404 on the localhost rebuild. matchy correctly emits a broken_link error. This is the real migration regression this fixture exists to lock; if a future change stops catching it, that is a false-negative regression. It lives in the UNSATURATED main landmark, so it is never claimed by a region rollup and stays a top-level work item (AE5)."
     }
   ],
   "forbidden": [],
-  "maxIssues": 280,
-  "notes": "Tier-3 real-pair seed: Webflow-staging -> localhost rebuild migration of the Hiya Connect number-registration page. The single asserted signal is the broken_link true-positive (required[0]). The remaining incidental migration drift is NOT individually asserted but is bounded by maxIssues (current run: 272) and catalogued in pair.json.knownDrift: the global nav/footer menu is not yet ported to the rebuild (most missing_link/missing_text under the RESOURCES/SOLUTIONS/PRODUCTS/CONSIDERING-HIYA landmarks), the Weglot translation widget is absent (ENGLISH missing_button + per-language requests), homepage links gained an /en-US locale prefix (changed_link_target), and the rebuild's CSS differs broadly from Webflow (style_changed). status=fail reflects these genuine differences. maxIssues guards against a future noise flood on these frozen bundles (golden-discipline: adjust with a docs/golden-changelog.md entry if a deliberate analyzer change moves the count)."
+  "regions": {
+    "required": [
+      {
+        "landmark": "contentinfo",
+        "minSaturation": 0.6,
+        "exactlyOne": true,
+        "note": "LOCKED SIGNAL (region-saturation rollup). The footer (contentinfo) lost 44 of 51 old-side semantic nodes (structural saturation 0.86) in the localhost rebuild, so matchy collapses it into exactly one region rollup instead of ~88 scattered line-items. main (restyled, 0.02) and banner/navigation (below the 10-node floor) must NOT roll up — exactly one contentinfo region. If this stops firing, the footer-as-one-work-item win has regressed."
+      }
+    ]
+  },
+  "maxTopLevelItems": 48,
+  "notes": "Tier-3 real-pair seed: Webflow-staging -> localhost rebuild migration of the Hiya Connect number-registration page. Two locked signals: (1) the broken_link true-positive in main (required[0]); (2) exactly one contentinfo region-saturation rollup (regions.required[0]). The remaining incidental migration drift is NOT individually asserted but is bounded by maxTopLevelItems: standalone-issues-not-in-any-region-or-cluster + clusters + regions <= 48 (current frozen run: 44 = 23 standalone + 20 clusters + 1 region; the 88 footer issues now collapse into the single contentinfo rollup). This REPLACES the prior maxIssues:280 raw-issue cap (R10): the top-level work-item count is the triage-burden metric the rollup feature optimizes. The drift catalogued in pair.json.knownDrift is unchanged: the global nav/footer menu is not yet ported (most missing_link/missing_text under contentinfo — now the rollup), the Weglot widget is absent, homepage links gained an /en-US prefix (changed_link_target), and CSS differs broadly (style_changed). status=fail reflects these genuine differences. Golden-discipline: this assertion change is recorded in docs/golden-changelog.md (2026-06-18); adjust only with a new changelog entry + golden-auditor APPROVE."
 }

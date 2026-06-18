@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "toolVersion": "0.1.0",
   "runId": "2026-06-11T22-08-01Z",
   "oldUrl": "http://localhost:47000/",
@@ -13,6 +13,7 @@
       "visual_region_changed": 5
     },
     "clusterCount": 1,
+    "regionCount": 0,
     "topFixes": [
       "issue_5b7b988e2998",
       "cluster_ebe4318e14cf",
@@ -515,6 +516,7 @@
       "summary": "4 visual_region_changed issues in main"
     }
   ],
+  "regions": [],
   "suppressed": {
     "count": 0,
     "ids": []
