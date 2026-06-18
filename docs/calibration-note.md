@@ -188,3 +188,67 @@ From observed behavior on this page family:
 - "The team agrees it reflects reality": the triage above is the orchestrator's reading of the
   evidence; team sign-off is the review of this note and the committed DiffResults — the one
   DoD clause an autonomous run cannot self-certify.
+
+## 7. Progressive-disclosure budget (2026-06-18)
+
+Calibrated for the agent-first progressive-disclosure report (compact `report.md`
+/ `report.html` default + `matchy show` drill-down). The compact view inlines
+"Issues by section" branches in fix-value order until a cumulative rendered-size
+(character) proxy is spent, then collapses the rest to one-line drill pointers.
+Two bands govern the fold:
+
+- **High watermark:** saturated ARIA regions (the existing `regions[]` rollups)
+  and any single section whose inline size exceeds `DISCLOSURE_SECTION_CEILING`
+  always collapse, independent of the budget.
+- **Low watermark:** a section set whose total inline size fits
+  `DISCLOSURE_BUDGET` inlines wholesale (R4 — a near-clean page shows everything).
+
+### Method
+
+Calibrated offline against the **frozen** `testbed/pairs/p01-hiya-number-registration`
+desktop bundle via `matchy analyze` **replay** — never a live capture (p1-03: real
+captures are not byte-stable, counts swung 116–155; only analyze over a frozen
+bundle is deterministic). p01 desktop replays to 272 issues, 1 saturated region
+(`contentinfo`, 88 members, saturation 0.86), 20 clusters.
+
+### Measured per-section compact inline sizes (chars)
+
+Caps were temporarily lifted to inline every section and measure each block:
+
+| cluster | sections (chars) |
+|---|---|
+| content / defect | 385, 539, 539, 927, 937, 1048, **1137** (the `broken_link` section) |
+| flood (18/27/30-issue style+visual dumps) | 1965, 2107, 3071 |
+
+A wide natural gap (1137 → 1965 = **828 chars**) separates real-defect/content
+sections from the style-flood sections.
+
+### Frozen values and margins
+
+| Constant | Value | Margin evidence |
+|---|---|---|
+| `DISCLOSURE_SECTION_CEILING` | **1500** | Mid-gap. The `broken_link` section (1137) stays under it with **363 chars (24%)** headroom and inlines (R13); the three flood sections collapse with **≥465 chars (31%)** margin. The earlier 1200 left only a fragile **69-char** margin on the defect section — message-length variance could have flipped it and buried the `broken_link`. |
+| `DISCLOSURE_BUDGET` | **3000** | Inlines the top-3 content sections (cumulative **2570**, **430** headroom). The next section by fix-value (937) would reach **3507** — a **507-char** overshoot. The inline/collapse boundary therefore sits inside a **937-char gap**, so a ±1-char jitter cannot flip a branch (R3). |
+
+### Observed p01 outcome (the gate)
+
+- `contentinfo` collapses to **one** region pointer (the ~83 footer rows are gone),
+  drillable via `matchy show --region contentinfo`.
+- The standalone `broken_link` (Error) surfaces as the **first inlined item** of the
+  lead section — never swallowed (R13).
+- **3 sections inlined / 7 collapsed**; `report.md` is **6.9 KB** vs **19.9 KB** in
+  `--full` mode (~65% smaller); `diff-result.json` is **byte-unchanged** at 539 KB
+  (R8 — disclosure is a render/CLI projection, it never touches `json.rs`).
+- AE4 round-trip verified: `matchy show --region contentinfo` returns exactly the 88
+  members, hermetically (static-file read; no browser/network/re-capture).
+
+### Per-section proxy spread / second-page note
+
+The character proxy tracks message-length variance directly (it is the literal
+rendered byte count of each inlined section). The content-vs-flood gap on p01 is
+wide (828 chars), so the ceiling is well-centered; but the absolute sizes are
+message-text dependent, so a reviewer should re-measure the per-section spread on
+a **second flooded page** (home / branded-call) before treating 1500/3000 as
+cross-page defaults. Second-page generalization is **deferred validation**, not a
+pre-freeze blocker — mirroring how the `0.6`/`10` saturation constants were frozen
+on p01 first.

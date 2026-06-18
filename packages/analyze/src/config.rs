@@ -245,14 +245,35 @@ pub const STYLE_NUMERIC_EPSILON: f64 = 0.1;
 // ---------------------------------------------------------------------------
 // Progressive-disclosure budget (feat: agent-first progressive disclosure).
 //
-// PROVISIONAL — calibrated and frozen in U6 against the frozen p01 bundle.
-// The compact report inlines section branches in fix-value order until the
-// cumulative rendered-size (character) proxy would exceed DISCLOSURE_BUDGET;
-// the rest collapse to one-line drill pointers. Bands, not a knife-edge:
-// saturated regions and any section larger than DISCLOSURE_SECTION_CEILING
-// always collapse (high watermark); a total projected size <= the budget
-// inlines everything (low watermark, R4). Byte-identical DiffResult ->
-// byte-identical projection (R3/AE2).
+// FROZEN at U6 calibration (docs/calibration-note.md §7, 2026-06-18) against the
+// frozen p01 bundle via `matchy analyze` replay (NEVER a live capture — p1-03:
+// captures are not byte-stable; analyze of a frozen bundle is). The compact
+// report inlines section branches in fix-value order until the cumulative
+// rendered-size (character) proxy would exceed DISCLOSURE_BUDGET; the rest
+// collapse to one-line drill pointers. Bands, not a knife-edge: saturated
+// regions and any section larger than DISCLOSURE_SECTION_CEILING always collapse
+// (high watermark); a section set whose total fits the budget inlines wholesale
+// (low watermark, R4). Byte-identical DiffResult -> byte-identical projection
+// (R3/AE2).
+//
+// Calibration evidence (p01 desktop, 272 issues; per-section compact inline
+// sizes in chars): content/defect sections = {385, 539, 539, 927, 937, 1048,
+// 1137}; flood sections (18/27/30-issue style+visual dumps) = {1965, 2107, 3071}.
+// A wide natural gap separates the two clusters (1137 -> 1965, 828 chars).
+//   * CEILING = 1500 sits mid-gap: the broken_link section (1137) inlines with
+//     363 chars (24%) headroom; the three flood sections always collapse with
+//     >=465 chars (31%) margin. (The earlier 1200 left only a fragile 69-char
+//     margin on the defect section — message-length variance could have flipped
+//     it and buried the broken_link, violating R13.)
+//   * BUDGET = 3000 inlines the top-3 content sections (cumulative 2570, 430
+//     headroom); the next section by fix-value (937) would reach 3507, a 507-char
+//     overshoot. The inline/collapse boundary therefore sits inside a 937-char
+//     gap, so a +-1-char jitter cannot flip a branch (R3).
+// On p01 this yields: contentinfo region collapsed to one pointer, the standalone
+// broken_link surfaced as the first inlined item (R13), 3 sections inlined / 7
+// collapsed, report.md 6.9 KB vs 19.9 KB full (~65% smaller). Second-page budget
+// generalization (home / branded-call) is deferred validation, not a pre-freeze
+// blocker (mirrors how 0.6/10 were frozen on p01).
 // ---------------------------------------------------------------------------
 
 /// Cumulative rendered-size budget (chars) for inlined compact-report section detail.
@@ -260,7 +281,7 @@ pub const DISCLOSURE_BUDGET: usize = 3000;
 
 /// Per-section rendered-size ceiling (chars): a single section larger than this
 /// always collapses to a pointer even if the cumulative budget is not yet spent.
-pub const DISCLOSURE_SECTION_CEILING: usize = 1200;
+pub const DISCLOSURE_SECTION_CEILING: usize = 1500;
 
 /// Minimum pair score required to emit style issues at Warning/Error severity.
 ///

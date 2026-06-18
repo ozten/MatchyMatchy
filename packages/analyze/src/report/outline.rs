@@ -185,7 +185,7 @@ pub struct OutlineModel {
 
 /// Render one section as inlined markdown text.
 /// Format:
-/// ```
+/// ```text
 /// ### <landmark> › <heading> (<count> issues) — <drill_command>
 /// - [<sev>] <type> ×<n> — <message>
 /// ...
@@ -1790,5 +1790,155 @@ mod tests {
         let r1 = render_branch_detail(&handle, &issues);
         let r2 = render_branch_detail(&handle, &issues);
         assert_eq!(r1, r2, "render_branch_detail must be byte-deterministic");
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper: build the representative region-bearing fixture reused by AE2/AE5.
+    //
+    // Produces a DiffResult with:
+    //   - A saturated "contentinfo" region claiming two footer issues.
+    //   - A standalone broken_link in unsaturated "main".
+    // This mirrors the p01-shaped fixture described in U6/AE2/AE5 without
+    // requiring live bundles.
+    // -----------------------------------------------------------------------
+
+    fn make_region_bearing_result() -> DiffResult {
+        let mut result = make_empty_result();
+
+        // Two footer issues (will be claimed by the region).
+        let footer_ids: Vec<String> = vec![
+            "issue_ae_footer_0001".to_string(),
+            "issue_ae_footer_0002".to_string(),
+        ];
+        for id in &footer_ids {
+            result.issues.push(make_issue(
+                id,
+                IssueType::ChangedText,
+                IssueSeverity::Warning,
+                "footer text changed",
+                Some("contentinfo"),
+                Some("Products"),
+                false,
+            ));
+        }
+        let mut sorted_footer_ids = footer_ids.clone();
+        sorted_footer_ids.sort();
+        result.regions = vec![make_region(
+            "region_ae_cinfo",
+            "contentinfo",
+            0.86,
+            IssueSeverity::Warning,
+            sorted_footer_ids,
+        )];
+        result.agent_summary.region_count = 1;
+
+        // One standalone broken_link in main (non-claimed, non-critical).
+        result.issues.push(make_issue(
+            "issue_ae_broken_link_01",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "Link target missing in main",
+            Some("main"),
+            Some("Body"),
+            false,
+        ));
+
+        result
+    }
+
+    // -----------------------------------------------------------------------
+    // Test AE5 / R8: JSON byte-stability across all three compact renders.
+    //
+    // Progressive disclosure is a read-time projection (R8): the renders receive
+    // &DiffResult (immutable borrow) and never touch json.rs, so JSON output is
+    // unchanged *by construction*. This test is the explicit regression guard
+    // that catches any accidental interior-mutability or re-serialization path.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_ae5_json_byte_stable_across_render() {
+        let result = make_region_bearing_result();
+
+        let json_before = result.to_json().unwrap();
+
+        // Run ALL THREE compact renders. Return values are intentionally dropped;
+        // the calls exercise the real projection paths.
+        let _ = render_outline(&result, &DisclosureOptions::new("/tmp/o"));
+        let _ = crate::report::markdown::render_markdown_mode(
+            &result,
+            crate::report::DisclosureMode::Compact,
+            "/tmp/o",
+        );
+        let _ = crate::report::html::render_html_mode(
+            &result,
+            &std::collections::BTreeMap::new(),
+            crate::report::DisclosureMode::Compact,
+            "/tmp/o",
+        );
+
+        let json_after = result.to_json().unwrap();
+
+        assert_eq!(
+            json_before, json_after,
+            "compact disclosure rendering must not change the serialized DiffResult (R8/AE5)"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test AE2 / R3: compact projection is byte-deterministic on identical input.
+    //
+    // Byte-identical DiffResult -> byte-identical output across all projection
+    // surfaces (render_outline, render_markdown_mode, compute_outline section order
+    // and collapse set). The frozen-replay determinism guarantee (p1-03) applies
+    // to the pure projection, not to live captures.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_ae2_projection_deterministic() {
+        let result = make_region_bearing_result();
+        let opts = DisclosureOptions::new("/tmp/o");
+
+        // render_outline must be byte-identical across repeated calls.
+        let outline1 = render_outline(&result, &opts);
+        let outline2 = render_outline(&result, &opts);
+        assert_eq!(
+            outline1, outline2,
+            "render_outline must be byte-identical across repeated calls (AE2/R3)"
+        );
+
+        // render_markdown_mode must be byte-identical across repeated calls.
+        let md1 = crate::report::markdown::render_markdown_mode(
+            &result,
+            crate::report::DisclosureMode::Compact,
+            "/tmp/o",
+        );
+        let md2 = crate::report::markdown::render_markdown_mode(
+            &result,
+            crate::report::DisclosureMode::Compact,
+            "/tmp/o",
+        );
+        assert_eq!(
+            md1, md2,
+            "render_markdown_mode must be byte-identical across repeated calls (AE2/R3)"
+        );
+
+        // compute_outline: the collapse set (Vec<bool>) must be stable across two calls.
+        let model1 = compute_outline(&result, &opts);
+        let model2 = compute_outline(&result, &opts);
+
+        let collapsed1: Vec<bool> = model1.sections.iter().map(|s| s.collapsed).collect();
+        let collapsed2: Vec<bool> = model2.sections.iter().map(|s| s.collapsed).collect();
+        assert_eq!(
+            collapsed1, collapsed2,
+            "collapse set must be identical across repeated compute_outline calls (AE2/R3)"
+        );
+
+        // Section order (the (landmark, heading) keys) must be identical.
+        let keys1: Vec<&(String, String)> = model1.sections.iter().map(|s| &s.key).collect();
+        let keys2: Vec<&(String, String)> = model2.sections.iter().map(|s| &s.key).collect();
+        assert_eq!(
+            keys1, keys2,
+            "section key order must be identical across repeated compute_outline calls (AE2/R3)"
+        );
     }
 }
