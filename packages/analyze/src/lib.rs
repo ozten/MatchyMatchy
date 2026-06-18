@@ -16,6 +16,7 @@ pub mod matching;
 pub mod network_diff;
 pub mod orchestrate;
 pub mod region_link;
+pub mod regions;
 pub mod report;
 pub mod scoring;
 pub mod semantic_diff;
