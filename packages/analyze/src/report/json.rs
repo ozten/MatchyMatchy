@@ -203,59 +203,42 @@ pub fn assemble_diff_result(
     // Build id → &Issue lookup for member fv computation (BTreeMap for determinism).
     let id_to_issue: BTreeMap<&str, &Issue> = kept.iter().map(|i| (i.id.as_str(), i)).collect();
 
+    // Max fix_value over a set of member ids — shared by region and cluster entries.
+    let max_member_fv = |ids: &[String]| {
+        ids.iter()
+            .filter_map(|mid| id_to_issue.get(mid.as_str()))
+            .map(|issue| {
+                fix_value(
+                    &issue.severity,
+                    issue.confidence,
+                    &issue.locator.anchors.strength(),
+                )
+            })
+            .fold(f64::NEG_INFINITY, f64::max)
+    };
+
     // Work queue entries: (id, fix_value)
     let mut work_queue: Vec<(String, f64)> = Vec::new();
 
-    // One entry per region: max fv over its member issues.
+    // One entry per region and per cluster: max fv over members.
     for region in &regions {
-        let max_fv = region
-            .member_issue_ids
-            .iter()
-            .filter_map(|mid| id_to_issue.get(mid.as_str()))
-            .map(|issue| {
-                fix_value(
-                    &issue.severity,
-                    issue.confidence,
-                    &issue.locator.anchors.strength(),
-                )
-            })
-            .fold(f64::NEG_INFINITY, f64::max);
-        work_queue.push((region.id.clone(), max_fv));
+        work_queue.push((region.id.clone(), max_member_fv(&region.member_issue_ids)));
     }
-
-    // One entry per cluster: max fv over members (members already sorted ascending in cluster).
     for cluster in &clusters {
-        let max_fv = cluster
-            .issue_ids
-            .iter()
-            .filter_map(|mid| id_to_issue.get(mid.as_str()))
-            .map(|issue| {
-                fix_value(
-                    &issue.severity,
-                    issue.confidence,
-                    &issue.locator.anchors.strength(),
-                )
-            })
-            .fold(f64::NEG_INFINITY, f64::max);
-        work_queue.push((cluster.id.clone(), max_fv));
+        work_queue.push((cluster.id.clone(), max_member_fv(&cluster.issue_ids)));
     }
 
-    // One entry per unclustered AND unclaimed kept issue.
+    // One pass over kept: an unclustered-AND-unclaimed issue gets its own entry; a
+    // Critical-severity member of a saturated region is dual-surfaced (R9 safety net;
+    // Error-and-below are not). The two conditions are mutually exclusive (claimed vs
+    // not), and the queue is sorted by a total order below, so this single interleaved
+    // pass is equivalent to two separate passes.
     for issue in &kept {
-        if !clustered_ids.contains(issue.id.as_str()) && !region_claimed_ids.contains(issue.id.as_str()) {
-            let fv = fix_value(
-                &issue.severity,
-                issue.confidence,
-                &issue.locator.anchors.strength(),
-            );
-            work_queue.push((issue.id.clone(), fv));
-        }
-    }
-
-    // R9 critical safety net: a Critical-severity member of a saturated region is
-    // dual-surfaced as its own topFixes entry in addition to the region rollup.
-    for issue in &kept {
-        if region_claimed_ids.contains(issue.id.as_str()) && issue.severity == crate::contract::IssueSeverity::Critical {
+        let claimed = region_claimed_ids.contains(issue.id.as_str());
+        let unclustered_unclaimed = !clustered_ids.contains(issue.id.as_str()) && !claimed;
+        let critical_member =
+            claimed && issue.severity == crate::contract::IssueSeverity::Critical;
+        if unclustered_unclaimed || critical_member {
             let fv = fix_value(
                 &issue.severity,
                 issue.confidence,

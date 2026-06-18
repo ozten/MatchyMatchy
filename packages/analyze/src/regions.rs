@@ -98,14 +98,14 @@ pub fn compute_regions(
 
     let mut regions: Vec<Region> = Vec::new();
 
-    for (landmark, members) in &groups {
+    for (landmark, members) in groups {
         let structural_count = members
             .iter()
             .filter(|i| is_structural(&i.issue_type))
             .count() as u32;
 
         let old_node_count = old_landmark_node_counts
-            .get(landmark)
+            .get(&landmark)
             .copied()
             .unwrap_or(0);
 
@@ -135,7 +135,7 @@ pub fn compute_regions(
             .cloned()
             .unwrap_or(IssueSeverity::Info);
 
-        let id = region_id(landmark);
+        let id = region_id(&landmark);
 
         let summary = format!(
             "{} region: {}/{} old nodes structurally changed, {} issues claimed",
@@ -147,7 +147,7 @@ pub fn compute_regions(
 
         regions.push(Region {
             id,
-            landmark: landmark.clone(),
+            landmark,
             saturation,
             structural_count,
             old_node_count,
