@@ -24,6 +24,40 @@ impl DisclosureMode {
     }
 }
 
+/// Returns true when the issue evidence indicates an uncertain element pairing —
+/// the matcher could not confidently establish correspondence.
+pub fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
+    evidence
+        .get("match")
+        .and_then(|m| m.get("uncertainPairing"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+/// Display section key `(landmark, heading)` for grouping and drill-command generation.
+/// - `landmark` is `None` → `"(page)"`.
+/// - `nearest_heading` is `None` → `"\u{2014}"` (em dash).
+///
+/// Shared by markdown.rs, outline.rs, and html.rs. Any change to the defaults
+/// here affects byte-identity of all three renderers.
+pub fn section_key_of(issue: &crate::contract::Issue) -> (String, String) {
+    let lm = issue
+        .locator
+        .anchors
+        .landmark
+        .as_deref()
+        .unwrap_or("(page)")
+        .to_string();
+    let hd = issue
+        .locator
+        .anchors
+        .nearest_heading
+        .as_deref()
+        .unwrap_or("\u{2014}") // em dash
+        .to_string();
+    (lm, hd)
+}
+
 /// The set of issue ids claimed by any saturated region (demoted into the region
 /// rollup). Mirrors the construction in `json.rs` (`region_claimed_ids`). Used by the
 /// markdown and HTML renderers to avoid double-reporting region members in the

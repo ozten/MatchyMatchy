@@ -28,18 +28,6 @@ fn escape(s: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
-    evidence
-        .get("match")
-        .and_then(|m| m.get("uncertainPairing"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -63,7 +51,7 @@ fn render_issue_card(out: &mut String, issue: &crate::contract::Issue) {
         crate::contract::IssueCategory::Hygiene => "hygiene",
     };
 
-    let uncertain = is_uncertain_pairing(&issue.evidence);
+    let uncertain = crate::report::is_uncertain_pairing(&issue.evidence);
 
     out.push_str(&format!(
         "<div class=\"issue sev-{sev_str}\" id=\"{}\">\n",

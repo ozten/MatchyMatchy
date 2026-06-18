@@ -14,14 +14,6 @@ use crate::scoring::fix_value;
 // Private helpers
 // ---------------------------------------------------------------------------
 
-fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
-    evidence
-        .get("match")
-        .and_then(|m| m.get("uncertainPairing"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
 /// Severity label for display in collapsed-pointer lines.
 fn sev_label(sev: &IssueSeverity) -> &'static str {
     match sev {
@@ -30,14 +22,6 @@ fn sev_label(sev: &IssueSeverity) -> &'static str {
         IssueSeverity::Error => "error",
         IssueSeverity::Critical => "critical",
     }
-}
-
-/// Markdown table-cell sanitizer: replace `|` → `\|`, newlines → space, trim.
-fn md_cell(s: &str) -> String {
-    s.replace('|', "\\|")
-        .replace(['\r', '\n'], " ")
-        .trim()
-        .to_string()
 }
 
 /// Return the worst of two severities (by rank).
@@ -87,18 +71,15 @@ impl BranchHandle {
                     out_dir
                 )
             }
-            BranchHandle::Section { landmark, heading: Some(h) } => {
+            BranchHandle::Section { landmark, heading } => {
+                let heading_part = heading
+                    .as_ref()
+                    .map(|h| format!(" --heading {}", quote_heading(h)))
+                    .unwrap_or_default();
                 format!(
-                    "matchy show --section {} --heading {} --out {}",
+                    "matchy show --section {}{} --out {}",
                     quote_landmark(landmark),
-                    quote_heading(h),
-                    out_dir
-                )
-            }
-            BranchHandle::Section { landmark, heading: None } => {
-                format!(
-                    "matchy show --section {} --out {}",
-                    quote_landmark(landmark),
+                    heading_part,
                     out_dir
                 )
             }
@@ -112,25 +93,10 @@ impl BranchHandle {
     }
 }
 
-/// Display section key (landmark, heading) — IDENTICAL semantics to
-/// markdown.rs::section_key_of: landmark None -> "(page)", heading None -> em dash.
-pub fn section_key_of(issue: &Issue) -> (String, String) {
-    let lm = issue
-        .locator
-        .anchors
-        .landmark
-        .as_deref()
-        .unwrap_or("(page)")
-        .to_string();
-    let hd = issue
-        .locator
-        .anchors
-        .nearest_heading
-        .as_deref()
-        .unwrap_or("\u{2014}") // em dash
-        .to_string();
-    (lm, hd)
-}
+/// Display section key (landmark, heading) — shared implementation lives in
+/// `crate::report::section_key_of`. Re-exported here for backwards compat and
+/// so that `use super::*` in the test module resolves without changes.
+pub use crate::report::section_key_of;
 
 /// Render options. Use `DisclosureOptions::new(out_dir)` for config defaults.
 pub struct DisclosureOptions {
@@ -169,6 +135,10 @@ pub struct SectionBranch {
     /// Cached inline-rendered size (chars) used for budget accounting.
     /// Set during compute_outline; callers should treat this as internal.
     pub inline_size: usize,
+    /// Cached inline markdown for this section — computed once in compute_outline
+    /// for sizing, then reused verbatim in render_outline for emission.
+    /// Only meaningful when `collapsed == false`.
+    pub inline_rendered: String,
 }
 
 /// The structured compact-disclosure model — computed ONCE, rendered by many.
@@ -207,8 +177,8 @@ fn render_section_inline(
     let n = issues.len();
     out.push_str(&format!(
         "### {} \u{203a} {} ({} issue{}) \u{2014} {}\n",
-        md_cell(&key.0),
-        md_cell(&key.1),
+        crate::report::markdown::md_cell(&key.0),
+        crate::report::markdown::md_cell(&key.1),
         n,
         if n == 1 { "" } else { "s" },
         handle.drill_command(out_dir)
@@ -251,9 +221,9 @@ fn render_section_inline(
         out.push_str(&format!(
             "- [{}] {} \u{d7}{} \u{2014} {}\n",
             sev_label(entry.worst_sev),
-            md_cell(&fk.0),
+            crate::report::markdown::md_cell(&fk.0),
             entry.count,
-            md_cell(&fk.1)
+            crate::report::markdown::md_cell(&fk.1)
         ));
     }
 
@@ -275,7 +245,7 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
     let critical_lead: Vec<String> = result
         .issues
         .iter()
-        .filter(|i| !is_uncertain_pairing(&i.evidence) && i.severity == IssueSeverity::Critical)
+        .filter(|i| !crate::report::is_uncertain_pairing(&i.evidence) && i.severity == IssueSeverity::Critical)
         .map(|i| i.id.clone())
         .collect();
     let critical_set: std::collections::BTreeSet<&str> =
@@ -306,7 +276,7 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
     // ------------------------------------------------------------------
     let mut section_groups: BTreeMap<(String, String), Vec<&Issue>> = BTreeMap::new();
     for issue in &result.issues {
-        if is_uncertain_pairing(&issue.evidence) {
+        if crate::report::is_uncertain_pairing(&issue.evidence) {
             continue;
         }
         if claimed.contains(issue.id.as_str()) {
@@ -351,9 +321,9 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
                 heading,
             };
 
-            // Compute inline size proxy (must equal what render_section_inline produces).
-            let inline_text = render_section_inline(&key, &issues, &handle, &opts.out_dir);
-            let inline_size = inline_text.len();
+            // Compute inline text once — reused for sizing AND emission (Fix 4).
+            let inline_rendered = render_section_inline(&key, &issues, &handle, &opts.out_dir);
+            let inline_size = inline_rendered.len();
 
             SectionBranch {
                 handle,
@@ -363,6 +333,7 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
                 fix_value: fv,
                 collapsed: false, // determined in budget step below
                 inline_size,
+                inline_rendered,
             }
         })
         .collect();
@@ -403,16 +374,10 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
         .map(|s| s.inline_size)
         .sum();
 
-    if eligible_total <= opts.budget {
-        // Low watermark: inline all eligible sections (R4).
-        for s in &mut sections_with_size {
-            if !s.collapsed {
-                s.collapsed = false; // already false, but explicit for clarity
-            }
-        }
-    } else {
+    if eligible_total > opts.budget {
         // Greedy inline: walk in sort order, inline until budget would be exceeded,
-        // collapse the rest (sticky).
+        // collapse the rest (sticky). Low-watermark (eligible_total <= budget) means
+        // all eligible sections stay at their init value of collapsed=false — no loop needed.
         let mut spent: usize = 0;
         let mut budget_exhausted = false;
         for s in &mut sections_with_size {
@@ -463,8 +428,8 @@ pub fn render_outline(result: &DiffResult, opts: &DisclosureOptions) -> String {
                 let handle = BranchHandle::Issue { id: cid.clone() };
                 out.push_str(&format!(
                     "- [critical] {} \u{2014} {} \u{2014} drill: {}\n",
-                    md_cell(issue.issue_type.as_str()),
-                    md_cell(&issue.message),
+                    crate::report::markdown::md_cell(issue.issue_type.as_str()),
+                    crate::report::markdown::md_cell(&issue.message),
                     handle.drill_command(&opts.out_dir)
                 ));
             }
@@ -479,7 +444,7 @@ pub fn render_outline(result: &DiffResult, opts: &DisclosureOptions) -> String {
             out.push_str(&format!(
                 "- [{}] {} \u{2014} {} issues, saturation {:.2} \u{2014} drill: {}\n",
                 sev_label(&rb.severity),
-                md_cell(&rb.landmark),
+                crate::report::markdown::md_cell(&rb.landmark),
                 rb.count,
                 rb.saturation,
                 rb.handle.drill_command(&opts.out_dir)
@@ -505,11 +470,9 @@ pub fn render_outline(result: &DiffResult, opts: &DisclosureOptions) -> String {
         ));
     }
 
-    // Inlined sections first (in model order).
+    // Inlined sections first (in model order). Use the cached render from compute_outline.
     for s in model.sections.iter().filter(|s| !s.collapsed) {
-        // Re-render the inline text (size was pre-computed; now emit it).
-        let inline_text = render_section_inline(&s.key, &collect_section_issues(result, s), &s.handle, &opts.out_dir);
-        out.push_str(&inline_text);
+        out.push_str(&s.inline_rendered);
     }
 
     // Then collapsed section pointers (in model order).
@@ -517,8 +480,8 @@ pub fn render_outline(result: &DiffResult, opts: &DisclosureOptions) -> String {
         out.push_str(&format!(
             "- [{}] {} \u{203a} {} \u{2014} {} issues \u{2014} drill: {}\n",
             sev_label(&s.severity),
-            md_cell(&s.key.0),
-            md_cell(&s.key.1),
+            crate::report::markdown::md_cell(&s.key.0),
+            crate::report::markdown::md_cell(&s.key.1),
             s.count,
             s.handle.drill_command(&opts.out_dir)
         ));
@@ -535,7 +498,7 @@ pub fn section_issues<'a>(result: &'a DiffResult, key: &(String, String)) -> Vec
     let critical_lead_set: std::collections::BTreeSet<String> = result
         .issues
         .iter()
-        .filter(|i| !is_uncertain_pairing(&i.evidence) && i.severity == IssueSeverity::Critical)
+        .filter(|i| !crate::report::is_uncertain_pairing(&i.evidence) && i.severity == IssueSeverity::Critical)
         .map(|i| i.id.clone())
         .collect();
 
@@ -543,19 +506,12 @@ pub fn section_issues<'a>(result: &'a DiffResult, key: &(String, String)) -> Vec
         .issues
         .iter()
         .filter(|i| {
-            !is_uncertain_pairing(&i.evidence)
+            !crate::report::is_uncertain_pairing(&i.evidence)
                 && !claimed.contains(i.id.as_str())
                 && !critical_lead_set.contains(&i.id)
                 && &section_key_of(i) == key
         })
         .collect()
-}
-
-/// Collect the issues for a given SectionBranch from the result, respecting the
-/// same filter as compute_outline (non-uncertain, non-claimed, non-critical,
-/// matching key). Preserves result.issues order. Delegates to section_issues.
-fn collect_section_issues<'a>(result: &'a DiffResult, s: &SectionBranch) -> Vec<&'a Issue> {
-    section_issues(result, &s.key)
 }
 
 // ---------------------------------------------------------------------------

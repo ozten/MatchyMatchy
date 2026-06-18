@@ -41,14 +41,6 @@ fn worst_severity<'a>(a: &'a IssueSeverity, b: &'a IssueSeverity) -> &'a IssueSe
     }
 }
 
-fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
-    evidence
-        .get("match")
-        .and_then(|m| m.get("uncertainPairing"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
 fn has_grep_targets(rem: &serde_json::Value) -> bool {
     rem.get("grepTargets")
         .and_then(|v| v.as_array())
@@ -81,24 +73,6 @@ fn render_grep_bullets(out: &mut String, issue_id: &str, rem: &serde_json::Value
 /// Grouping key: (landmark-display, heading-display).
 /// `(page)` when landmark is None, `—` when heading is None.
 type SectionKey = (String, String);
-
-fn section_key_of(issue: &crate::contract::Issue) -> SectionKey {
-    let lm = issue
-        .locator
-        .anchors
-        .landmark
-        .as_deref()
-        .unwrap_or("(page)")
-        .to_string();
-    let hd = issue
-        .locator
-        .anchors
-        .nearest_heading
-        .as_deref()
-        .unwrap_or("\u{2014}") // em dash
-        .to_string();
-    (lm, hd)
-}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -208,10 +182,10 @@ pub fn render_markdown_mode(
         // Build section counts using a BTreeMap for determinism (counts will be sorted later).
         let mut counts: BTreeMap<SectionKey, u32> = BTreeMap::new();
         for issue in &result.issues {
-            if is_uncertain_pairing(&issue.evidence) || claimed.contains(issue.id.as_str()) {
+            if crate::report::is_uncertain_pairing(&issue.evidence) || claimed.contains(issue.id.as_str()) {
                 continue;
             }
-            *counts.entry(section_key_of(issue)).or_insert(0) += 1;
+            *counts.entry(crate::report::section_key_of(issue)).or_insert(0) += 1;
         }
 
         if !counts.is_empty() {
@@ -341,13 +315,13 @@ pub fn render_markdown_mode(
             let normal_issues: Vec<&crate::contract::Issue> = result
                 .issues
                 .iter()
-                .filter(|i| !is_uncertain_pairing(&i.evidence) && !claimed.contains(i.id.as_str()))
+                .filter(|i| !crate::report::is_uncertain_pairing(&i.evidence) && !claimed.contains(i.id.as_str()))
                 .collect();
 
             let uncertain_issues: Vec<&crate::contract::Issue> = result
                 .issues
                 .iter()
-                .filter(|i| is_uncertain_pairing(&i.evidence))
+                .filter(|i| crate::report::is_uncertain_pairing(&i.evidence))
                 .collect();
 
             if normal_issues.is_empty() && uncertain_issues.is_empty() {
@@ -360,7 +334,7 @@ pub fn render_markdown_mode(
                     BTreeMap::new();
                 for issue in &normal_issues {
                     section_groups
-                        .entry(section_key_of(issue))
+                        .entry(crate::report::section_key_of(issue))
                         .or_default()
                         .push(issue);
                 }
