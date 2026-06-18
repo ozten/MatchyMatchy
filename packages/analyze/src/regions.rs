@@ -83,13 +83,16 @@ pub fn compute_regions(
     kept: &[Issue],
     old_landmark_node_counts: &BTreeMap<String, u32>,
 ) -> Vec<Region> {
-    // Group ALL kept issues by their landmark into a BTreeMap (deterministic order).
-    // Issues with no landmark (None) are skipped immediately.
+    // Group kept issues by their landmark into a BTreeMap (deterministic order).
+    // Only real ARIA landmark roles are rolled up: issues with no landmark (None),
+    // the "(none)" sentinel, and any non-ARIA string are all skipped (the
+    // ARIA_LANDMARKS membership check subsumes the "(none)" guard). This guarantees
+    // the landmark embedded in a region's summary is a fixed-vocabulary role, never
+    // page-controlled free text.
     let mut groups: BTreeMap<String, Vec<&Issue>> = BTreeMap::new();
     for issue in kept {
         if let Some(lm) = &issue.locator.anchors.landmark {
-            // Defensively skip the literal "(none)" key too.
-            if lm == crate::contract::LANDMARK_NONE_KEY {
+            if !crate::contract::ARIA_LANDMARKS.contains(&lm.as_str()) {
                 continue;
             }
             groups.entry(lm.clone()).or_default().push(issue);
@@ -485,6 +488,31 @@ mod tests {
         assert!(
             regions.is_empty(),
             "issues with None landmark must never produce a region"
+        );
+    }
+
+    /// PS-002: a non-ARIA landmark string never rolls up, even at saturation 1.0
+    /// with >= MIN_NODE_COUNT old nodes — emission is gated to the fixed ARIA
+    /// vocabulary so a region summary can never embed an arbitrary string.
+    #[test]
+    fn test_non_aria_landmark_never_produces_region() {
+        let kept: Vec<Issue> = (0..12u32)
+            .map(|i| {
+                make_issue(
+                    &format!("garbage_{:04}", i),
+                    IssueType::MissingText,
+                    IssueSeverity::Error,
+                    Some("garbage-landmark"),
+                )
+            })
+            .collect();
+        let mut counts: BTreeMap<String, u32> = BTreeMap::new();
+        counts.insert("garbage-landmark".to_string(), 12);
+
+        let regions = compute_regions(&kept, &counts);
+        assert!(
+            regions.is_empty(),
+            "a non-ARIA landmark must never produce a region (saturation 1.0, 12 nodes)"
         );
     }
 

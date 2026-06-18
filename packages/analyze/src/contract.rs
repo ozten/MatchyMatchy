@@ -10,6 +10,19 @@ use serde::{Deserialize, Serialize};
 /// Sentinel landmark key for nodes/issues with no ARIA landmark.
 pub const LANDMARK_NONE_KEY: &str = "(none)";
 
+/// The closed vocabulary of ARIA landmark roles capture emits (mirrors the
+/// `Anchors.landmark` enumeration in contract/diff-result.schema.json). Region
+/// rollups are gated to this set so the landmark value embedded in a region's
+/// summary is provably a fixed role, never page-controlled free text.
+pub const ARIA_LANDMARKS: &[&str] = &[
+    "banner",
+    "navigation",
+    "main",
+    "contentinfo",
+    "complementary",
+    "form",
+];
+
 // ---------------------------------------------------------------------------
 // CaptureBundle (consumed by analyze)
 // ---------------------------------------------------------------------------

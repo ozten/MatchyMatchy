@@ -201,7 +201,7 @@
     },
     "regions": {
       "title": "Region rollups",
-      "description": "Saturated ARIA-landmark region rollups. Empty array when no landmark crosses the saturation threshold.",
+      "description": "Saturated ARIA-landmark region rollups. Empty array when no landmark crosses the saturation threshold. Rollups are a cross-viewport aggregate: when a page is analyzed at multiple viewports, a landmark's old-node counts and member issues are merged across viewports into one rollup. There is no per-viewport region attribution; adding an optional ViewportResult.regionIds field is a deferred follow-up tied to the multi-viewport-semantics decision.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Region"
@@ -681,7 +681,7 @@
       "properties": {
         "id": {
           "title": "Region ID",
-          "description": "Stable region identifier derived from the landmark role: 'region_' + first 12 hex chars of SHA-256 over 'region\\x1f{landmark}'.",
+          "description": "Stable region identifier derived from the landmark role: 'region_' + first 12 hex chars of SHA-256 over 'region\\x1f{landmark}'. Unlike Issue.id, this has no optional collision suffix: the landmark space is a bounded closed vocabulary (the ~6 ARIA landmark roles), at most one region per landmark, so collisions cannot occur.",
           "type": "string",
           "pattern": "^region_[0-9a-f]{12}$"
         },
