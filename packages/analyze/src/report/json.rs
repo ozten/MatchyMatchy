@@ -336,7 +336,7 @@ pub fn assemble_diff_result(
     // 15. Assemble.
     // ------------------------------------------------------------------
     DiffResult {
-        schema_version: "1.1".to_string(),
+        schema_version: "1.2".to_string(),
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
         run_id: run_id.to_string(),
         old_url: old_url.to_string(),
@@ -347,12 +347,14 @@ pub fn assemble_diff_result(
             fixable_now,
             by_type,
             cluster_count,
+            region_count: 0,
             top_fixes,
         },
         scores,
         viewports: viewport_results,
         issues: kept,
         clusters,
+        regions: Vec::new(),
         suppressed,
         warnings,
         scoped_to,

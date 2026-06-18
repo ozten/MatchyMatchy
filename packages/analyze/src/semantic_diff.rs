@@ -3414,7 +3414,7 @@ mod tests {
         crate::issue::resolve_id_collisions(&mut issues);
 
         let result = DiffResult {
-            schema_version: "1.1".to_string(),
+            schema_version: "1.2".to_string(),
             tool_version: "0.1.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "http://old.com/".to_string(),
@@ -3425,6 +3425,7 @@ mod tests {
                 fixable_now: 0,
                 by_type: BTreeMap::new(),
                 cluster_count: 0,
+                region_count: 0,
                 top_fixes: vec![],
             },
             scores: Scores::all_pass(),
@@ -3440,6 +3441,7 @@ mod tests {
             }],
             issues,
             clusters: vec![],
+            regions: vec![],
             suppressed: Suppressed {
                 count: 0,
                 ids: vec![],

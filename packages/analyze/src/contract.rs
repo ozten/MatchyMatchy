@@ -435,6 +435,7 @@ pub struct DiffResult {
     pub viewports: Vec<ViewportResult>,
     pub issues: Vec<Issue>,
     pub clusters: Vec<Cluster>,
+    pub regions: Vec<Region>,
     pub suppressed: Suppressed,
     pub warnings: Vec<RunWarning>,
     pub scoped_to: Option<Vec<String>>,
@@ -491,6 +492,7 @@ pub struct AgentSummary {
     /// BTreeMap for deterministic serialization order.
     pub by_type: BTreeMap<String, u32>,
     pub cluster_count: u32,
+    pub region_count: u32,
     pub top_fixes: Vec<String>,
 }
 
@@ -856,7 +858,7 @@ impl AnchorStrength {
 // Cluster
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Cluster {
     pub id: String,
@@ -864,6 +866,26 @@ pub struct Cluster {
     pub shared_property: Option<String>,
     pub shared_landmark: Option<String>,
     pub summary: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Region
+// ---------------------------------------------------------------------------
+
+/// A saturated ARIA-landmark region rollup: one work item representing all
+/// issues anchored to a landmark whose structural damage crosses the saturation
+/// threshold.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Region {
+    pub id: String,
+    pub landmark: String,
+    pub saturation: f64,
+    pub structural_count: u32,
+    pub old_node_count: u32,
+    pub member_issue_ids: Vec<String>,
+    pub severity: IssueSeverity,
+    pub summary: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -929,5 +951,153 @@ impl Default for StabilizationConfig {
             settle_ms: 1000,
             lazy_scroll_step_px: 800,
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a minimal CaptureDeterminism for use in test fixtures.
+    fn make_det() -> CaptureDeterminism {
+        CaptureDeterminism {
+            animations_disabled: StepStatus::Ran,
+            reduced_motion: StepStatus::Ran,
+            time_frozen: StepStatus::Ran,
+            random_stubbed: StepStatus::Ran,
+            fonts_ready: StepStatus::Ran,
+            images_decoded: StepStatus::Ran,
+            lazy_load_pass: StepStatus::Ran,
+            settled: StepStatus::Ran,
+            clicked: vec![],
+            hidden: vec![],
+            masked: vec![],
+            retried_without_time_freeze: false,
+            integrity: None,
+        }
+    }
+
+    /// Build a minimal DiffResult with empty regions and region_count = 0.
+    fn make_minimal_diff_result(regions: Vec<Region>, region_count: u32) -> DiffResult {
+        DiffResult {
+            schema_version: "1.2".to_string(),
+            tool_version: "0.0.0".to_string(),
+            run_id: "2026-01-01T00-00-00Z".to_string(),
+            old_url: "https://example.com/old".to_string(),
+            new_url: "https://example.com/new".to_string(),
+            parity_profile: "content-structure".to_string(),
+            status: Status::Pass,
+            agent_summary: AgentSummary {
+                fixable_now: 0,
+                by_type: BTreeMap::new(),
+                cluster_count: 0,
+                region_count,
+                top_fixes: vec![],
+            },
+            scores: Scores::all_pass(),
+            viewports: vec![],
+            issues: vec![],
+            clusters: vec![],
+            regions,
+            suppressed: Suppressed {
+                count: 0,
+                ids: vec![],
+            },
+            warnings: vec![],
+            scoped_to: None,
+            out_of_scope: OutOfScope {
+                count: 0,
+                ids: vec![],
+            },
+            determinism: DeterminismSummary {
+                old: make_det(),
+                new: make_det(),
+            },
+            artifacts: Artifacts {
+                old: "desktop/old.png".to_string(),
+                new: "desktop/new.png".to_string(),
+                diff: "desktop/diff.png".to_string(),
+            },
+        }
+    }
+
+    /// Serde round-trip: DiffResult with empty regions serializes with
+    /// `"regions": []` and `"regionCount": 0`, then deserializes equal.
+    #[test]
+    fn test_diff_result_empty_regions_round_trip() {
+        let original = make_minimal_diff_result(vec![], 0);
+        let json = original.to_json().expect("should serialize");
+        let parsed: DiffResult = serde_json::from_str(&json).expect("should deserialize");
+
+        // Key presence checks on the JSON value
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            val["regions"],
+            serde_json::json!([]),
+            "regions must serialize as empty array"
+        );
+        assert_eq!(
+            val["agentSummary"]["regionCount"],
+            serde_json::json!(0),
+            "regionCount must serialize as 0"
+        );
+
+        // Round-trip equality (schema_version, regions, region_count)
+        assert_eq!(parsed.schema_version, "1.2");
+        assert_eq!(parsed.regions, vec![]);
+        assert_eq!(parsed.agent_summary.region_count, 0);
+    }
+
+    /// Serde round-trip: DiffResult carrying one fully-populated Region
+    /// round-trips equal and camelCase keys appear in the JSON.
+    #[test]
+    fn test_diff_result_one_region_round_trip() {
+        let region = Region {
+            id: "region_aabbccddeeff".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.86,
+            structural_count: 44,
+            old_node_count: 51,
+            member_issue_ids: vec![
+                "issue_000000000001".to_string(),
+                "issue_000000000002".to_string(),
+            ],
+            severity: IssueSeverity::Error,
+            summary: "contentinfo region: 44/51 structural nodes affected".to_string(),
+        };
+
+        let original = make_minimal_diff_result(vec![region.clone()], 1);
+        let json = original.to_json().expect("should serialize");
+        let parsed: DiffResult = serde_json::from_str(&json).expect("should deserialize");
+
+        // Round-trip equality
+        assert_eq!(parsed.regions.len(), 1);
+        assert_eq!(parsed.regions[0], region);
+        assert_eq!(parsed.agent_summary.region_count, 1);
+
+        // camelCase key names in JSON
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let r = &val["regions"][0];
+        assert!(
+            r.get("structuralCount").is_some(),
+            "structuralCount key must exist"
+        );
+        assert!(
+            r.get("oldNodeCount").is_some(),
+            "oldNodeCount key must exist"
+        );
+        assert!(
+            r.get("memberIssueIds").is_some(),
+            "memberIssueIds key must exist"
+        );
+        assert_eq!(r["structuralCount"], serde_json::json!(44));
+        assert_eq!(r["oldNodeCount"], serde_json::json!(51));
+        assert_eq!(r["saturation"], serde_json::json!(0.86));
+        assert_eq!(r["severity"], serde_json::json!("error"));
+        assert_eq!(r["landmark"], serde_json::json!("contentinfo"));
     }
 }

@@ -18,6 +18,7 @@
     "viewports",
     "issues",
     "clusters",
+    "regions",
     "suppressed",
     "warnings",
     "scopedTo",
@@ -28,9 +29,9 @@
   "properties": {
     "schemaVersion": {
       "title": "Schema version",
-      "description": "Version of the DiffResult schema. '1.1' adds warnings, scopedTo, outOfScope, and scores.byLandmark (all required, so 1.0 documents do not validate against this schema).",
+      "description": "Version of the DiffResult schema. '1.1' adds warnings, scopedTo, outOfScope, and scores.byLandmark (all required, so 1.0 documents do not validate against this schema). '1.2' adds the regions array and agentSummary.regionCount (both required, so 1.1 documents do not validate against this schema).",
       "type": "string",
-      "enum": ["1.1"]
+      "enum": ["1.2"]
     },
     "toolVersion": {
       "title": "Tool version",
@@ -69,7 +70,7 @@
       "description": "Machine-first triage block. First in file for fast agent consumption.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["fixableNow", "byType", "clusterCount", "topFixes"],
+      "required": ["fixableNow", "byType", "clusterCount", "regionCount", "topFixes"],
       "properties": {
         "fixableNow": {
           "title": "Fixable now count",
@@ -89,6 +90,12 @@
         "clusterCount": {
           "title": "Cluster count",
           "description": "Number of issue clusters in this result.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "regionCount": {
+          "title": "Region count",
+          "description": "Number of saturated ARIA-landmark region rollups in this result.",
           "type": "integer",
           "minimum": 0
         },
@@ -190,6 +197,14 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/Cluster"
+      }
+    },
+    "regions": {
+      "title": "Region rollups",
+      "description": "Saturated ARIA-landmark region rollups. Empty array when no landmark crosses the saturation threshold.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Region"
       }
     },
     "suppressed": {
@@ -654,6 +669,64 @@
           "title": "Summary",
           "description": "Human-readable summary of the cluster.",
           "type": ["string", "null"]
+        }
+      }
+    },
+    "Region": {
+      "title": "Region rollup",
+      "description": "A saturated ARIA-landmark region rollup: one work item representing all issues anchored to a landmark whose structural damage crosses the saturation threshold.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "landmark", "saturation", "structuralCount", "oldNodeCount", "memberIssueIds", "severity", "summary"],
+      "properties": {
+        "id": {
+          "title": "Region ID",
+          "description": "Stable region identifier derived from the landmark role: 'region_' + first 12 hex chars of SHA-256 over 'region\\x1f{landmark}'.",
+          "type": "string",
+          "pattern": "^region_[0-9a-f]{12}$"
+        },
+        "landmark": {
+          "title": "Landmark",
+          "description": "ARIA landmark role of this region (e.g. 'contentinfo', 'main', 'navigation').",
+          "type": "string"
+        },
+        "saturation": {
+          "title": "Saturation",
+          "description": "Structural-saturation ratio: structuralCount / max(oldNodeCount, structuralCount), clamped to [0, 1].",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "structuralCount": {
+          "title": "Structural count",
+          "description": "Number of structural issues (missing/broken/reordered/swapped) anchored to this landmark — the saturation numerator.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "oldNodeCount": {
+          "title": "Old node count",
+          "description": "Number of old-side semantic nodes anchored to this landmark — the saturation denominator base.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "memberIssueIds": {
+          "title": "Member issue IDs",
+          "description": "IDs of all kept issues anchored to this landmark (structural and style), sorted ascending.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "severity": {
+          "title": "Severity",
+          "description": "Worst-member severity across all member issues.",
+          "type": "string",
+          "enum": ["info", "warning", "error", "critical"]
+        },
+        "summary": {
+          "title": "Summary",
+          "description": "Human-readable summary of the region rollup.",
+          "type": "string"
         }
       }
     },

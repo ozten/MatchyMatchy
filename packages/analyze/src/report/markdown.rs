@@ -669,6 +669,7 @@ mod tests {
                 fixable_now: 1,
                 by_type,
                 cluster_count: 1,
+                region_count: 0,
                 top_fixes: vec!["cluster_112233445566".to_string()],
             },
             scores: Scores {
@@ -699,6 +700,7 @@ mod tests {
                 shared_landmark: None,
                 summary: Some("1 style_changed issues share font-family".to_string()),
             }],
+            regions: vec![],
             suppressed: Suppressed {
                 count: 2,
                 ids: vec![
