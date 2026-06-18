@@ -33,16 +33,16 @@ fn worst_sev<'a>(a: &'a IssueSeverity, b: &'a IssueSeverity) -> &'a IssueSeverit
     }
 }
 
-fn quote_landmark(s: &str) -> String {
-    if s.chars().any(|c| c.is_whitespace()) {
-        format!("\"{}\"", s.replace('"', "\\\""))
-    } else {
+/// Shell-quote an arg value for a copy-pasteable `matchy show` command.
+/// Bare when it is all safe chars [A-Za-z0-9_./-]; otherwise single-quoted with
+/// embedded single-quotes escaped as '\'' (POSIX). Single-quoting (not double)
+/// so $, backtick, (), etc. stay inert.
+fn shell_quote(s: &str) -> String {
+    if !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/')) {
         s.to_string()
+    } else {
+        format!("'{}'", s.replace('\'', "'\\''"))
     }
-}
-
-fn quote_heading(s: &str) -> String {
-    format!("\"{}\"", s.replace('"', "\\\""))
 }
 
 // ---------------------------------------------------------------------------
@@ -60,25 +60,26 @@ pub enum BranchHandle {
 
 impl BranchHandle {
     /// Copy-pasteable `matchy show …` command (R1/R12 parity). `out_dir` is the
-    /// directory containing diff-result.json. Heading values are always quoted;
-    /// landmark is quoted only if it contains whitespace; ids are bare.
+    /// directory containing diff-result.json. All user-derived string values are
+    /// shell-quoted via `shell_quote` (single-quote style) so $, backtick, (), etc.
+    /// stay inert; ids are bare (they are tool-controlled alphanumeric).
     pub fn drill_command(&self, out_dir: &str) -> String {
         match self {
             BranchHandle::Region { landmark } => {
                 format!(
                     "matchy show --region {} --out {}",
-                    quote_landmark(landmark),
+                    shell_quote(landmark),
                     out_dir
                 )
             }
             BranchHandle::Section { landmark, heading } => {
                 let heading_part = heading
                     .as_ref()
-                    .map(|h| format!(" --heading {}", quote_heading(h)))
+                    .map(|h| format!(" --heading {}", shell_quote(h)))
                     .unwrap_or_default();
                 format!(
                     "matchy show --section {}{} --out {}",
-                    quote_landmark(landmark),
+                    shell_quote(landmark),
                     heading_part,
                     out_dir
                 )
@@ -134,11 +135,11 @@ pub struct SectionBranch {
     pub collapsed: bool,            // budget/band decision
     /// Cached inline-rendered size (chars) used for budget accounting.
     /// Set during compute_outline; callers should treat this as internal.
-    pub inline_size: usize,
+    pub(crate) inline_size: usize,
     /// Cached inline markdown for this section — computed once in compute_outline
     /// for sizing, then reused verbatim in render_outline for emission.
     /// Only meaningful when `collapsed == false`.
-    pub inline_rendered: String,
+    pub(crate) inline_rendered: String,
 }
 
 /// The structured compact-disclosure model — computed ONCE, rendered by many.
@@ -410,9 +411,13 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
 // render_outline
 // ---------------------------------------------------------------------------
 
-/// Render the compact disclosure markdown body (critical lead + ## Regions
-/// pointers + ## Issues ToC). Self-contained block; the caller (U4) prepends the
-/// shared header/summary/scores. MUST contain a `## Issues` heading (check-m8).
+/// Render the compact MARKDOWN body (critical lead + ## Regions pointers +
+/// ## Issues ToC). Self-contained block; the caller (U4) prepends the shared
+/// header/summary/scores. MUST contain a `## Issues` heading (check-m8).
+///
+/// Note: this function produces markdown only. The HTML compact rendering in
+/// `html.rs` calls `compute_outline` directly and builds its own HTML elements;
+/// `render_outline` does not drive the HTML `<details>` rendering.
 pub fn render_outline(result: &DiffResult, opts: &DisclosureOptions) -> String {
     let model = compute_outline(result, opts);
     let mut out = String::new();
@@ -1447,15 +1452,15 @@ mod tests {
 
     #[test]
     fn test_drill_command_quoting() {
-        // Heading with spaces must be quoted; landmark without spaces stays bare.
+        // Heading with spaces must be single-quoted; landmark without spaces stays bare.
         let handle = BranchHandle::Section {
             landmark: "main".to_string(),
             heading: Some("Start for free".to_string()),
         };
         let cmd = handle.drill_command("/tmp/out");
         assert!(
-            cmd.contains("--heading \"Start for free\""),
-            "heading with spaces must be quoted, got: {cmd}"
+            cmd.contains("--heading 'Start for free'"),
+            "heading with spaces must be single-quoted, got: {cmd}"
         );
         // landmark "main" has no whitespace — must appear bare.
         assert!(
@@ -1466,14 +1471,48 @@ mod tests {
 
     #[test]
     fn test_drill_command_quoting_landmark_with_spaces() {
+        // landmark with spaces must be single-quoted (not double-quoted).
         let handle = BranchHandle::Section {
             landmark: "my section".to_string(),
             heading: None,
         };
         let cmd = handle.drill_command("/tmp/out");
         assert!(
-            cmd.contains("--section \"my section\""),
-            "landmark with spaces must be quoted, got: {cmd}"
+            cmd.contains("--section 'my section'"),
+            "landmark with spaces must be single-quoted, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_drill_command_quoting_page_section() {
+        // (page) contains parentheses — must be single-quoted (the demonstrated p01 bug).
+        let handle = BranchHandle::Section {
+            landmark: "(page)".to_string(),
+            heading: None,
+        };
+        let cmd = handle.drill_command("/tmp/out");
+        assert!(
+            cmd.contains("--section '(page)'"),
+            "landmark '(page)' must be single-quoted to neutralize shell metacharacters, got: {cmd}"
+        );
+        // Must not appear bare.
+        assert!(
+            !cmd.contains("--section (page)"),
+            "landmark '(page)' must NOT appear unquoted, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_drill_command_quoting_single_quote_in_heading() {
+        // Heading containing a single quote must use POSIX '\'' escaping.
+        let handle = BranchHandle::Section {
+            landmark: "main".to_string(),
+            heading: Some("it's a feature".to_string()),
+        };
+        let cmd = handle.drill_command("/tmp/out");
+        assert!(
+            cmd.contains("--heading 'it'\\''s a feature'"),
+            "single-quote in heading must be escaped as '\\'' (POSIX), got: {cmd}"
         );
     }
 
@@ -1895,6 +1934,226 @@ mod tests {
         assert_eq!(
             keys1, keys2,
             "section key order must be identical across repeated compute_outline calls (AE2/R3)"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Fix 7 — behavior-guarding tests
+    // -----------------------------------------------------------------------
+
+    /// Fix 7.1: greedy inlining picks the highest fix_value section first.
+    /// Two sections with distinct fix_values; budget fits only the higher-valued one.
+    #[test]
+    fn test_greedy_inlines_highest_fix_value_first() {
+        let mut result = make_empty_result();
+
+        // High-value section: BrokenLink (Error severity → high fix_value).
+        result.issues.push(make_issue(
+            "issue_hv_broken_0001",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "broken link here",
+            Some("main"),
+            Some("NavLinks"),
+            false,
+        ));
+
+        // Low-value section: StyleChanged (Warning severity → lower fix_value).
+        result.issues.push(make_issue(
+            "issue_lv_style_0001",
+            IssueType::StyleChanged,
+            IssueSeverity::Warning,
+            "style changed slightly",
+            Some("main"),
+            Some("Hero"),
+            false,
+        ));
+
+        // The higher-value section (broken_link) should have a larger inline_size
+        // than the lower-value one (style_changed). We need a budget that fits only one.
+        // First compute with a large budget to measure each section's inline_size.
+        let measure_opts = DisclosureOptions {
+            out_dir: "/tmp/out".to_string(),
+            budget: 1_000_000,
+            section_ceiling: 1_000_000,
+        };
+        let measure_model = compute_outline(&result, &measure_opts);
+        assert_eq!(measure_model.sections.len(), 2, "must have 2 sections");
+
+        // Find the broken_link section's inline_size.
+        let hv_section = measure_model
+            .sections
+            .iter()
+            .find(|s| s.key.1 == "NavLinks")
+            .expect("NavLinks section must exist");
+        let hv_size = hv_section.inline_size;
+
+        // Budget = hv_size + 10 (fits the higher, but not both, provided lv_size > 10).
+        // If both are tiny enough that budget fits both, use a smaller budget.
+        let lv_section = measure_model
+            .sections
+            .iter()
+            .find(|s| s.key.1 == "Hero")
+            .expect("Hero section must exist");
+        let lv_size = lv_section.inline_size;
+
+        // Choose a budget that fits exactly the higher-value section but not both.
+        // If both sections are so small they'd both fit, we add a guard to the budget.
+        let budget = if hv_size + lv_size > hv_size {
+            // Normal case: budget = hv_size (greedy fills hv, then lv doesn't fit).
+            hv_size
+        } else {
+            // Degenerate — shouldn't happen with real messages.
+            1
+        };
+
+        let opts = DisclosureOptions {
+            out_dir: "/tmp/out".to_string(),
+            budget,
+            section_ceiling: 100_000,
+        };
+        let model = compute_outline(&result, &opts);
+
+        // sections[0] must be the higher fix_value (NavLinks / broken_link).
+        assert_eq!(
+            model.sections[0].key.1, "NavLinks",
+            "highest fix_value section must be first in sorted order (NavLinks), got: {:?}",
+            model.sections.iter().map(|s| &s.key.1).collect::<Vec<_>>()
+        );
+
+        // The higher-value section must be inlined (collapsed=false).
+        assert!(
+            !model.sections[0].collapsed,
+            "highest fix_value section must be inlined"
+        );
+
+        // The lower-value section must be collapsed.
+        let lv = model.sections.iter().find(|s| s.key.1 == "Hero").unwrap();
+        assert!(
+            lv.collapsed || lv_size + hv_size <= budget,
+            "lower fix_value section must be collapsed (or both fit); lv_size={lv_size}, hv_size={hv_size}, budget={budget}"
+        );
+    }
+
+    /// Fix 7.2: uncertain issues are excluded from both critical_lead and sections.
+    #[test]
+    fn test_uncertain_excluded_from_compact() {
+        let mut result = make_empty_result();
+
+        // (a) Uncertain Critical issue — must NOT appear in critical_lead.
+        result.issues.push(make_issue(
+            "issue_unc_crit_0001",
+            IssueType::LoadError,
+            IssueSeverity::Critical,
+            "uncertain critical",
+            Some("main"),
+            Some("Header"),
+            true, // uncertain
+        ));
+
+        // (b) Uncertain Warning issue — must NOT appear in any section.
+        result.issues.push(make_issue(
+            "issue_unc_warn_0001",
+            IssueType::StyleChanged,
+            IssueSeverity::Warning,
+            "uncertain warning style",
+            Some("main"),
+            Some("Hero"),
+            true, // uncertain
+        ));
+
+        // (c) Normal Warning issue — must appear in sections (control).
+        result.issues.push(make_issue(
+            "issue_norm_warn_0001",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "normal warning text",
+            Some("main"),
+            Some("Body"),
+            false, // certain
+        ));
+
+        let opts = DisclosureOptions::new("/tmp/out");
+        let model = compute_outline(&result, &opts);
+
+        // Uncertain Critical must NOT be in critical_lead.
+        assert!(
+            !model.critical_lead.contains(&"issue_unc_crit_0001".to_string()),
+            "uncertain Critical must not be in critical_lead"
+        );
+        assert!(
+            model.critical_lead.is_empty(),
+            "critical_lead must be empty (all critical issues are uncertain)"
+        );
+
+        // Uncertain Warning must not appear in any section's issues.
+        // Check by verifying issue_unc_warn_0001 does not appear in any section key
+        // that matches Hero (since section grouping is by key, and the normal one has Body).
+        let hero_section = model.sections.iter().find(|s| s.key.1 == "Hero");
+        assert!(
+            hero_section.is_none(),
+            "uncertain Warning section (Hero) must not appear in sections; model.sections keys: {:?}",
+            model.sections.iter().map(|s| &s.key).collect::<Vec<_>>()
+        );
+
+        // Normal Warning must appear in sections.
+        let body_section = model.sections.iter().find(|s| s.key.1 == "Body");
+        assert!(
+            body_section.is_some(),
+            "normal Warning section (Body) must appear in sections"
+        );
+    }
+
+    /// Fix 7.3: calibration pin — with default budget and a region + standalone broken_link,
+    /// the region collapses to a pointer and the broken_link is inlined.
+    #[test]
+    fn test_calibration_p01_shape_pins_behavior() {
+        let result = make_region_bearing_result();
+
+        // Use the REAL frozen config defaults — no override.
+        let opts = DisclosureOptions::new("/tmp/o");
+        let model = compute_outline(&result, &opts);
+
+        // Region must be present (always collapsed to a pointer in compact).
+        assert!(
+            !model.regions.is_empty(),
+            "region must be present in the outline model"
+        );
+        let region_cmd = model.regions[0].handle.drill_command("/tmp/o");
+        assert!(
+            region_cmd.contains("matchy show --region"),
+            "region drill command must contain 'matchy show --region', got: {region_cmd}"
+        );
+
+        // The standalone broken_link in main must be in sections.
+        let main_section = model.sections.iter().find(|s| s.key.0 == "main");
+        assert!(
+            main_section.is_some(),
+            "standalone broken_link section in main must be in sections"
+        );
+
+        // It must be inlined (not collapsed) at default budget.
+        let main_section = main_section.unwrap();
+        assert!(
+            !main_section.collapsed,
+            "standalone broken_link section must be inlined at default budget (not collapsed)"
+        );
+
+        // Render markdown compact and assert broken_link message appears inline.
+        let md = render_outline(&result, &opts);
+        assert!(
+            md.contains("Link target missing in main"),
+            "broken_link message must appear inlined in compact markdown, got: {md}"
+        );
+
+        // The region must appear as a pointer (not inline issues).
+        assert!(
+            md.contains("## Regions"),
+            "compact markdown must have ## Regions section for the saturated region"
+        );
+        assert!(
+            md.contains("matchy show --region"),
+            "compact markdown must have a region drill pointer"
         );
     }
 }

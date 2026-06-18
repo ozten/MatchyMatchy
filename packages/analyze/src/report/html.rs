@@ -445,6 +445,27 @@ pub fn render_html_mode(
     out.push_str("</section>\n");
 
     // ------------------------------------------------------------------
+    // Compact mode: compute outline model ONCE here so sections 5, 6, and 7 can
+    // all share it. This also provides the critical_set needed to avoid duplicate
+    // DOM ids in the Regions section (Fix 2).
+    // Full mode: no outline model; this is None.
+    // ------------------------------------------------------------------
+    let compact_model: Option<crate::report::outline::OutlineModel> =
+        if mode == crate::report::DisclosureMode::Compact {
+            let opts = crate::report::outline::DisclosureOptions::new(out_dir);
+            Some(crate::report::outline::compute_outline(result, &opts))
+        } else {
+            None
+        };
+
+    // critical_set: ids of Critical issues surfaced as visible cards in the compact
+    // Issues section (under "Critical defects"). Only relevant in Compact mode.
+    let compact_critical_set: std::collections::BTreeSet<&str> = compact_model
+        .as_ref()
+        .map(|m| m.critical_lead.iter().map(|s| s.as_str()).collect())
+        .unwrap_or_default();
+
+    // ------------------------------------------------------------------
     // 5. Regions section (R8 — highest-altitude work first)
     // ------------------------------------------------------------------
     if !result.regions.is_empty() {
@@ -470,14 +491,37 @@ pub fn render_html_mode(
             ));
             // Member detail — collapsed by default (CSP-safe, no JS). Cards MOVE here from
             // the Issues section but keep their id anchors so deep links still resolve (R7/R11).
+            // In compact mode, members that are also in critical_lead are OMITTED here to avoid
+            // duplicate DOM ids — they are already rendered as visible cards in "Critical defects".
             let member_count = region.member_issue_ids.len();
-            out.push_str(&format!(
-                "<details class=\"region-members\">\n<summary>{} · {} member issue{} — show detail</summary>\n",
-                escape(&region.landmark),
-                member_count,
-                if member_count == 1 { "" } else { "s" }
-            ));
+            // Build the summary line. In Compact mode, append the region drill command (Fix 4).
+            let summary_line = if mode == crate::report::DisclosureMode::Compact {
+                let cmd = crate::report::outline::BranchHandle::Region {
+                    landmark: region.landmark.clone(),
+                }.drill_command(out_dir);
+                format!(
+                    "<details class=\"region-members\">\n<summary>{} \u{00b7} {} member issue{} \u{2014} show detail \u{2014} drill: <code>{}</code></summary>\n",
+                    escape(&region.landmark),
+                    member_count,
+                    if member_count == 1 { "" } else { "s" },
+                    escape(&cmd)
+                )
+            } else {
+                format!(
+                    "<details class=\"region-members\">\n<summary>{} · {} member issue{} — show detail</summary>\n",
+                    escape(&region.landmark),
+                    member_count,
+                    if member_count == 1 { "" } else { "s" }
+                )
+            };
+            out.push_str(&summary_line);
             for id in &region.member_issue_ids {
+                // In Compact mode: skip members already shown as visible Critical cards.
+                if mode == crate::report::DisclosureMode::Compact
+                    && compact_critical_set.contains(id.as_str())
+                {
+                    continue;
+                }
                 if let Some(iss) = issue_map.get(id.as_str()) {
                     render_issue_card(&mut out, iss);
                 }
@@ -518,6 +562,14 @@ pub fn render_html_mode(
                 escape(&cluster.issue_ids.join(", "))
             ));
 
+            // In Compact mode, add the drill command (Fix 3).
+            if mode == crate::report::DisclosureMode::Compact {
+                let cmd = crate::report::outline::BranchHandle::Cluster {
+                    id: cluster.id.clone(),
+                }.drill_command(out_dir);
+                out.push_str(&format!("<p>drill: <code>{}</code></p>\n", escape(&cmd)));
+            }
+
             out.push_str("</div>\n");
         }
         out.push_str("</section>\n");
@@ -548,8 +600,8 @@ pub fn render_html_mode(
             }
         }
         crate::report::DisclosureMode::Compact => {
-            let opts = crate::report::outline::DisclosureOptions::new(out_dir);
-            let model = crate::report::outline::compute_outline(result, &opts);
+            // Use the already-computed model (computed once before section 5).
+            let model = compact_model.as_ref().expect("compact_model must be Some in Compact mode");
 
             // (a) Critical defects — always visible (R13), never hidden behind a closed <details>.
             if !model.critical_lead.is_empty() {
@@ -1792,6 +1844,114 @@ mod tests {
         assert!(!lower.contains("onclick="), "No onclick= in compact mode");
         assert!(!lower.contains("onload="), "No onload= in compact mode");
         assert!(!lower.contains("javascript:"), "No javascript: in compact mode");
+    }
+
+    /// Fix 2: a Critical issue that is ALSO a region member must NOT render twice in compact
+    /// HTML. Specifically, its `id="…"` must appear EXACTLY ONCE. It must appear under
+    /// "Critical defects" (before the region details). Full mode must still render it inside
+    /// the region details.
+    #[test]
+    fn test_compact_html_no_duplicate_critical_card() {
+        use crate::contract::{Anchors, IssueType, Locator, Region};
+
+        let mut result = make_fixture();
+        result.issues.clear();
+        result.clusters.clear();
+        result.regions.clear();
+
+        // A Critical issue — will appear in both the region and compact critical_lead.
+        let critical_id = "issue_crit_dual_0001";
+        let critical_issue = Issue {
+            id: critical_id.to_string(),
+            issue_type: IssueType::LoadError,
+            category: IssueCategory::Technical,
+            severity: IssueSeverity::Critical,
+            confidence: 0.99,
+            viewport: "desktop".to_string(),
+            locale: None,
+            goal: None,
+            message: "critical dual-render issue".to_string(),
+            locator: Locator {
+                anchors: Anchors {
+                    landmark: Some("contentinfo".to_string()),
+                    nearest_heading: Some("Footer".to_string()),
+                    ..Anchors::null()
+                },
+                css_selector_old: None,
+                css_selector_new: None,
+                bbox_old: None,
+                bbox_new: None,
+                seq_index_old: None,
+                seq_index_new: None,
+            },
+            evidence: serde_json::json!({}),
+            remediation: None,
+        };
+        result.issues.push(critical_issue);
+
+        // A region that claims the critical issue.
+        result.regions = vec![Region {
+            id: "region_crit_dual".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.90,
+            structural_count: 5,
+            old_node_count: 6,
+            member_issue_ids: vec![critical_id.to_string()],
+            severity: IssueSeverity::Critical,
+            summary: "contentinfo region with critical".to_string(),
+        }];
+        result.agent_summary.region_count = 1;
+
+        // --- Compact mode: id must appear EXACTLY ONCE ---
+        let html_compact = render_html_mode(
+            &result,
+            &BTreeMap::new(),
+            crate::report::DisclosureMode::Compact,
+            "/tmp/out",
+        );
+
+        let id_attr = format!("id=\"{}\"", critical_id);
+        let occurrences = html_compact.matches(id_attr.as_str()).count();
+        assert_eq!(
+            occurrences, 1,
+            "Critical issue id= must appear EXACTLY ONCE in compact HTML (no duplicate), got {occurrences}"
+        );
+
+        // Must appear under "Critical defects" (before region details).
+        let critical_h3_pos = html_compact
+            .find("<h3>Critical defects</h3>")
+            .expect("<h3>Critical defects</h3> must be present");
+        let card_pos = html_compact
+            .find(id_attr.as_str())
+            .expect("critical issue id= must appear");
+        assert!(
+            card_pos > critical_h3_pos,
+            "Critical issue card must appear after <h3>Critical defects</h3>"
+        );
+
+        // --- Full mode: the critical issue must still be inside region-members details ---
+        let html_full = render_html_mode(
+            &result,
+            &BTreeMap::new(),
+            crate::report::DisclosureMode::Full,
+            "/tmp/out",
+        );
+        // In Full mode there is no "Critical defects" heading.
+        assert!(
+            !html_full.contains("<h3>Critical defects</h3>"),
+            "Full mode must NOT have <h3>Critical defects</h3>"
+        );
+        // The issue must appear inside region-members details.
+        let region_details_pos = html_full
+            .find("<details class=\"region-members\">")
+            .expect("region-members details must be present in full mode");
+        let full_card_pos = html_full
+            .find(id_attr.as_str())
+            .expect("critical issue id= must appear in full mode");
+        assert!(
+            full_card_pos > region_details_pos,
+            "In full mode, critical issue card must appear inside region-members details"
+        );
     }
 
     /// A critical issue must appear under a Critical defects heading (not only inside a closed region details).

@@ -563,11 +563,24 @@ pub fn render_markdown_mode(
                 .as_deref()
                 .map(md_cell)
                 .unwrap_or_else(|| cluster.id.clone());
-            out.push_str(&format!(
-                "- {} (members: {})\n",
-                summary,
-                cluster.issue_ids.len()
-            ));
+            // In Compact mode, append the drill command (Fix 3 / R12 parity).
+            if mode == crate::report::DisclosureMode::Compact {
+                let cmd = crate::report::outline::BranchHandle::Cluster {
+                    id: cluster.id.clone(),
+                }.drill_command(out_dir);
+                out.push_str(&format!(
+                    "- {} (members: {}) \u{2014} drill: {}\n",
+                    summary,
+                    cluster.issue_ids.len(),
+                    cmd
+                ));
+            } else {
+                out.push_str(&format!(
+                    "- {} (members: {})\n",
+                    summary,
+                    cluster.issue_ids.len()
+                ));
+            }
         }
         out.push('\n');
     }
@@ -1696,6 +1709,36 @@ mod tests {
         assert!(
             md.contains("matchy show"),
             "Compact mode must contain a matchy show drill command"
+        );
+    }
+
+    /// Fix 3 / R12: compact mode cluster bullet must include a drill command.
+    /// Full mode must NOT include the drill text (wrapper-identity / byte-stability).
+    #[test]
+    fn test_compact_clusters_have_drill() {
+        // Use make_fixture() which already has a cluster.
+        let result = make_fixture();
+
+        // Compact mode — cluster bullet must contain "matchy show --cluster".
+        let md_compact = render_markdown_mode(&result, crate::report::DisclosureMode::Compact, "/tmp/out");
+        assert!(
+            md_compact.contains("matchy show --cluster"),
+            "Compact mode cluster bullet must contain 'matchy show --cluster', got clusters section: {}",
+            md_compact.find("## Clusters").map(|p| &md_compact[p..p.min(md_compact.len()).saturating_add(300)]).unwrap_or("(no ## Clusters found)")
+        );
+
+        // Full mode — cluster bullet must NOT contain the drill text.
+        let md_full = render_markdown_mode(&result, crate::report::DisclosureMode::Full, "/tmp/out");
+        assert!(
+            !md_full.contains("matchy show --cluster"),
+            "Full mode cluster bullet must NOT contain 'matchy show --cluster' (byte-identity with legacy render)"
+        );
+
+        // Verify wrapper identity: render_markdown (Full) must not gain drill text either.
+        let md_legacy = render_markdown(&result);
+        assert!(
+            !md_legacy.contains("matchy show --cluster"),
+            "render_markdown (legacy wrapper) must not contain cluster drill text"
         );
     }
 }
