@@ -157,6 +157,10 @@ pub fn render_markdown(result: &DiffResult) -> String {
         "- **Cluster count:** {}\n",
         result.agent_summary.cluster_count
     ));
+    out.push_str(&format!(
+        "- **Region count:** {}\n",
+        result.agent_summary.region_count
+    ));
 
     if !result.agent_summary.top_fixes.is_empty() {
         let top = result.agent_summary.top_fixes.join(", ");
@@ -261,7 +265,24 @@ pub fn render_markdown(result: &DiffResult) -> String {
     }
 
     // ------------------------------------------------------------------
-    // 5. Issues by section (non-uncertain issues grouped)
+    // 5. Regions (saturated ARIA-landmark rollups) — ahead of the issue tail (R8)
+    // ------------------------------------------------------------------
+    if !result.regions.is_empty() {
+        out.push_str("## Regions\n\n");
+        for region in &result.regions {
+            out.push_str(&format!(
+                "- {} — saturation {:.2}, severity {}, members: {}\n",
+                md_cell(&region.summary),
+                region.saturation,
+                sev_str(&region.severity),
+                region.member_issue_ids.len(),
+            ));
+        }
+        out.push('\n');
+    }
+
+    // ------------------------------------------------------------------
+    // 6. Issues by section (non-uncertain issues grouped)
     // ------------------------------------------------------------------
     out.push_str("## Issues by section\n\n");
 
@@ -557,8 +578,8 @@ mod tests {
     use super::*;
     use crate::contract::{
         AgentSummary, Anchors, Artifacts, Cluster, DeterminismSummary, DiffResult, Issue,
-        IssueCategory, IssueSeverity, IssueType, LandmarkScores, Locator, OutOfScope, RunWarning,
-        Scores, Status, Suppressed, ViewportResult,
+        IssueCategory, IssueSeverity, IssueType, LandmarkScores, Locator, OutOfScope, Region,
+        RunWarning, Scores, Status, Suppressed, ViewportResult,
     };
     use std::collections::BTreeMap;
 
@@ -1186,6 +1207,91 @@ mod tests {
         assert!(
             md.contains("No issues."),
             "Must say No issues when list empty"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW: regions section
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_regions_section_happy_path() {
+        // A DiffResult with one Region renders a ## Regions section with the
+        // landmark, saturation, severity, and member count visible; and the
+        // ## Summary shows "Region count: 1".
+        let mut result = make_fixture();
+        let mut member_ids: Vec<String> = (0..88).map(|i| format!("issue_{i:016x}")).collect();
+        member_ids.sort();
+        let region = Region {
+            id: "region_aabbccddeeff".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.86,
+            structural_count: 44,
+            old_node_count: 51,
+            member_issue_ids: member_ids,
+            severity: IssueSeverity::Error,
+            summary: "contentinfo region: 44/51 structural nodes affected".to_string(),
+        };
+        result.regions = vec![region];
+        result.agent_summary.region_count = 1;
+
+        let md = render_markdown(&result);
+
+        // ## Regions section must appear
+        assert!(md.contains("## Regions"), "## Regions section must appear");
+
+        // Summary must show the correct values
+        assert!(
+            md.contains("contentinfo"),
+            "Region landmark must appear in Regions section"
+        );
+        assert!(
+            md.contains("saturation 0.86"),
+            "Saturation must appear formatted to 2 decimal places"
+        );
+        assert!(
+            md.contains("members: 88"),
+            "Member count must appear in Regions section"
+        );
+
+        // ## Summary must show Region count: 1
+        assert!(
+            md.contains("**Region count:** 1"),
+            "Summary must show Region count: 1"
+        );
+
+        // ## Regions must appear BEFORE ## Issues by section (R8)
+        let pos_regions = md.find("## Regions").unwrap();
+        let pos_issues = md.find("## Issues by section").unwrap();
+        assert!(
+            pos_regions < pos_issues,
+            "## Regions must appear before ## Issues by section"
+        );
+    }
+
+    #[test]
+    fn test_regions_section_absent_when_empty() {
+        // regions: vec![] and region_count: 0 → NO ## Regions header appears,
+        // and the rest of the report renders normally.
+        let result = make_fixture(); // regions: vec![], region_count: 0
+
+        let md = render_markdown(&result);
+
+        assert!(
+            !md.contains("## Regions"),
+            "## Regions must not appear when regions is empty"
+        );
+        // The rest of the report must still be intact
+        assert!(md.contains("# matchy report"), "Header must still appear");
+        assert!(md.contains("## Summary"), "Summary must still appear");
+        assert!(
+            md.contains("## Issues by section"),
+            "Issues section must still appear"
+        );
+        // Region count line is still present (showing 0)
+        assert!(
+            md.contains("**Region count:** 0"),
+            "Region count line must show 0 in Summary"
         );
     }
 }
