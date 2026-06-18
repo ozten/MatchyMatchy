@@ -1,7 +1,7 @@
 ---
 title: "feat: Region-saturation rollup in the analyze layer"
 type: feat
-status: active
+status: completed
 date: 2026-06-17
 origin: docs/brainstorms/2026-06-17-region-saturation-rollup-requirements.md
 deepened: 2026-06-17
