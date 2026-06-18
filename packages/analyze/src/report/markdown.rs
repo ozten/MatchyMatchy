@@ -116,6 +116,8 @@ pub fn render_markdown(result: &DiffResult) -> String {
         crate::contract::Status::Error => "error",
     };
 
+    let claimed = crate::report::claimed_issue_ids(result);
+
     // ------------------------------------------------------------------
     // 1. Header
     // ------------------------------------------------------------------
@@ -190,7 +192,7 @@ pub fn render_markdown(result: &DiffResult) -> String {
         // Build section counts using a BTreeMap for determinism (counts will be sorted later).
         let mut counts: BTreeMap<SectionKey, u32> = BTreeMap::new();
         for issue in &result.issues {
-            if is_uncertain_pairing(&issue.evidence) {
+            if is_uncertain_pairing(&issue.evidence) || claimed.contains(issue.id.as_str()) {
                 continue;
             }
             *counts.entry(section_key_of(issue)).or_insert(0) += 1;
@@ -286,11 +288,37 @@ pub fn render_markdown(result: &DiffResult) -> String {
     // ------------------------------------------------------------------
     out.push_str("## Issues by section\n\n");
 
-    // Separate uncertain vs normal issues.
+    // Breadcrumb: region-claimed members are collapsed into ## Regions above and
+    // are intentionally not repeated here (R7/R10 — no information lost, just demoted).
+    if !result.regions.is_empty() {
+        let collapsed: Vec<String> = result
+            .regions
+            .iter()
+            .map(|r| {
+                format!(
+                    "{} ({} issue{})",
+                    md_cell(&r.landmark),
+                    r.member_issue_ids.len(),
+                    if r.member_issue_ids.len() == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
+                )
+            })
+            .collect();
+        out.push_str(&format!(
+            "> Saturated regions are collapsed into **## Regions** above; their member issues are not repeated below: {}.\n\n",
+            collapsed.join(", ")
+        ));
+    }
+
+    // Separate uncertain vs normal issues. Claimed issues (region members) are excluded
+    // from the per-issue listing — the region rollup is their single representation.
     let normal_issues: Vec<&crate::contract::Issue> = result
         .issues
         .iter()
-        .filter(|i| !is_uncertain_pairing(&i.evidence))
+        .filter(|i| !is_uncertain_pairing(&i.evidence) && !claimed.contains(i.id.as_str()))
         .collect();
 
     let uncertain_issues: Vec<&crate::contract::Issue> = result
@@ -1293,5 +1321,254 @@ mod tests {
             md.contains("**Region count:** 0"),
             "Region count line must show 0 in Summary"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW (U1): region demotion — claimed members excluded from per-issue listing
+    // -----------------------------------------------------------------------
+
+    /// AE1 core scenario: contentinfo is saturated. Its member issues must NOT
+    /// appear in "Issues by section" or the by-section count table. The single
+    /// standalone defect in `main` MUST still appear. The breadcrumb note and
+    /// ## Regions section must be present.
+    #[test]
+    fn test_region_claimed_members_demoted_from_issues_and_counts() {
+        let mut result = make_fixture();
+        result.issues.clear();
+        result.clusters.clear();
+
+        // Five contentinfo issues across two headings.
+        let footer_ids: &[&str] = &[
+            "issue_footer_00000001",
+            "issue_footer_00000002",
+            "issue_footer_00000003",
+            "issue_footer_00000004",
+            "issue_footer_00000005",
+        ];
+        for (i, id) in footer_ids.iter().enumerate() {
+            let heading = if i < 3 { "PRODUCTS" } else { "RESOURCES" };
+            result.issues.push(make_issue(
+                id,
+                IssueType::ChangedText,
+                IssueSeverity::Warning,
+                "desktop",
+                &format!("footer msg {i}"),
+                Some("contentinfo"),
+                Some(heading),
+                false,
+            ));
+        }
+
+        // One standalone issue in main.
+        result.issues.push(make_issue(
+            "issue_broken_link_01",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "desktop",
+            "Link target missing",
+            Some("main"),
+            Some("Body"),
+            false,
+        ));
+
+        // Build region claiming exactly the five footer issues.
+        let mut member_ids: Vec<String> = footer_ids.iter().map(|s| s.to_string()).collect();
+        member_ids.sort();
+        let region = Region {
+            id: "region_contentinfo_01".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.86,
+            structural_count: 5,
+            old_node_count: 6,
+            member_issue_ids: member_ids,
+            severity: IssueSeverity::Error,
+            summary: "contentinfo region: 5/6 structural nodes affected".to_string(),
+        };
+        result.regions = vec![region];
+        result.agent_summary.region_count = 1;
+
+        let md = render_markdown(&result);
+
+        // contentinfo issues must NOT appear in "Issues by section"
+        let issues_start = md.find("## Issues by section").unwrap();
+        let issues_section = &md[issues_start..];
+        assert!(
+            !issues_section.contains("### contentinfo"),
+            "contentinfo section header must not appear in Issues by section"
+        );
+
+        // The by-section count table must not have a contentinfo row.
+        // The by-section table is in the Summary section.
+        let summary_start = md.find("## Summary").unwrap();
+        let issues_header_pos = md.find("## Issues by section").unwrap();
+        let summary_section = &md[summary_start..issues_header_pos];
+        assert!(
+            !summary_section.contains("| contentinfo |"),
+            "by-section count table must not have a contentinfo row"
+        );
+
+        // The main broken_link issue IS still rendered.
+        assert!(
+            issues_section.contains("### main"),
+            "main section header must appear in Issues by section"
+        );
+        assert!(
+            summary_section.contains("| main |"),
+            "by-section count table must have a main row"
+        );
+
+        // ## Regions must be present and mention contentinfo.
+        assert!(md.contains("## Regions"), "## Regions must be present");
+        assert!(
+            md.contains("contentinfo"),
+            "contentinfo must appear in ## Regions"
+        );
+
+        // The breadcrumb note must be present and mention contentinfo.
+        assert!(
+            md.contains("Saturated regions are collapsed into **## Regions** above"),
+            "breadcrumb note must be present"
+        );
+        assert!(
+            md.contains("contentinfo (5 issues)"),
+            "breadcrumb note must mention contentinfo with count"
+        );
+    }
+
+    /// Guard: with regions empty the breadcrumb note must not appear, and the
+    /// normal issue still renders exactly as before (qualitative byte-stability).
+    #[test]
+    fn test_regions_empty_markdown_unchanged_by_filter() {
+        let result = make_fixture(); // regions: vec![]
+        let md = render_markdown(&result);
+
+        // No breadcrumb note.
+        assert!(
+            !md.contains("Saturated regions are collapsed"),
+            "breadcrumb note must not appear when regions is empty"
+        );
+
+        // Normal issue still renders.
+        assert!(
+            md.contains("## Issues by section"),
+            "Issues section must be present"
+        );
+        assert!(
+            md.contains("### main"),
+            "main section must still appear when regions is empty"
+        );
+    }
+
+    /// An uncertain issue in contentinfo whose id is NOT in the region member set
+    /// must still appear in "### Uncertain pairings", even when the region claims
+    /// other contentinfo issue ids.
+    #[test]
+    fn test_uncertain_still_rendered_when_region_claims() {
+        let mut result = make_fixture();
+        result.issues.clear();
+        result.clusters.clear();
+
+        // One normal contentinfo issue that WILL be claimed.
+        result.issues.push(make_issue(
+            "issue_footer_claimed_01",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "desktop",
+            "claimed footer msg",
+            Some("contentinfo"),
+            Some("PRODUCTS"),
+            false,
+        ));
+
+        // One uncertain contentinfo issue whose id is NOT claimed.
+        result.issues.push(make_issue(
+            "issue_uncertain_footer",
+            IssueType::StyleChanged,
+            IssueSeverity::Info,
+            "desktop",
+            "uncertain footer style",
+            Some("contentinfo"),
+            Some("PRODUCTS"),
+            true, // uncertain
+        ));
+
+        // Region claims only the non-uncertain issue.
+        let region = Region {
+            id: "region_contentinfo_02".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.80,
+            structural_count: 1,
+            old_node_count: 1,
+            member_issue_ids: vec!["issue_footer_claimed_01".to_string()],
+            severity: IssueSeverity::Warning,
+            summary: "contentinfo region: 1/1 structural nodes affected".to_string(),
+        };
+        result.regions = vec![region];
+        result.agent_summary.region_count = 1;
+
+        let md = render_markdown(&result);
+
+        // Uncertain subsection must still appear.
+        assert!(
+            md.contains("### Uncertain pairings"),
+            "Uncertain pairings subsection must appear"
+        );
+        // Uncertain issue's message must be present.
+        assert!(
+            md.contains("uncertain footer style"),
+            "Uncertain issue message must appear"
+        );
+    }
+
+    /// Byte-determinism guard: rendering the same region-bearing result twice
+    /// produces identical output.
+    #[test]
+    fn test_markdown_render_deterministic_with_regions() {
+        let mut result = make_fixture();
+        result.issues.clear();
+        result.clusters.clear();
+
+        for i in 0..3u8 {
+            result.issues.push(make_issue(
+                &format!("issue_det_{i:016x}"),
+                IssueType::ChangedText,
+                IssueSeverity::Warning,
+                "desktop",
+                &format!("det msg {i}"),
+                Some("contentinfo"),
+                Some("Section"),
+                false,
+            ));
+        }
+        result.issues.push(make_issue(
+            "issue_det_standalone_01",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "desktop",
+            "standalone det msg",
+            Some("main"),
+            Some("Body"),
+            false,
+        ));
+
+        let mut member_ids: Vec<String> = (0..3u8).map(|i| format!("issue_det_{i:016x}")).collect();
+        member_ids.sort();
+        let region = Region {
+            id: "region_det_test_0001".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.75,
+            structural_count: 3,
+            old_node_count: 4,
+            member_issue_ids: member_ids,
+            severity: IssueSeverity::Warning,
+            summary: "contentinfo region: 3/4 structural nodes affected".to_string(),
+        };
+        result.regions = vec![region];
+        result.agent_summary.region_count = 1;
+
+        let md1 = render_markdown(&result);
+        let md2 = render_markdown(&result);
+
+        assert_eq!(md1, md2, "render_markdown must be byte-deterministic");
     }
 }
