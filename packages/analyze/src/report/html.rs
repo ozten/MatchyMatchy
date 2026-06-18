@@ -6,6 +6,7 @@
 //! - No <script> tags, no inline event handlers, no javascript: urls.
 //! - Single inline <style> block; no external resources.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::Context;
@@ -44,7 +45,11 @@ fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
 
 /// Render a DiffResult into a self-contained static HTML string.
 /// Pure function, deterministic, no filesystem access.
-pub fn render_html(result: &DiffResult) -> String {
+///
+/// `old_dims` maps viewport name → (width, height) of the old screenshot in pixels.
+/// When present, a visual overlay is drawn on the old screenshot image showing each
+/// region's bounding-box extent.
+pub fn render_html(result: &DiffResult, old_dims: &BTreeMap<String, (u32, u32)>) -> String {
     let mut out = String::with_capacity(64 * 1024);
 
     let status_str = match &result.status {
@@ -200,6 +205,14 @@ pub fn render_html(result: &DiffResult) -> String {
     // ------------------------------------------------------------------
     // 4. Per-viewport side-by-side screenshots
     // ------------------------------------------------------------------
+
+    // Build a stable id→&Issue map for overlay bbox lookups (BTreeMap = deterministic).
+    let issue_map: BTreeMap<&str, &crate::contract::Issue> = result
+        .issues
+        .iter()
+        .map(|iss| (iss.id.as_str(), iss))
+        .collect();
+
     out.push_str("<section>\n<h2>Viewports</h2>\n");
     for vp in &result.viewports {
         let vp_status_str = match &vp.status {
@@ -219,9 +232,88 @@ pub fn render_html(result: &DiffResult) -> String {
         let new_src = escape(&vp.artifacts.new);
         let diff_src = escape(&vp.artifacts.diff);
 
-        out.push_str(&format!(
-            "<figure><a href=\"{old_src}\"><img src=\"{old_src}\" alt=\"Old screenshot\"></a><figcaption>Old</figcaption></figure>\n"
-        ));
+        // Render OLD screenshot — with region overlay if we have dimensions and qualifying regions.
+        out.push_str("<figure>\n");
+        if let Some(&(img_w, img_h)) = old_dims.get(&vp.name) {
+            // Collect regions that have at least one member with a bbox_old in this viewport.
+            let regions_with_bbox: Vec<_> = result
+                .regions
+                .iter()
+                .filter_map(|region| {
+                    // Union all qualifying bboxes for this region+viewport.
+                    let mut min_x = i64::MAX;
+                    let mut min_y = i64::MAX;
+                    let mut max_x = i64::MIN;
+                    let mut max_y = i64::MIN;
+                    let mut found = false;
+                    for id in &region.member_issue_ids {
+                        if let Some(iss) = issue_map.get(id.as_str()) {
+                            if iss.viewport == vp.name {
+                                if let Some([bx, by, bw, bh]) = iss.locator.bbox_old {
+                                    let x = bx as i64;
+                                    let y = by as i64;
+                                    let w = bw as i64;
+                                    let h = bh as i64;
+                                    min_x = min_x.min(x);
+                                    min_y = min_y.min(y);
+                                    max_x = max_x.max(x + w);
+                                    max_y = max_y.max(y + h);
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+                    if found {
+                        Some((region, min_x, min_y, max_x, max_y))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            if !regions_with_bbox.is_empty() {
+                // Wrap in relative-positioned container.
+                out.push_str(&format!(
+                    "<a href=\"{old_src}\"><div style=\"position:relative; display:inline-block; max-width:100%\">\n"
+                ));
+                out.push_str(&format!(
+                    "<img src=\"{old_src}\" alt=\"Old screenshot\" style=\"display:block; max-width:100%\">\n"
+                ));
+                let w_f = img_w as f64;
+                let h_f = img_h as f64;
+                for (region, min_x, min_y, max_x, max_y) in regions_with_bbox {
+                    let left = min_x as f64 / w_f * 100.0;
+                    let top = min_y as f64 / h_f * 100.0;
+                    let width = (max_x - min_x) as f64 / w_f * 100.0;
+                    let height = (max_y - min_y) as f64 / h_f * 100.0;
+                    let member_count = region.member_issue_ids.len();
+                    let label = format!(
+                        "{} · {:.2} · {} issues",
+                        escape(&region.landmark),
+                        region.saturation,
+                        member_count
+                    );
+                    out.push_str(&format!(
+                        "<div style=\"position:absolute; left:{left:.2}%; top:{top:.2}%; width:{width:.2}%; height:{height:.2}%; border:1px solid #d4a017; background:rgba(255,221,51,0.18); box-sizing:border-box;\">\
+<span style=\"position:absolute; top:0; left:0; background:#d4a017; color:#000; font:11px/1.3 monospace; padding:0 3px; white-space:nowrap;\">{label}</span>\
+</div>\n"
+                    ));
+                }
+                out.push_str("</div></a>\n");
+            } else {
+                // No overlay needed — plain figure.
+                out.push_str(&format!(
+                    "<a href=\"{old_src}\"><img src=\"{old_src}\" alt=\"Old screenshot\"></a>\n"
+                ));
+            }
+        } else {
+            // No dimension info — plain figure.
+            out.push_str(&format!(
+                "<a href=\"{old_src}\"><img src=\"{old_src}\" alt=\"Old screenshot\"></a>\n"
+            ));
+        }
+        out.push_str("<figcaption>Old</figcaption></figure>\n");
+
         out.push_str(&format!(
             "<figure><a href=\"{new_src}\"><img src=\"{new_src}\" alt=\"New screenshot\"></a><figcaption>New</figcaption></figure>\n"
         ));
@@ -501,7 +593,23 @@ fn render_remediation(out: &mut String, rem: &serde_json::Value) {
 pub fn write_html(result: &DiffResult, out_dir: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(out_dir)
         .with_context(|| format!("failed to create output dir: {}", out_dir.display()))?;
-    let mut html = render_html(result);
+
+    // Attempt to read old-screenshot pixel dimensions for each viewport.
+    // On any error (missing file, decode failure, etc.) we skip that viewport — no overlay.
+    let mut old_dims: BTreeMap<String, (u32, u32)> = BTreeMap::new();
+    for vp in &result.viewports {
+        let png_path = out_dir.join(&vp.artifacts.old);
+        match image::image_dimensions(&png_path) {
+            Ok((w, h)) => {
+                old_dims.insert(vp.name.clone(), (w, h));
+            }
+            Err(_) => {
+                // Missing or unreadable — no overlay for this viewport.
+            }
+        }
+    }
+
+    let mut html = render_html(result, &old_dims);
     // Ensure trailing newline.
     if !html.ends_with('\n') {
         html.push('\n');
@@ -774,7 +882,7 @@ mod tests {
     #[test]
     fn test_csp_meta_present() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             html.contains(
                 "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\">"
@@ -786,7 +894,7 @@ mod tests {
     #[test]
     fn test_no_script_tag() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         let lower = html.to_lowercase();
         assert!(
             !lower.contains("<script"),
@@ -797,7 +905,7 @@ mod tests {
     #[test]
     fn test_no_event_handlers() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         let lower = html.to_lowercase();
         assert!(
             !lower.contains("onerror="),
@@ -817,7 +925,7 @@ mod tests {
     fn test_xss_injection_escaped() {
         // The issue fixture has anchors.text = Some("\"><script>alert(1)</script>")
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         // The raw payload must NOT appear unescaped.
         assert!(
             !html.contains("<script>alert"),
@@ -833,7 +941,7 @@ mod tests {
     #[test]
     fn test_doctype_first() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             html.starts_with("<!DOCTYPE html>"),
             "Output must start with <!DOCTYPE html>"
@@ -843,7 +951,7 @@ mod tests {
     #[test]
     fn test_suppressed_section() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(html.contains("Suppressed"));
         assert!(html.contains("issue_dead000000ff"));
     }
@@ -851,7 +959,7 @@ mod tests {
     #[test]
     fn test_clusters_section() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(html.contains("Clusters"));
         assert!(html.contains("font-family"));
     }
@@ -859,7 +967,7 @@ mod tests {
     #[test]
     fn test_scores_table() {
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(html.contains("visual"));
         assert!(html.contains("1.00"));
         assert!(html.contains("0.50"));
@@ -869,7 +977,7 @@ mod tests {
     fn test_message_escaped() {
         // issue.message = "Text changed: <old> vs &new"
         let result = make_fixture();
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(html.contains("Text changed: &lt;old&gt; vs &amp;new"));
         assert!(!html.contains("Text changed: <old>"));
     }
@@ -899,7 +1007,7 @@ mod tests {
             message: "Baseline may be outdated".to_string(),
             context: None,
         });
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             html.contains("<section class=\"warnings\">"),
             "Warnings section must appear"
@@ -918,7 +1026,7 @@ mod tests {
     #[test]
     fn test_warnings_banner_absent_when_empty() {
         let result = make_fixture(); // warnings: vec![]
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             !html.contains("<section class=\"warnings\">"),
             "Warnings section must not appear when empty"
@@ -934,7 +1042,7 @@ mod tests {
             message: "<script>alert(1)</script>".to_string(),
             context: None,
         });
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         // Raw payload must not appear.
         assert!(
             !html.contains("<script>alert"),
@@ -956,7 +1064,7 @@ mod tests {
         let mut result = make_fixture();
         // Modify the issue to be uncertain.
         result.issues[0].evidence = serde_json::json!({ "match": { "uncertainPairing": true } });
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             html.contains("<span class=\"badge uncertain\">uncertain pairing</span>"),
             "Uncertain badge must appear on issue card"
@@ -966,7 +1074,7 @@ mod tests {
     #[test]
     fn test_uncertain_badge_absent_for_normal_issue() {
         let result = make_fixture(); // issue has no uncertainPairing
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             !html.contains("uncertain pairing"),
             "Uncertain badge must not appear on normal issue"
@@ -985,7 +1093,7 @@ mod tests {
             count: 5,
             ids: vec![],
         };
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             html.contains("<dt>Scoped to</dt>"),
             "Scoped to dt must appear"
@@ -999,7 +1107,7 @@ mod tests {
     #[test]
     fn test_scoped_to_absent_when_none() {
         let result = make_fixture(); // scoped_to: None
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             !html.contains("<dt>Scoped to</dt>"),
             "Scoped to must not appear when None"
@@ -1027,7 +1135,7 @@ mod tests {
             summary: "contentinfo region: 44/51 structural nodes affected".to_string(),
         }];
         result.agent_summary.region_count = 1;
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             html.contains("<h2>Regions</h2>"),
             "Regions h2 must appear when regions are non-empty"
@@ -1060,10 +1168,147 @@ mod tests {
     #[test]
     fn test_regions_section_absent_when_empty() {
         let result = make_fixture(); // regions: vec![]
-        let html = render_html(&result);
+        let html = render_html(&result, &BTreeMap::new());
         assert!(
             !html.contains("<h2>Regions</h2>"),
             "Regions section must not appear when regions is empty"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW: region overlay on old screenshot
+    // -----------------------------------------------------------------------
+
+    /// Build a DiffResult with one region whose member issue has a bbox_old on "desktop",
+    /// pass old_dims = {"desktop": (1440, 4211)}, and assert the overlay div is emitted
+    /// with the expected border colour and label text.
+    #[test]
+    fn test_region_overlay_rendered_with_bbox() {
+        use crate::contract::{Locator, Region};
+
+        let mut result = make_fixture();
+        // Give the existing issue a bbox_old so the overlay has something to draw.
+        // bbox: x=0, y=3800, w=1440, h=411  (near the bottom of a 4211px tall page)
+        result.issues[0].locator.bbox_old = Some([0, 3800, 1440, 411]);
+        result.issues[0].viewport = "desktop".to_string();
+
+        // Add a second issue (no bbox) to confirm it's skipped cleanly.
+        let issue_no_bbox = Issue {
+            id: "issue_nobbox000000".to_string(),
+            issue_type: IssueType::ChangedText,
+            category: IssueCategory::Content,
+            severity: IssueSeverity::Info,
+            confidence: 0.5,
+            viewport: "desktop".to_string(),
+            locale: None,
+            goal: None,
+            message: "no bbox here".to_string(),
+            locator: Locator {
+                anchors: Anchors::null(),
+                css_selector_old: None,
+                css_selector_new: None,
+                bbox_old: None,
+                bbox_new: None,
+                seq_index_old: None,
+                seq_index_new: None,
+            },
+            evidence: serde_json::json!({}),
+            remediation: None,
+        };
+        result.issues.push(issue_no_bbox);
+
+        result.regions = vec![Region {
+            id: "region_footer".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.75,
+            structural_count: 10,
+            old_node_count: 13,
+            member_issue_ids: vec![
+                "issue_aabbccddeeff".to_string(), // has bbox_old
+                "issue_nobbox000000".to_string(), // no bbox_old — skipped
+            ],
+            severity: IssueSeverity::Warning,
+            summary: "contentinfo region gutted".to_string(),
+        }];
+
+        let mut old_dims = BTreeMap::new();
+        old_dims.insert("desktop".to_string(), (1440u32, 4211u32));
+
+        let html = render_html(&result, &old_dims);
+
+        // The overlay wrapper div must be present.
+        assert!(
+            html.contains("position:relative; display:inline-block"),
+            "Overlay wrapper div must be present"
+        );
+        // The overlay box must use the specified border colour.
+        assert!(
+            html.contains("border:1px solid #d4a017"),
+            "Overlay box must have border:1px solid #d4a017"
+        );
+        // The label background colour.
+        assert!(
+            html.contains("background:#d4a017"),
+            "Label must have background:#d4a017"
+        );
+        // The landmark name must appear in the label.
+        assert!(
+            html.contains("contentinfo"),
+            "Landmark name must appear in overlay label"
+        );
+        // Sanity-check the computed percentages:
+        //   left  = 0/1440*100  = 0.00%
+        //   top   = 3800/4211*100 ≈ 90.24%
+        //   width = 1440/1440*100 = 100.00%
+        //   height= 411/4211*100 ≈ 9.76%
+        assert!(
+            html.contains("left:0.00%"),
+            "left% must be 0.00 (x=0, W=1440)"
+        );
+        assert!(
+            html.contains("width:100.00%"),
+            "width% must be 100.00 (w=1440, W=1440)"
+        );
+        // top should be around 90.24% — just check the integer part appears.
+        assert!(
+            html.contains("top:90."),
+            "top% must start with 90. (y=3800, H=4211)"
+        );
+    }
+
+    /// Passing an empty old_dims map must produce NO overlay div.
+    #[test]
+    fn test_no_overlay_when_old_dims_empty() {
+        use crate::contract::Region;
+
+        let mut result = make_fixture();
+        result.issues[0].locator.bbox_old = Some([0, 100, 500, 200]);
+        result.regions = vec![Region {
+            id: "region_test".to_string(),
+            landmark: "main".to_string(),
+            saturation: 0.5,
+            structural_count: 5,
+            old_node_count: 10,
+            member_issue_ids: vec!["issue_aabbccddeeff".to_string()],
+            severity: IssueSeverity::Warning,
+            summary: "main region".to_string(),
+        }];
+
+        // Pass empty dims — no overlay should be emitted.
+        let html = render_html(&result, &BTreeMap::new());
+
+        assert!(
+            !html.contains("border:1px solid #d4a017"),
+            "No overlay box must appear when old_dims is empty"
+        );
+        assert!(
+            !html.contains("position:relative; display:inline-block"),
+            "No overlay wrapper must appear when old_dims is empty"
+        );
+        // The text Regions section can still appear.
+        assert!(
+            html.contains("<h2>Regions</h2>"),
+            "Text Regions section must still appear"
         );
     }
 }
