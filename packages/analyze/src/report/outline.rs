@@ -625,6 +625,125 @@ pub fn resolve_handle<'a>(result: &'a DiffResult, handle: &BranchHandle) -> Vec<
 }
 
 // ---------------------------------------------------------------------------
+// render_branch_detail
+// ---------------------------------------------------------------------------
+
+/// Human-readable, byte-deterministic full detail for one expanded branch
+/// (`matchy show`). `issues` are the resolved members (already in result order).
+///
+/// Output format (exact shape; deterministic — issues in given order, fixed field order):
+/// ```text
+/// matchy show — <handle-desc>
+/// <N> issue(s) in this branch:
+///
+/// <id>  [<severity>] <type>  (<category>, confidence <conf:.2>, viewport <vp>)
+///   section: <landmark> › <heading>
+///   message: <message>            (single line; collapse newlines to spaces)
+///   evidence: old=<compact-json> new=<compact-json>     (only if evidence.old or .new present)
+///   remediation: <action>; grep: <t1>, <t2>             (only if remediation present)
+/// ```
+pub fn render_branch_detail(handle: &BranchHandle, issues: &[&Issue]) -> String {
+    // --- handle description ---
+    let handle_desc = match handle {
+        BranchHandle::Region { landmark } => format!("region {}", landmark),
+        BranchHandle::Section { landmark, heading: Some(h) } => {
+            format!("section {} \u{203a} {}", landmark, h)
+        }
+        BranchHandle::Section { landmark, heading: None } => {
+            format!("section {} (whole landmark)", landmark)
+        }
+        BranchHandle::Cluster { id } => format!("cluster {}", id),
+        BranchHandle::Issue { id } => format!("issue {}", id),
+    };
+
+    let mut out = String::new();
+    out.push_str(&format!("matchy show \u{2014} {}\n", handle_desc));
+
+    let n = issues.len();
+    out.push_str(&format!(
+        "{} issue(s) in this branch:\n",
+        n
+    ));
+
+    for issue in issues {
+        out.push('\n');
+
+        // Category as lowercase string (mirrors serde serialization).
+        let cat_str = match &issue.category {
+            crate::contract::IssueCategory::Visual => "visual",
+            crate::contract::IssueCategory::Content => "content",
+            crate::contract::IssueCategory::Structure => "structure",
+            crate::contract::IssueCategory::Style => "style",
+            crate::contract::IssueCategory::Accessibility => "accessibility",
+            crate::contract::IssueCategory::Technical => "technical",
+            crate::contract::IssueCategory::Hygiene => "hygiene",
+        };
+
+        // Header line: <id>  [<severity>] <type>  (<category>, confidence <conf:.2>, viewport <vp>)
+        out.push_str(&format!(
+            "{}  [{}] {}  ({}, confidence {:.2}, viewport {})\n",
+            issue.id,
+            sev_label(&issue.severity),
+            issue.issue_type.as_str(),
+            cat_str,
+            issue.confidence,
+            issue.viewport
+        ));
+
+        // section: line using section_key_of.
+        let (lm, hd) = section_key_of(issue);
+        out.push_str(&format!("  section: {} \u{203a} {}\n", lm, hd));
+
+        // message: collapse newlines to spaces, trim.
+        let msg = issue
+            .message
+            .replace(['\r', '\n'], " ");
+        let msg = msg.trim();
+        out.push_str(&format!("  message: {}\n", msg));
+
+        // evidence: only if old or new present.
+        let ev_old = issue.evidence.get("old");
+        let ev_new = issue.evidence.get("new");
+        if ev_old.is_some() || ev_new.is_some() {
+            let mut ev_parts = Vec::new();
+            if let Some(v) = ev_old {
+                ev_parts.push(format!(
+                    "old={}",
+                    serde_json::to_string(v).unwrap_or_else(|_| "null".to_string())
+                ));
+            }
+            if let Some(v) = ev_new {
+                ev_parts.push(format!(
+                    "new={}",
+                    serde_json::to_string(v).unwrap_or_else(|_| "null".to_string())
+                ));
+            }
+            out.push_str(&format!("  evidence: {}\n", ev_parts.join(" ")));
+        }
+
+        // remediation: only if present and has action.
+        if let Some(rem) = &issue.remediation {
+            if let Some(action) = rem.get("action").and_then(|v| v.as_str()) {
+                let mut rem_str = action.to_string();
+                // Append grep targets if non-empty.
+                if let Some(targets) = rem.get("grepTargets").and_then(|v| v.as_array()) {
+                    let ts: Vec<&str> = targets
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .collect();
+                    if !ts.is_empty() {
+                        rem_str.push_str(&format!("; grep: {}", ts.join(", ")));
+                    }
+                }
+                out.push_str(&format!("  remediation: {}\n", rem_str));
+            }
+        }
+    }
+
+    out
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1430,5 +1549,239 @@ mod tests {
         let key2 = section_key_of(&main_issue);
         assert_eq!(key2.0, "main");
         assert_eq!(key2.1, em_dash, "heading None must map to em dash");
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests for render_branch_detail
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_render_branch_detail_region_basic() {
+        let issue = make_issue(
+            "issue_rd_001",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "footer text changed",
+            Some("contentinfo"),
+            Some("Products"),
+            false,
+        );
+        let handle = BranchHandle::Region {
+            landmark: "contentinfo".to_string(),
+        };
+        let issues = vec![&issue];
+        let detail = render_branch_detail(&handle, &issues);
+
+        assert!(
+            detail.starts_with("matchy show \u{2014} region contentinfo\n"),
+            "must start with handle desc, got: {detail}"
+        );
+        assert!(
+            detail.contains("1 issue(s) in this branch:"),
+            "must contain count, got: {detail}"
+        );
+        assert!(
+            detail.contains("issue_rd_001"),
+            "must contain the issue id, got: {detail}"
+        );
+        assert!(
+            detail.contains("[warning]"),
+            "must contain severity label, got: {detail}"
+        );
+        assert!(
+            detail.contains("changed_text"),
+            "must contain issue type, got: {detail}"
+        );
+        assert!(
+            detail.contains("content"),
+            "must contain category, got: {detail}"
+        );
+        assert!(
+            detail.contains("confidence 0.90"),
+            "must contain formatted confidence, got: {detail}"
+        );
+        assert!(
+            detail.contains("section: contentinfo \u{203a} Products"),
+            "must contain section line, got: {detail}"
+        );
+        assert!(
+            detail.contains("message: footer text changed"),
+            "must contain message line, got: {detail}"
+        );
+        // No evidence/remediation in this issue.
+        assert!(
+            !detail.contains("evidence:"),
+            "no evidence line expected, got: {detail}"
+        );
+        assert!(
+            !detail.contains("remediation:"),
+            "no remediation line expected, got: {detail}"
+        );
+    }
+
+    #[test]
+    fn test_render_branch_detail_with_evidence_and_remediation() {
+        let mut issue = make_issue(
+            "issue_ev_001",
+            IssueType::StyleChanged,
+            IssueSeverity::Error,
+            "color changed",
+            Some("main"),
+            Some("Hero"),
+            false,
+        );
+        issue.evidence = serde_json::json!({
+            "old": "#ff0000",
+            "new": "#0000ff"
+        });
+        issue.remediation = Some(serde_json::json!({
+            "action": "Update color token",
+            "grepTargets": ["color-primary", "brand-red"]
+        }));
+
+        let handle = BranchHandle::Section {
+            landmark: "main".to_string(),
+            heading: Some("Hero".to_string()),
+        };
+        let issues = vec![&issue];
+        let detail = render_branch_detail(&handle, &issues);
+
+        assert!(
+            detail.starts_with("matchy show \u{2014} section main \u{203a} Hero\n"),
+            "handle desc must be section main › Hero, got: {detail}"
+        );
+        assert!(
+            detail.contains("evidence:"),
+            "evidence line expected, got: {detail}"
+        );
+        assert!(
+            detail.contains("old="),
+            "evidence old= expected, got: {detail}"
+        );
+        assert!(
+            detail.contains("new="),
+            "evidence new= expected, got: {detail}"
+        );
+        assert!(
+            detail.contains("remediation: Update color token"),
+            "remediation action expected, got: {detail}"
+        );
+        assert!(
+            detail.contains("grep: color-primary, brand-red"),
+            "grep targets expected, got: {detail}"
+        );
+    }
+
+    #[test]
+    fn test_render_branch_detail_section_no_heading() {
+        let issue = make_issue(
+            "issue_whole_001",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "whole landmark text changed",
+            Some("main"),
+            Some("Any Heading"),
+            false,
+        );
+        let handle = BranchHandle::Section {
+            landmark: "main".to_string(),
+            heading: None,
+        };
+        let issues = vec![&issue];
+        let detail = render_branch_detail(&handle, &issues);
+
+        assert!(
+            detail.contains("section main (whole landmark)"),
+            "whole-landmark desc expected, got: {detail}"
+        );
+    }
+
+    #[test]
+    fn test_render_branch_detail_cluster_handle() {
+        let issue = make_issue(
+            "issue_cl_x01",
+            IssueType::StyleChanged,
+            IssueSeverity::Warning,
+            "cluster style changed",
+            Some("main"),
+            Some("Sect"),
+            false,
+        );
+        let handle = BranchHandle::Cluster {
+            id: "cluster_aabbccddeeff".to_string(),
+        };
+        let issues = vec![&issue];
+        let detail = render_branch_detail(&handle, &issues);
+
+        assert!(
+            detail.contains("cluster cluster_aabbccddeeff"),
+            "cluster handle desc expected, got: {detail}"
+        );
+    }
+
+    #[test]
+    fn test_render_branch_detail_message_newline_collapse() {
+        let mut issue = make_issue(
+            "issue_nl_001",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "line one\nline two\r\nline three",
+            Some("main"),
+            Some("Body"),
+            false,
+        );
+        issue.message = "line one\nline two\r\nline three".to_string();
+
+        let handle = BranchHandle::Issue {
+            id: "issue_nl_001".to_string(),
+        };
+        let issues = vec![&issue];
+        let detail = render_branch_detail(&handle, &issues);
+
+        // Newlines must be collapsed to spaces and trimmed.
+        assert!(
+            detail.contains("message: line one line two  line three"),
+            "newlines must be replaced with spaces, got: {detail}"
+        );
+        // The message line itself must not contain a newline (other than the
+        // trailing \n that terminates the "message: ..." line).
+        let msg_line = detail
+            .lines()
+            .find(|l| l.contains("message:"))
+            .expect("message line must be present");
+        assert!(
+            !msg_line.contains('\n'),
+            "message line must not contain embedded newline, got: {msg_line}"
+        );
+    }
+
+    #[test]
+    fn test_render_branch_detail_deterministic() {
+        let issue1 = make_issue(
+            "issue_deta_001",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "msg A",
+            Some("main"),
+            Some("Sec"),
+            false,
+        );
+        let issue2 = make_issue(
+            "issue_deta_002",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "msg B",
+            Some("main"),
+            Some("Sec"),
+            false,
+        );
+        let handle = BranchHandle::Region {
+            landmark: "main".to_string(),
+        };
+        let issues = vec![&issue1, &issue2];
+
+        let r1 = render_branch_detail(&handle, &issues);
+        let r2 = render_branch_detail(&handle, &issues);
+        assert_eq!(r1, r2, "render_branch_detail must be byte-deterministic");
     }
 }

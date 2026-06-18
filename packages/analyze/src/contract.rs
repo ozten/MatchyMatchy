@@ -467,6 +467,14 @@ impl DiffResult {
         s.push('\n');
         Ok(s)
     }
+
+    /// Parse a DiffResult from JSON text (read-time consumer for `matchy show`).
+    /// `DiffResult` already derives Deserialize. Unknown additive fields are ignored
+    /// (forward-compatible); a missing required field is a hard parse error.
+    pub fn from_json(s: &str) -> anyhow::Result<Self> {
+        let r: DiffResult = serde_json::from_str(s)?;
+        Ok(r)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

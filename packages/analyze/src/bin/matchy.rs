@@ -131,6 +131,15 @@ enum CliCommand {
     /// Exit codes: 0 = node resolved on at least one side; 2 = node not found on
     /// either side, or bad locator syntax.
     Explain(ExplainArgs),
+    /// Expand exactly one branch of an emitted diff-result.json to full detail.
+    ///
+    /// Hermetic and read-only: reads <out>/diff-result.json (no browser, network,
+    /// capture bundles, or re-analysis). The branch handle is one of --region,
+    /// --section (+ optional --heading), --cluster, or --issue. A --section without
+    /// --heading expands the whole landmark (defined superset). Exit codes: 0 =
+    /// branch resolved; 2 = handle unresolved, file missing/unreadable, or an
+    /// unsupported (newer) schemaVersion.
+    Show(ShowArgs),
 }
 
 #[derive(Args, Debug)]
@@ -183,6 +192,36 @@ struct ExplainArgs {
     /// Default: show only properties that differ between the two sides (diff-only).
     #[arg(long)]
     props: Option<String>,
+}
+
+#[derive(Args, Debug)]
+#[group(required = true, multiple = false)]
+struct ShowHandle {
+    /// Region landmark to expand (e.g. contentinfo).
+    #[arg(long)]
+    region: Option<String>,
+    /// Section landmark to expand. Without --heading, expands the whole landmark (superset).
+    #[arg(long)]
+    section: Option<String>,
+    /// Cluster id to expand (e.g. cluster_112233445566).
+    #[arg(long)]
+    cluster: Option<String>,
+    /// Issue id to expand (e.g. issue_aabbccddeeff).
+    #[arg(long)]
+    issue: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct ShowArgs {
+    #[command(flatten)]
+    handle: ShowHandle,
+    /// Optional heading to scope a --section to one (landmark, heading) section.
+    /// Pass shell-hazardous heading text (spaces, em-dashes) as a quoted value.
+    #[arg(long)]
+    heading: Option<String>,
+    /// Directory containing diff-result.json (or a direct path to the JSON file).
+    #[arg(long, short = 'o')]
+    out: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +277,13 @@ fn main() {
                 }
             }
         }
+        Some(CliCommand::Show(args)) => match run_show(args) {
+            Ok(code) => code,
+            Err(e) => {
+                eprintln!("error: {:#}", e);
+                2
+            }
+        },
         None => {
             // Default: matchy run
             let image_dims_mode =
@@ -281,6 +327,18 @@ fn main() {
                     eprintln!("       matchy doctor");
                     eprintln!(
                         "       matchy analyze --old-bundle PATH --new-bundle PATH --out DIR"
+                    );
+                    eprintln!(
+                        "       matchy show --region LANDMARK --out DIR"
+                    );
+                    eprintln!(
+                        "       matchy show --section LANDMARK [--heading HEADING] --out DIR"
+                    );
+                    eprintln!(
+                        "       matchy show --cluster ID --out DIR"
+                    );
+                    eprintln!(
+                        "       matchy show --issue ID --out DIR"
                     );
                     2
                 }
@@ -628,6 +686,87 @@ fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
     print!("{}", output);
 
     // Exit 0 on single-side match too (a legitimate triage finding).
+    Ok(0)
+}
+
+// ---------------------------------------------------------------------------
+// matchy show subcommand handler
+// ---------------------------------------------------------------------------
+
+fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
+    use matchy_analyze::contract::DiffResult;
+    use matchy_analyze::report::outline::{render_branch_detail, resolve_handle, BranchHandle};
+
+    // 1. Build the handle from the exactly-one required flag.
+    let (handle, handle_str) = if let Some(lm) = &args.handle.region {
+        (
+            BranchHandle::Region { landmark: lm.clone() },
+            format!("--region {}", lm),
+        )
+    } else if let Some(lm) = &args.handle.section {
+        (
+            BranchHandle::Section {
+                landmark: lm.clone(),
+                heading: args.heading.clone(),
+            },
+            match &args.heading {
+                Some(h) => format!("--section {} --heading {}", lm, h),
+                None => format!("--section {}", lm),
+            },
+        )
+    } else if let Some(id) = &args.handle.cluster {
+        (
+            BranchHandle::Cluster { id: id.clone() },
+            format!("--cluster {}", id),
+        )
+    } else if let Some(id) = &args.handle.issue {
+        (
+            BranchHandle::Issue { id: id.clone() },
+            format!("--issue {}", id),
+        )
+    } else {
+        eprintln!("error: exactly one of --region, --section, --cluster, --issue is required");
+        return Ok(2);
+    };
+
+    // 2. Locate + read diff-result.json (dir or direct file path).
+    let p = PathBuf::from(&args.out);
+    let result_path = if p.is_file() { p } else { p.join("diff-result.json") };
+    let raw = std::fs::read_to_string(&result_path)
+        .with_context(|| format!("failed to read {}", result_path.display()))?;
+
+    // 3. Parse.
+    let result = DiffResult::from_json(&raw)
+        .with_context(|| format!("failed to parse {} (is it a diff-result.json?)", result_path.display()))?;
+
+    // 4. schemaVersion guard — refuse a newer major than this binary understands.
+    const SUPPORTED_SCHEMA_MAJOR: u32 = 1;
+    let major = result
+        .schema_version
+        .split('.')
+        .next()
+        .and_then(|s| s.parse::<u32>().ok());
+    if !matches!(major, Some(m) if m <= SUPPORTED_SCHEMA_MAJOR) {
+        eprintln!(
+            "error: {} has schemaVersion '{}', newer than this matchy understands (supports {}.x) — upgrade matchy",
+            result_path.display(),
+            result.schema_version,
+            SUPPORTED_SCHEMA_MAJOR
+        );
+        return Ok(2);
+    }
+
+    // 5. Resolve + print.
+    let members = resolve_handle(&result, &handle);
+    if members.is_empty() {
+        eprintln!(
+            "error: branch {} resolved to no issues in {}",
+            handle_str,
+            result_path.display()
+        );
+        return Ok(2);
+    }
+    print!("{}", render_branch_detail(&handle, &members));
     Ok(0)
 }
 
