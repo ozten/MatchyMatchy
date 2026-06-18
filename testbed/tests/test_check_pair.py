@@ -52,7 +52,7 @@ PAIR_SCHEMA = TESTBED_DIR / "schemas" / "pair.schema.json"
 
 # Minimal valid diff-result.json (schema version 1.1, no issues).
 _DIFF_RESULT_PASS = {
-    "schemaVersion": "1.1",
+    "schemaVersion": "1.2",
     "toolVersion": "0.1.0",
     "runId": "2026-06-16T00-00-00Z",
     "oldUrl": "https://example.com/old",
@@ -63,6 +63,7 @@ _DIFF_RESULT_PASS = {
         "fixableNow": 0,
         "byType": {},
         "clusterCount": 0,
+        "regionCount": 0,
         "topFixes": [],
     },
     "scores": {
@@ -89,6 +90,7 @@ _DIFF_RESULT_PASS = {
     ],
     "issues": [],
     "clusters": [],
+    "regions": [],
     "suppressed": {"count": 0, "ids": []},
     "warnings": [],
     "scopedTo": None,
@@ -188,6 +190,7 @@ _DIFF_RESULT_WITH_ISSUE = {
         "fixableNow": 1,
         "byType": {"style_changed": 1},
         "clusterCount": 0,
+        "regionCount": 0,
         "topFixes": ["issue_001"],
     },
 }
