@@ -43,6 +43,120 @@ fn is_uncertain_pairing(evidence: &serde_json::Value) -> bool {
 // Public API
 // ---------------------------------------------------------------------------
 
+/// Render one issue as a `<div class="issue ...">` card. Shared by the top-level
+/// Issues section and the per-region collapsed member `<details>` (U2 demotion).
+fn render_issue_card(out: &mut String, issue: &crate::contract::Issue) {
+    let sev_str = match &issue.severity {
+        crate::contract::IssueSeverity::Info => "info",
+        crate::contract::IssueSeverity::Warning => "warning",
+        crate::contract::IssueSeverity::Error => "error",
+        crate::contract::IssueSeverity::Critical => "critical",
+    };
+
+    let cat_str = match &issue.category {
+        crate::contract::IssueCategory::Visual => "visual",
+        crate::contract::IssueCategory::Content => "content",
+        crate::contract::IssueCategory::Structure => "structure",
+        crate::contract::IssueCategory::Style => "style",
+        crate::contract::IssueCategory::Accessibility => "accessibility",
+        crate::contract::IssueCategory::Technical => "technical",
+        crate::contract::IssueCategory::Hygiene => "hygiene",
+    };
+
+    let uncertain = is_uncertain_pairing(&issue.evidence);
+
+    out.push_str(&format!(
+        "<div class=\"issue sev-{sev_str}\" id=\"{}\">\n",
+        escape(&issue.id)
+    ));
+    // Title line: type + severity badge + optional uncertain badge
+    out.push_str(&format!(
+        "<h4>{} <span class=\"badge badge-{sev_str}\">{}</span>",
+        escape(issue.issue_type.as_str()),
+        sev_str.to_uppercase()
+    ));
+    if uncertain {
+        out.push_str(" <span class=\"badge uncertain\">uncertain pairing</span>");
+    }
+    out.push_str("</h4>\n");
+
+    out.push_str("<dl class=\"issue-meta\">\n");
+    out.push_str(&format!("<dt>ID</dt><dd>{}</dd>\n", escape(&issue.id)));
+    out.push_str(&format!("<dt>Category</dt><dd>{cat_str}</dd>\n"));
+    out.push_str(&format!(
+        "<dt>Confidence</dt><dd>{:.2}</dd>\n",
+        issue.confidence
+    ));
+    out.push_str(&format!(
+        "<dt>Viewport</dt><dd>{}</dd>\n",
+        escape(&issue.viewport)
+    ));
+    if let Some(goal) = &issue.goal {
+        out.push_str(&format!("<dt>Goal</dt><dd>{}</dd>\n", escape(goal)));
+    }
+    if let Some(locale) = &issue.locale {
+        out.push_str(&format!("<dt>Locale</dt><dd>{}</dd>\n", escape(locale)));
+    }
+    out.push_str("</dl>\n");
+
+    // Message (page-derived — must escape)
+    out.push_str(&format!(
+        "<p class=\"issue-message\">{}</p>\n",
+        escape(&issue.message)
+    ));
+
+    // Anchors sub-block
+    let anchors = &issue.locator.anchors;
+    let has_anchors = anchors.text.is_some()
+        || anchors.href.is_some()
+        || anchors.role.is_some()
+        || anchors.landmark.is_some()
+        || anchors.nearest_heading.is_some()
+        || anchors.alt.is_some()
+        || anchors.aria_label.is_some();
+    if has_anchors {
+        out.push_str("<details class=\"anchors\">\n<summary>Anchors</summary>\n<dl>\n");
+        if let Some(t) = &anchors.text {
+            out.push_str(&format!("<dt>text</dt><dd>{}</dd>\n", escape(t)));
+        }
+        if let Some(h) = &anchors.href {
+            out.push_str(&format!("<dt>href</dt><dd>{}</dd>\n", escape(h)));
+        }
+        if let Some(r) = &anchors.role {
+            out.push_str(&format!("<dt>role</dt><dd>{}</dd>\n", escape(r)));
+        }
+        if let Some(a) = &anchors.alt {
+            out.push_str(&format!("<dt>alt</dt><dd>{}</dd>\n", escape(a)));
+        }
+        if let Some(al) = &anchors.aria_label {
+            out.push_str(&format!("<dt>aria-label</dt><dd>{}</dd>\n", escape(al)));
+        }
+        if let Some(nh) = &anchors.nearest_heading {
+            out.push_str(&format!(
+                "<dt>nearest heading</dt><dd>{}</dd>\n",
+                escape(nh)
+            ));
+        }
+        if let Some(lm) = &anchors.landmark {
+            out.push_str(&format!("<dt>landmark</dt><dd>{}</dd>\n", escape(lm)));
+        }
+        if let Some(ord) = &anchors.ordinal_in_landmark {
+            out.push_str(&format!("<dt>ordinal in landmark</dt><dd>{ord}</dd>\n"));
+        }
+        out.push_str("</dl>\n</details>\n");
+    }
+
+    // Evidence: print evidence.old and evidence.new if present
+    render_evidence(out, &issue.evidence);
+
+    // Remediation
+    if let Some(rem) = &issue.remediation {
+        render_remediation(out, rem);
+    }
+
+    out.push_str("</div>\n");
+}
+
 /// Render a DiffResult into a self-contained static HTML string.
 /// Pure function, deterministic, no filesystem access.
 ///
@@ -58,6 +172,11 @@ pub fn render_html(result: &DiffResult, old_dims: &BTreeMap<String, (u32, u32)>)
         crate::contract::Status::Fail => "fail",
         crate::contract::Status::Error => "error",
     };
+
+    // Build the claimed-id set from all saturated regions. Used to filter
+    // member cards out of the top-level Issues loop (they move into per-region
+    // <details> blocks — U2 progressive disclosure).
+    let claimed = crate::report::claimed_issue_ids(result);
 
     let title = format!(
         "matchy: {} → {}",
@@ -349,6 +468,21 @@ pub fn render_html(result: &DiffResult, old_dims: &BTreeMap<String, (u32, u32)>)
                 sev_str,
                 region.member_issue_ids.len()
             ));
+            // Member detail — collapsed by default (CSP-safe, no JS). Cards MOVE here from
+            // the Issues section but keep their id anchors so deep links still resolve (R7/R11).
+            let member_count = region.member_issue_ids.len();
+            out.push_str(&format!(
+                "<details class=\"region-members\">\n<summary>{} · {} member issue{} — show detail</summary>\n",
+                escape(&region.landmark),
+                member_count,
+                if member_count == 1 { "" } else { "s" }
+            ));
+            for id in &region.member_issue_ids {
+                if let Some(iss) = issue_map.get(id.as_str()) {
+                    render_issue_card(&mut out, iss);
+                }
+            }
+            out.push_str("</details>\n");
             out.push_str("</div>\n");
         }
         out.push_str("</section>\n");
@@ -391,121 +525,22 @@ pub fn render_html(result: &DiffResult, old_dims: &BTreeMap<String, (u32, u32)>)
 
     // ------------------------------------------------------------------
     // 7. Issues section (in result.issues order = fix-value order)
+    //    Claimed members are excluded here — they moved into their region's
+    //    <details> block in section 5 (U2 progressive disclosure).
     // ------------------------------------------------------------------
     out.push_str("<section>\n<h2>Issues</h2>\n");
+    let visible: Vec<&crate::contract::Issue> = result
+        .issues
+        .iter()
+        .filter(|i| !claimed.contains(i.id.as_str()))
+        .collect();
     if result.issues.is_empty() {
         out.push_str("<p>No issues.</p>\n");
+    } else if visible.is_empty() {
+        out.push_str("<p>All issues are demoted into saturated regions — see the Regions section above.</p>\n");
     } else {
-        for issue in &result.issues {
-            let sev_str = match &issue.severity {
-                crate::contract::IssueSeverity::Info => "info",
-                crate::contract::IssueSeverity::Warning => "warning",
-                crate::contract::IssueSeverity::Error => "error",
-                crate::contract::IssueSeverity::Critical => "critical",
-            };
-
-            let cat_str = match &issue.category {
-                crate::contract::IssueCategory::Visual => "visual",
-                crate::contract::IssueCategory::Content => "content",
-                crate::contract::IssueCategory::Structure => "structure",
-                crate::contract::IssueCategory::Style => "style",
-                crate::contract::IssueCategory::Accessibility => "accessibility",
-                crate::contract::IssueCategory::Technical => "technical",
-                crate::contract::IssueCategory::Hygiene => "hygiene",
-            };
-
-            let uncertain = is_uncertain_pairing(&issue.evidence);
-
-            out.push_str(&format!(
-                "<div class=\"issue sev-{sev_str}\" id=\"{}\">\n",
-                escape(&issue.id)
-            ));
-            // Title line: type + severity badge + optional uncertain badge
-            out.push_str(&format!(
-                "<h4>{} <span class=\"badge badge-{sev_str}\">{}</span>",
-                escape(issue.issue_type.as_str()),
-                sev_str.to_uppercase()
-            ));
-            if uncertain {
-                out.push_str(" <span class=\"badge uncertain\">uncertain pairing</span>");
-            }
-            out.push_str("</h4>\n");
-
-            out.push_str("<dl class=\"issue-meta\">\n");
-            out.push_str(&format!("<dt>ID</dt><dd>{}</dd>\n", escape(&issue.id)));
-            out.push_str(&format!("<dt>Category</dt><dd>{cat_str}</dd>\n"));
-            out.push_str(&format!(
-                "<dt>Confidence</dt><dd>{:.2}</dd>\n",
-                issue.confidence
-            ));
-            out.push_str(&format!(
-                "<dt>Viewport</dt><dd>{}</dd>\n",
-                escape(&issue.viewport)
-            ));
-            if let Some(goal) = &issue.goal {
-                out.push_str(&format!("<dt>Goal</dt><dd>{}</dd>\n", escape(goal)));
-            }
-            if let Some(locale) = &issue.locale {
-                out.push_str(&format!("<dt>Locale</dt><dd>{}</dd>\n", escape(locale)));
-            }
-            out.push_str("</dl>\n");
-
-            // Message (page-derived — must escape)
-            out.push_str(&format!(
-                "<p class=\"issue-message\">{}</p>\n",
-                escape(&issue.message)
-            ));
-
-            // Anchors sub-block
-            let anchors = &issue.locator.anchors;
-            let has_anchors = anchors.text.is_some()
-                || anchors.href.is_some()
-                || anchors.role.is_some()
-                || anchors.landmark.is_some()
-                || anchors.nearest_heading.is_some()
-                || anchors.alt.is_some()
-                || anchors.aria_label.is_some();
-            if has_anchors {
-                out.push_str("<details class=\"anchors\">\n<summary>Anchors</summary>\n<dl>\n");
-                if let Some(t) = &anchors.text {
-                    out.push_str(&format!("<dt>text</dt><dd>{}</dd>\n", escape(t)));
-                }
-                if let Some(h) = &anchors.href {
-                    out.push_str(&format!("<dt>href</dt><dd>{}</dd>\n", escape(h)));
-                }
-                if let Some(r) = &anchors.role {
-                    out.push_str(&format!("<dt>role</dt><dd>{}</dd>\n", escape(r)));
-                }
-                if let Some(a) = &anchors.alt {
-                    out.push_str(&format!("<dt>alt</dt><dd>{}</dd>\n", escape(a)));
-                }
-                if let Some(al) = &anchors.aria_label {
-                    out.push_str(&format!("<dt>aria-label</dt><dd>{}</dd>\n", escape(al)));
-                }
-                if let Some(nh) = &anchors.nearest_heading {
-                    out.push_str(&format!(
-                        "<dt>nearest heading</dt><dd>{}</dd>\n",
-                        escape(nh)
-                    ));
-                }
-                if let Some(lm) = &anchors.landmark {
-                    out.push_str(&format!("<dt>landmark</dt><dd>{}</dd>\n", escape(lm)));
-                }
-                if let Some(ord) = &anchors.ordinal_in_landmark {
-                    out.push_str(&format!("<dt>ordinal in landmark</dt><dd>{ord}</dd>\n"));
-                }
-                out.push_str("</dl>\n</details>\n");
-            }
-
-            // Evidence: print evidence.old and evidence.new if present
-            render_evidence(&mut out, &issue.evidence);
-
-            // Remediation
-            if let Some(rem) = &issue.remediation {
-                render_remediation(&mut out, rem);
-            }
-
-            out.push_str("</div>\n");
+        for issue in visible {
+            render_issue_card(&mut out, issue);
         }
     }
     out.push_str("</section>\n");
@@ -1310,5 +1345,193 @@ mod tests {
             html.contains("<h2>Regions</h2>"),
             "Text Regions section must still appear"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // U2: Progressive-disclosure demotion tests
+    // -----------------------------------------------------------------------
+
+    /// Helper: build a fixture with one region claiming the default issue.
+    fn make_fixture_with_region() -> DiffResult {
+        use crate::contract::Region;
+        let mut result = make_fixture();
+        result.regions = vec![Region {
+            id: "region_contentinfo".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.86,
+            structural_count: 44,
+            old_node_count: 51,
+            member_issue_ids: vec!["issue_aabbccddeeff".to_string()],
+            severity: IssueSeverity::Error,
+            summary: "contentinfo region: 44/51 structural nodes affected".to_string(),
+        }];
+        result.agent_summary.region_count = 1;
+        result
+    }
+
+    /// Claimed members must appear inside a `<details class="region-members">` in
+    /// the Regions section, NOT as a direct child of the top-level Issues section.
+    #[test]
+    fn test_claimed_members_demoted_to_region_details() {
+        let result = make_fixture_with_region();
+        let html = render_html(&result, &BTreeMap::new());
+
+        // A region-members details block must exist.
+        assert!(
+            html.contains("<details class=\"region-members\">"),
+            "region-members details must be present"
+        );
+
+        // The claimed issue card's id anchor must be present somewhere in the HTML.
+        assert!(
+            html.contains("id=\"issue_aabbccddeeff\""),
+            "Claimed issue id anchor must be preserved"
+        );
+
+        // The card must appear AFTER <h2>Regions</h2> and BEFORE the Issues section.
+        let regions_h2 = html.find("<h2>Regions</h2>").expect("<h2>Regions</h2> must be present");
+        let details_pos = html.find("<details class=\"region-members\">").expect("region-members details must be present");
+        let card_pos = html.find("id=\"issue_aabbccddeeff\"").expect("card must appear");
+
+        assert!(
+            details_pos > regions_h2,
+            "region-members details must come after <h2>Regions</h2>"
+        );
+        assert!(
+            card_pos > details_pos,
+            "issue card must appear inside the region-members details (after summary)"
+        );
+
+        // Slice from <h2>Issues</h2> to the next <h2> and assert the card id is absent.
+        let issues_h2_pos = html.find("<h2>Issues</h2>").expect("<h2>Issues</h2> must be present");
+        // Find the next <h2> after the Issues h2.
+        let after_issues = &html[issues_h2_pos + "<h2>Issues</h2>".len()..];
+        let next_h2 = after_issues.find("<h2>").unwrap_or(after_issues.len());
+        let issues_slice = &after_issues[..next_h2];
+        assert!(
+            !issues_slice.contains("id=\"issue_aabbccddeeff\""),
+            "Claimed issue card must NOT appear in the top-level Issues section slice"
+        );
+
+        // <h2>Issues</h2> must still be present.
+        assert!(
+            html.contains("<h2>Issues</h2>"),
+            "<h2>Issues</h2> must always render"
+        );
+    }
+
+    /// An unclaimed issue must still appear in the top-level Issues section; the
+    /// claimed issue must not appear there.
+    #[test]
+    fn test_unclaimed_issue_still_top_level() {
+        use crate::contract::{Anchors, IssueType, Locator};
+
+        let mut result = make_fixture_with_region();
+        // Add a second issue not claimed by any region.
+        let issue_b = Issue {
+            id: "issue_unclaimed_bbbb".to_string(),
+            issue_type: IssueType::ChangedText,
+            category: IssueCategory::Content,
+            severity: IssueSeverity::Warning,
+            confidence: 0.8,
+            viewport: "desktop".to_string(),
+            locale: None,
+            goal: None,
+            message: "Unclaimed issue B".to_string(),
+            locator: Locator {
+                anchors: Anchors::null(),
+                css_selector_old: None,
+                css_selector_new: None,
+                bbox_old: None,
+                bbox_new: None,
+                seq_index_old: None,
+                seq_index_new: None,
+            },
+            evidence: serde_json::json!({}),
+            remediation: None,
+        };
+        result.issues.push(issue_b);
+
+        let html = render_html(&result, &BTreeMap::new());
+
+        // Slice the Issues section.
+        let issues_h2_pos = html.find("<h2>Issues</h2>").expect("<h2>Issues</h2> must be present");
+        let after_issues = &html[issues_h2_pos + "<h2>Issues</h2>".len()..];
+        let next_h2 = after_issues.find("<h2>").unwrap_or(after_issues.len());
+        let issues_slice = &after_issues[..next_h2];
+
+        // Unclaimed issue B must be in the Issues section.
+        assert!(
+            issues_slice.contains("id=\"issue_unclaimed_bbbb\""),
+            "Unclaimed issue B must appear in the Issues section"
+        );
+        // Claimed issue A must NOT be in the Issues section.
+        assert!(
+            !issues_slice.contains("id=\"issue_aabbccddeeff\""),
+            "Claimed issue A must NOT appear in the Issues section"
+        );
+    }
+
+    /// The `<details class="region-members">` must NOT have an `open` attribute
+    /// (collapsed by default — R11).
+    #[test]
+    fn test_region_members_details_collapsed_by_default() {
+        let result = make_fixture_with_region();
+        let html = render_html(&result, &BTreeMap::new());
+
+        assert!(
+            html.contains("<details class=\"region-members\">"),
+            "region-members details must be present"
+        );
+        assert!(
+            !html.contains("<details class=\"region-members\" open>"),
+            "region-members details must NOT have the `open` attribute (must be collapsed by default)"
+        );
+    }
+
+    /// With no regions, the `region-members` substring must not appear and the issue
+    /// card must still render at the top level.
+    #[test]
+    fn test_regions_empty_no_member_details() {
+        let result = make_fixture(); // regions: vec![]
+        let html = render_html(&result, &BTreeMap::new());
+
+        assert!(
+            !html.contains("region-members"),
+            "region-members must not appear when regions is empty"
+        );
+        // The issue card must still be top-level.
+        assert!(
+            html.contains("id=\"issue_aabbccddeeff\""),
+            "Issue card must still render top-level when no regions"
+        );
+    }
+
+    /// CSP meta, no script, no event handlers — all must hold even with a region
+    /// demoting members into <details>.
+    #[test]
+    fn test_html_csp_safe_after_demotion() {
+        let result = make_fixture_with_region();
+        let html = render_html(&result, &BTreeMap::new());
+
+        assert!(
+            html.contains("<meta http-equiv=\"Content-Security-Policy\""),
+            "CSP meta must be present"
+        );
+        let lower = html.to_lowercase();
+        assert!(!lower.contains("<script"), "No <script tags after demotion");
+        assert!(!lower.contains("onerror="), "No onerror= after demotion");
+        assert!(!lower.contains("onclick="), "No onclick= after demotion");
+        assert!(!lower.contains("onload="), "No onload= after demotion");
+        assert!(!lower.contains("javascript:"), "No javascript: URLs after demotion");
+    }
+
+    /// Rendering the same result twice must produce byte-identical HTML.
+    #[test]
+    fn test_html_deterministic_with_region_members() {
+        let result = make_fixture_with_region();
+        let html1 = render_html(&result, &BTreeMap::new());
+        let html2 = render_html(&result, &BTreeMap::new());
+        assert_eq!(html1, html2, "HTML must be byte-identical across two renders of the same input");
     }
 }
