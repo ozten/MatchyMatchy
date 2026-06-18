@@ -145,10 +145,27 @@ pub fn assemble_diff_result(
     });
 
     // ------------------------------------------------------------------
-    // 4. Cluster kept issues.
+    // 3b. Compute region rollups (claim before clustering — AE3).
+    // ------------------------------------------------------------------
+    // Sum per-viewport old_landmark_node_counts into one combined BTreeMap.
+    let mut summed_old_counts: BTreeMap<String, u32> = BTreeMap::new();
+    for vp in &viewports {
+        for (lm, n) in &vp.old_landmark_node_counts {
+            *summed_old_counts.entry(lm.clone()).or_insert(0) += n;
+        }
+    }
+    let regions = crate::regions::compute_regions(&kept, &summed_old_counts);
+    // Collect owned claimed ids so regions can be moved into DiffResult at the end.
+    let region_claimed_ids: BTreeSet<String> = regions
+        .iter()
+        .flat_map(|r| r.member_issue_ids.iter().cloned())
+        .collect();
+
+    // ------------------------------------------------------------------
+    // 4. Cluster kept issues (pre_claimed = region-claimed ids).
     // ------------------------------------------------------------------
     let clusters: Vec<Cluster> =
-        crate::clustering::cluster_issues(&kept, crate::config::CLUSTER_MIN);
+        crate::clustering::cluster_issues(&kept, crate::config::CLUSTER_MIN, &region_claimed_ids);
 
     // Build a set of all issue ids that are members of any cluster.
     let clustered_ids: BTreeSet<&str> = clusters
@@ -176,9 +193,10 @@ pub fn assemble_diff_result(
     // ------------------------------------------------------------------
     // 7. topFixes: cluster-aware work queue.
     //
-    // For clustered issues: one entry per cluster with fv = max over member
-    // issues (iterated in sorted member order for determinism).
-    // For unclustered: one entry per issue.
+    // Entries: one per region (fv = max member fv) + one per cluster
+    // (fv = max member fv) + one per unclustered/unclaimed issue.
+    // R9 safety net: a Critical-severity member of a saturated region is
+    // also added as its own entry (dual-surfaced; Error-and-below are not).
     // Sort: (fv DESC, id ASC). Take first 5.
     // ------------------------------------------------------------------
 
@@ -187,6 +205,23 @@ pub fn assemble_diff_result(
 
     // Work queue entries: (id, fix_value)
     let mut work_queue: Vec<(String, f64)> = Vec::new();
+
+    // One entry per region: max fv over its member issues.
+    for region in &regions {
+        let max_fv = region
+            .member_issue_ids
+            .iter()
+            .filter_map(|mid| id_to_issue.get(mid.as_str()))
+            .map(|issue| {
+                fix_value(
+                    &issue.severity,
+                    issue.confidence,
+                    &issue.locator.anchors.strength(),
+                )
+            })
+            .fold(f64::NEG_INFINITY, f64::max);
+        work_queue.push((region.id.clone(), max_fv));
+    }
 
     // One entry per cluster: max fv over members (members already sorted ascending in cluster).
     for cluster in &clusters {
@@ -205,9 +240,22 @@ pub fn assemble_diff_result(
         work_queue.push((cluster.id.clone(), max_fv));
     }
 
-    // One entry per unclustered kept issue.
+    // One entry per unclustered AND unclaimed kept issue.
     for issue in &kept {
-        if !clustered_ids.contains(issue.id.as_str()) {
+        if !clustered_ids.contains(issue.id.as_str()) && !region_claimed_ids.contains(issue.id.as_str()) {
+            let fv = fix_value(
+                &issue.severity,
+                issue.confidence,
+                &issue.locator.anchors.strength(),
+            );
+            work_queue.push((issue.id.clone(), fv));
+        }
+    }
+
+    // R9 critical safety net: a Critical-severity member of a saturated region is
+    // dual-surfaced as its own topFixes entry in addition to the region rollup.
+    for issue in &kept {
+        if region_claimed_ids.contains(issue.id.as_str()) && issue.severity == crate::contract::IssueSeverity::Critical {
             let fv = fix_value(
                 &issue.severity,
                 issue.confidence,
@@ -227,9 +275,10 @@ pub fn assemble_diff_result(
     let top_fixes: Vec<String> = work_queue.into_iter().take(5).map(|(id, _)| id).collect();
 
     // ------------------------------------------------------------------
-    // 8. cluster_count.
+    // 8. cluster_count + region_count.
     // ------------------------------------------------------------------
     let cluster_count = clusters.len() as u32;
+    let region_count = regions.len() as u32;
 
     // ------------------------------------------------------------------
     // 9. Per-viewport results.
@@ -348,14 +397,14 @@ pub fn assemble_diff_result(
             fixable_now,
             by_type,
             cluster_count,
-            region_count: 0,
+            region_count,
             top_fixes,
         },
         scores,
         viewports: viewport_results,
         issues: kept,
         clusters,
-        regions: Vec::new(),
+        regions,
         suppressed,
         warnings,
         scoped_to,
@@ -1250,5 +1299,423 @@ mod tests {
             "volatile_capture",
             "volatile_capture must be last"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // U4 region-integration tests
+    // -----------------------------------------------------------------------
+
+    /// Build an Issue with explicit issue_type, severity, landmark, and optional remediation property.
+    fn make_issue_typed(
+        id: &str,
+        issue_type: IssueType,
+        category: IssueCategory,
+        severity: IssueSeverity,
+        landmark: Option<&str>,
+        remediation_property: Option<&str>,
+    ) -> Issue {
+        let remediation = remediation_property
+            .map(|p| serde_json::json!({ "property": p }));
+        Issue {
+            id: id.to_string(),
+            issue_type,
+            category,
+            severity,
+            confidence: 0.9,
+            viewport: "desktop".to_string(),
+            locale: None,
+            goal: None,
+            message: "test issue".to_string(),
+            locator: Locator {
+                anchors: Anchors {
+                    text: Some("some text".to_string()),
+                    role: None,
+                    href: None,
+                    alt: None,
+                    aria_label: None,
+                    nearest_heading: None,
+                    landmark: landmark.map(str::to_string),
+                    ordinal_in_landmark: None,
+                },
+                css_selector_old: None,
+                css_selector_new: None,
+                bbox_old: None,
+                bbox_new: None,
+                seq_index_old: None,
+                seq_index_new: None,
+            },
+            evidence: serde_json::json!({}),
+            remediation,
+        }
+    }
+
+    /// AE3: contentinfo saturates; its style issues leave the global color property cluster.
+    ///
+    /// Setup:
+    ///  - contentinfo: 12 MissingText (structural) + 4 StyleChanged/color → saturates (12/15=0.8)
+    ///  - main: 4 StyleChanged/color (unsaturated, 60 old nodes, structural_count=0)
+    ///  - old_landmark_node_counts: contentinfo=15, main=60
+    ///
+    /// Assert:
+    ///  - exactly one region (contentinfo)
+    ///  - contentinfo color issues appear in region.member_issue_ids
+    ///  - contentinfo color issues NOT in any cluster
+    ///  - if a color cluster forms, it contains only main's color issues
+    #[test]
+    fn test_ae3_claim_before_cluster_footer_leaves_property_cluster() {
+        let mut issues: Vec<Issue> = Vec::new();
+
+        // 12 structural MissingText in contentinfo
+        for i in 0..12u32 {
+            issues.push(make_issue_typed(
+                &format!("ci_miss_{:04}", i),
+                IssueType::MissingText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("contentinfo"),
+                None,
+            ));
+        }
+        // 4 StyleChanged/color in contentinfo (these should be claimed by the region)
+        for i in 0..4u32 {
+            issues.push(make_issue_typed(
+                &format!("ci_color_{:04}", i),
+                IssueType::StyleChanged,
+                IssueCategory::Style,
+                IssueSeverity::Warning,
+                Some("contentinfo"),
+                Some("color"),
+            ));
+        }
+        // 4 StyleChanged/color in main (these should form a cluster)
+        for i in 0..4u32 {
+            issues.push(make_issue_typed(
+                &format!("main_color_{:04}", i),
+                IssueType::StyleChanged,
+                IssueCategory::Style,
+                IssueSeverity::Warning,
+                Some("main"),
+                Some("color"),
+            ));
+        }
+
+        let mut old_counts = std::collections::BTreeMap::new();
+        old_counts.insert("contentinfo".to_string(), 15u32);
+        old_counts.insert("main".to_string(), 60u32);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: old_counts,
+        };
+
+        let result = assemble_diff_result(
+            "run-ae3",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+        );
+
+        // Exactly one region: contentinfo
+        assert_eq!(result.regions.len(), 1, "exactly one region must be emitted");
+        let region = &result.regions[0];
+        assert_eq!(region.landmark, "contentinfo");
+
+        // contentinfo color issues are in region.member_issue_ids
+        for i in 0..4u32 {
+            let id = format!("ci_color_{:04}", i);
+            assert!(
+                region.member_issue_ids.contains(&id),
+                "contentinfo color issue {} must be in region member_issue_ids",
+                id
+            );
+        }
+
+        // contentinfo color issues are NOT in any cluster
+        for cluster in &result.clusters {
+            for cid in &result.regions[0].member_issue_ids {
+                assert!(
+                    !cluster.issue_ids.contains(cid),
+                    "claimed issue {} must not appear in cluster {}",
+                    cid,
+                    cluster.id
+                );
+            }
+        }
+
+        // The color property cluster (if it forms) contains only main's color issues
+        let color_clusters: Vec<_> = result
+            .clusters
+            .iter()
+            .filter(|c| c.shared_property.as_deref() == Some("color"))
+            .collect();
+        // With CLUSTER_MIN=3 and 4 main color issues, a color cluster should form
+        if !color_clusters.is_empty() {
+            let cc = &color_clusters[0];
+            for id in &cc.issue_ids {
+                assert!(
+                    id.starts_with("main_color_"),
+                    "color cluster must contain only main issues, got {}",
+                    id
+                );
+            }
+            assert_eq!(
+                cc.issue_ids.len(),
+                4,
+                "color cluster must have exactly 4 main issues"
+            );
+        }
+    }
+
+    /// AE4: nothing saturates → regions is empty, region_count == 0, clusters/topFixes normal.
+    #[test]
+    fn test_ae4_no_saturation_empty_regions() {
+        let mut issues: Vec<Issue> = Vec::new();
+        // 1 MissingText in main (60 old nodes → saturation 1/60 ≈ 0.017)
+        issues.push(make_issue_typed(
+            "main_miss_0000",
+            IssueType::MissingText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        ));
+        // 3 StyleChanged/color in main to form a property cluster
+        for i in 0..3u32 {
+            issues.push(make_issue_typed(
+                &format!("main_color_{:04}", i),
+                IssueType::StyleChanged,
+                IssueCategory::Style,
+                IssueSeverity::Warning,
+                Some("main"),
+                Some("color"),
+            ));
+        }
+
+        let mut old_counts = std::collections::BTreeMap::new();
+        old_counts.insert("main".to_string(), 60u32);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: old_counts,
+        };
+
+        let result = assemble_diff_result(
+            "run-ae4",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+        );
+
+        assert!(result.regions.is_empty(), "regions must be empty when nothing saturates");
+        assert_eq!(result.agent_summary.region_count, 0, "region_count must be 0");
+        // clusters and top_fixes are non-empty (the color cluster should form)
+        assert!(
+            !result.clusters.is_empty(),
+            "clusters must be non-empty (color cluster should form)"
+        );
+        assert!(
+            !result.agent_summary.top_fixes.is_empty(),
+            "top_fixes must be non-empty"
+        );
+    }
+
+    /// AE5: a BrokenLink in an unsaturated main stays in top_fixes.
+    #[test]
+    fn test_ae5_unclaimed_defect_stays_in_top_fixes() {
+        // main: 60 old nodes, 1 BrokenLink (structural, but 1/60 = 0.017 < threshold)
+        let broken = make_issue_typed(
+            "main_bl_0000",
+            IssueType::BrokenLink,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+
+        let mut old_counts = std::collections::BTreeMap::new();
+        old_counts.insert("main".to_string(), 60u32);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![broken],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: old_counts,
+        };
+
+        let result = assemble_diff_result(
+            "run-ae5",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+        );
+
+        assert!(result.regions.is_empty(), "main must not saturate");
+        assert!(
+            result.agent_summary.top_fixes.contains(&"main_bl_0000".to_string()),
+            "unclaimed BrokenLink must appear in top_fixes"
+        );
+    }
+
+    /// R9: a Critical-severity member of a saturated region is dual-surfaced in top_fixes.
+    /// An Error-severity member of the same region is NOT a separate top_fixes entry.
+    #[test]
+    fn test_r9_critical_member_dual_surfaced_in_top_fixes() {
+        let mut issues: Vec<Issue> = Vec::new();
+
+        // Saturate contentinfo: 12 MissingText / 15 old nodes = 0.8
+        for i in 0..12u32 {
+            issues.push(make_issue_typed(
+                &format!("ci_miss_{:04}", i),
+                IssueType::MissingText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("contentinfo"),
+                None,
+            ));
+        }
+        // One Critical member: MissingForm (always critical per scoring.rs)
+        issues.push(make_issue_typed(
+            "ci_form_0000",
+            IssueType::MissingForm,
+            IssueCategory::Content,
+            IssueSeverity::Critical,
+            Some("contentinfo"),
+            None,
+        ));
+        // One Error member: MissingLink (should NOT be dual-surfaced)
+        issues.push(make_issue_typed(
+            "ci_link_0000",
+            IssueType::MissingLink,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("contentinfo"),
+            None,
+        ));
+
+        let mut old_counts = std::collections::BTreeMap::new();
+        old_counts.insert("contentinfo".to_string(), 15u32);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: old_counts,
+        };
+
+        let result = assemble_diff_result(
+            "run-r9",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+        );
+
+        assert_eq!(result.regions.len(), 1, "contentinfo must saturate");
+        let region = &result.regions[0];
+
+        // critical member is in region.member_issue_ids
+        assert!(
+            region.member_issue_ids.contains(&"ci_form_0000".to_string()),
+            "critical member must be in region.member_issue_ids"
+        );
+        // critical member is ALSO in top_fixes (dual-surfaced)
+        assert!(
+            result.agent_summary.top_fixes.contains(&"ci_form_0000".to_string()),
+            "critical member must be dual-surfaced in top_fixes"
+        );
+        // error member is NOT in top_fixes as its own entry
+        assert!(
+            !result.agent_summary.top_fixes.contains(&"ci_link_0000".to_string()),
+            "error-severity member must NOT be dual-surfaced in top_fixes"
+        );
+        // The region id itself appears in top_fixes
+        assert!(
+            result.agent_summary.top_fixes.contains(&region.id),
+            "region id must appear in top_fixes"
+        );
+    }
+
+    /// Region id in topFixes: the saturated region's id (starts with "region_") appears in top_fixes.
+    #[test]
+    fn test_region_id_in_top_fixes() {
+        let mut issues: Vec<Issue> = Vec::new();
+        // Saturate contentinfo: 10 MissingText / 10 old nodes = 1.0
+        for i in 0..10u32 {
+            issues.push(make_issue_typed(
+                &format!("ci_s_{:04}", i),
+                IssueType::MissingText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("contentinfo"),
+                None,
+            ));
+        }
+
+        let mut old_counts = std::collections::BTreeMap::new();
+        old_counts.insert("contentinfo".to_string(), 10u32);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: old_counts,
+        };
+
+        let result = assemble_diff_result(
+            "run-region-id",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+        );
+
+        assert_eq!(result.regions.len(), 1, "exactly one region");
+        let region_id = &result.regions[0].id;
+        assert!(
+            region_id.starts_with("region_"),
+            "region id must start with 'region_'"
+        );
+        assert!(
+            result.agent_summary.top_fixes.contains(region_id),
+            "region id must appear in top_fixes"
+        );
+        assert_eq!(result.agent_summary.region_count, 1, "region_count must be 1");
     }
 }

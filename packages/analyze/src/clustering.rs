@@ -44,14 +44,18 @@ fn style_property(issue: &crate::contract::Issue) -> Option<String> {
 /// Property clustering takes precedence: an issue placed in a property cluster is removed
 /// from the pool before landmark clustering runs. Each issue belongs to at most one cluster.
 ///
+/// `pre_claimed` contains issue ids already claimed by region rollups; these are excluded
+/// from both Pass 1 and Pass 2 so saturated-region members never enter a cluster (AE3).
+///
 /// Returns clusters ordered by (member_count DESC, id ASC).
-pub fn cluster_issues(kept: &[crate::contract::Issue], cluster_min: usize) -> Vec<Cluster> {
+pub fn cluster_issues(kept: &[crate::contract::Issue], cluster_min: usize, pre_claimed: &std::collections::BTreeSet<String>) -> Vec<Cluster> {
     // -----------------------------------------------------------------------
     // Pass 1: Property clustering
     // -----------------------------------------------------------------------
     // Group issues with a style property by (IssueType, property).
     let mut prop_groups: BTreeMap<(IssueType, String), Vec<String>> = BTreeMap::new();
     for issue in kept {
+        if pre_claimed.contains(&issue.id) { continue; }
         if let Some(p) = style_property(issue) {
             prop_groups
                 .entry((issue.issue_type.clone(), p))
@@ -61,8 +65,8 @@ pub fn cluster_issues(kept: &[crate::contract::Issue], cluster_min: usize) -> Ve
     }
 
     let mut clusters: Vec<Cluster> = Vec::new();
-    // claimed_ids: ids placed into a property cluster (removed from landmark pass pool)
-    let mut claimed_ids: BTreeSet<String> = BTreeSet::new();
+    // claimed_ids: initialized from pre_claimed, then extended with ids placed into a property cluster.
+    let mut claimed_ids: BTreeSet<String> = pre_claimed.clone();
 
     for ((issue_type, prop), mut ids) in prop_groups {
         if ids.len() < cluster_min {
@@ -207,7 +211,7 @@ mod tests {
             })
             .collect();
 
-        let clusters = cluster_issues(&issues, 3);
+        let clusters = cluster_issues(&issues, 3, &std::collections::BTreeSet::new());
 
         assert_eq!(clusters.len(), 1, "expected exactly one cluster");
         let c = &clusters[0];
@@ -250,7 +254,7 @@ mod tests {
         );
 
         let issues = vec![i0, i1, i2];
-        let clusters = cluster_issues(&issues, 3);
+        let clusters = cluster_issues(&issues, 3, &std::collections::BTreeSet::new());
 
         // No property cluster (only 2 share "color")
         let prop_clusters: Vec<_> = clusters
@@ -289,7 +293,7 @@ mod tests {
             })
             .collect();
 
-        let clusters = cluster_issues(&issues, 3);
+        let clusters = cluster_issues(&issues, 3, &std::collections::BTreeSet::new());
 
         assert_eq!(clusters.len(), 1);
         let c = &clusters[0];
@@ -334,8 +338,8 @@ mod tests {
             make("issue_aaaaaaaaaaaa"),
         ];
 
-        let c1 = cluster_issues(&issues_forward, 3);
-        let c2 = cluster_issues(&issues_reversed, 3);
+        let c1 = cluster_issues(&issues_forward, 3, &std::collections::BTreeSet::new());
+        let c2 = cluster_issues(&issues_reversed, 3, &std::collections::BTreeSet::new());
 
         assert_eq!(c1.len(), c2.len(), "cluster count must match");
         for (a, b) in c1.iter().zip(c2.iter()) {
@@ -361,8 +365,8 @@ mod tests {
             })
             .collect();
 
-        let c1 = cluster_issues(&issues, 3);
-        let c2 = cluster_issues(&issues, 3);
+        let c1 = cluster_issues(&issues, 3, &std::collections::BTreeSet::new());
+        let c2 = cluster_issues(&issues, 3, &std::collections::BTreeSet::new());
         assert_eq!(c1.len(), 1);
         assert_eq!(c2.len(), 1);
         assert_eq!(c1[0].id, c2[0].id, "cluster id must be stable across calls");
@@ -401,7 +405,7 @@ mod tests {
             ),
         ];
 
-        let clusters = cluster_issues(&issues, 3);
+        let clusters = cluster_issues(&issues, 3, &std::collections::BTreeSet::new());
         assert_eq!(clusters.len(), 1);
         let ids = &clusters[0].issue_ids;
         assert_eq!(ids, &["issue_aaa", "issue_mmm", "issue_zzz"]);
