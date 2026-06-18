@@ -150,6 +150,10 @@ pub fn render_html(result: &DiffResult) -> String {
         "<dt>Cluster count</dt><dd>{}</dd>\n",
         result.agent_summary.cluster_count
     ));
+    out.push_str(&format!(
+        "<dt>Region count</dt><dd>{}</dd>\n",
+        result.agent_summary.region_count
+    ));
     out.push_str("</dl>\n");
 
     if !result.agent_summary.top_fixes.is_empty() {
@@ -230,7 +234,36 @@ pub fn render_html(result: &DiffResult) -> String {
     out.push_str("</section>\n");
 
     // ------------------------------------------------------------------
-    // 5. Clusters section
+    // 5. Regions section (R8 — highest-altitude work first)
+    // ------------------------------------------------------------------
+    if !result.regions.is_empty() {
+        out.push_str("<section>\n<h2>Regions</h2>\n");
+        for region in &result.regions {
+            let sev_str = match &region.severity {
+                crate::contract::IssueSeverity::Info => "info",
+                crate::contract::IssueSeverity::Warning => "warning",
+                crate::contract::IssueSeverity::Error => "error",
+                crate::contract::IssueSeverity::Critical => "critical",
+            };
+            out.push_str("<div class=\"region\">\n");
+            out.push_str(&format!(
+                "<p class=\"region-summary\">{}</p>\n",
+                escape(&region.summary)
+            ));
+            out.push_str(&format!(
+                "<p>Landmark: <code>{}</code> · saturation {:.2} · severity {} · {} issues claimed</p>\n",
+                escape(&region.landmark),
+                region.saturation,
+                sev_str,
+                region.member_issue_ids.len()
+            ));
+            out.push_str("</div>\n");
+        }
+        out.push_str("</section>\n");
+    }
+
+    // ------------------------------------------------------------------
+    // 6. Clusters section
     // ------------------------------------------------------------------
     if !result.clusters.is_empty() {
         out.push_str("<section>\n<h2>Clusters</h2>\n");
@@ -265,7 +298,7 @@ pub fn render_html(result: &DiffResult) -> String {
     }
 
     // ------------------------------------------------------------------
-    // 6. Issues section (in result.issues order = fix-value order)
+    // 7. Issues section (in result.issues order = fix-value order)
     // ------------------------------------------------------------------
     out.push_str("<section>\n<h2>Issues</h2>\n");
     if result.issues.is_empty() {
@@ -386,7 +419,7 @@ pub fn render_html(result: &DiffResult) -> String {
     out.push_str("</section>\n");
 
     // ------------------------------------------------------------------
-    // 7. Suppressed section
+    // 8. Suppressed section
     // ------------------------------------------------------------------
     if result.suppressed.count > 0 {
         out.push_str("<section>\n<h2>Suppressed</h2>\n");
@@ -588,8 +621,8 @@ mod tests {
     use super::*;
     use crate::contract::{
         AgentSummary, Anchors, Artifacts, Cluster, DeterminismSummary, DiffResult, Issue,
-        IssueCategory, IssueSeverity, IssueType, Locator, OutOfScope, RunWarning, Scores, Status,
-        Suppressed, ViewportResult,
+        IssueCategory, IssueSeverity, IssueType, Locator, OutOfScope, Region, RunWarning, Scores,
+        Status, Suppressed, ViewportResult,
     };
     use std::collections::BTreeMap;
 
@@ -970,6 +1003,67 @@ mod tests {
         assert!(
             !html.contains("<dt>Scoped to</dt>"),
             "Scoped to must not appear when None"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW: regions section
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_regions_section_present_with_one_region() {
+        let mut result = make_fixture();
+        result.regions = vec![Region {
+            id: "region_aabbccddeeff".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.86,
+            structural_count: 44,
+            old_node_count: 51,
+            member_issue_ids: vec![
+                "issue_aabbccddeeff".to_string(),
+                "issue_112233445566".to_string(),
+            ],
+            severity: IssueSeverity::Error,
+            summary: "contentinfo region: 44/51 structural nodes affected".to_string(),
+        }];
+        result.agent_summary.region_count = 1;
+        let html = render_html(&result);
+        assert!(
+            html.contains("<h2>Regions</h2>"),
+            "Regions h2 must appear when regions are non-empty"
+        );
+        assert!(
+            html.contains("contentinfo"),
+            "Landmark name must appear in regions section"
+        );
+        assert!(
+            html.contains("Region count"),
+            "Region count must appear in summary block"
+        );
+        // Saturation formatted to 2 decimal places
+        assert!(
+            html.contains("0.86"),
+            "Saturation must appear formatted to 2 decimal places"
+        );
+        // Member count (2 issues claimed)
+        assert!(
+            html.contains("2 issues claimed"),
+            "Member count must appear in region line"
+        );
+        // Severity string
+        assert!(
+            html.contains("error"),
+            "Severity string must appear in region line"
+        );
+    }
+
+    #[test]
+    fn test_regions_section_absent_when_empty() {
+        let result = make_fixture(); // regions: vec![]
+        let html = render_html(&result);
+        assert!(
+            !html.contains("<h2>Regions</h2>"),
+            "Regions section must not appear when regions is empty"
         );
     }
 }
