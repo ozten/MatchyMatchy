@@ -344,6 +344,90 @@ def evaluate_expected_issues(
                     detail += f", {len(matched[0]['issueIds'])} members"
                 rows.append((f"clusters[{ci}]", "PASS", detail))
 
+    # --- regions (analogous to clusters block) ---
+    # expected["regions"]["required"] is a list of region matchers, each with any of:
+    #   landmark        : match regions whose landmark field equals this (string)
+    #   minSaturation   : each matching region's saturation must be >= this (float, epsilon tolerance)
+    #   exactlyOne      : exactly one region must match the landmark filter (boolean)
+    #   memberIncludesType : at least one memberIssueId must resolve to an issue of this type (string)
+    regions_spec = expected.get("regions")
+    if isinstance(regions_spec, dict):
+        regions: list[dict] = diff_result.get("regions", [])
+        issues_by_id: dict = {i.get("id"): i for i in issues}
+        for ri, rm in enumerate(regions_spec.get("required", [])):
+            def _region_key_match(r: dict) -> bool:
+                if "landmark" in rm and r.get("landmark") != rm["landmark"]:
+                    return False
+                return True
+
+            matched_regions = [r for r in regions if _region_key_match(r)]
+            problems: list[str] = []
+
+            if rm.get("exactlyOne") and len(matched_regions) != 1:
+                problems.append(f"expected exactly 1 matching region, got {len(matched_regions)}")
+            if not matched_regions:
+                problems.append("no region matched the landmark filter")
+
+            for r in matched_regions:
+                if "minSaturation" in rm:
+                    min_sat = rm["minSaturation"]
+                    sat = r.get("saturation", 0.0)
+                    if sat < min_sat - 1e-9:
+                        problems.append(
+                            f"region {r.get('id')} saturation {sat} < minSaturation {min_sat}"
+                        )
+                if "memberIncludesType" in rm:
+                    wanted_type = rm["memberIncludesType"]
+                    member_ids = r.get("memberIssueIds", [])
+                    found_type = any(
+                        (issues_by_id.get(mid) or {}).get("type") == wanted_type
+                        for mid in member_ids
+                    )
+                    if not found_type:
+                        problems.append(
+                            f"region {r.get('id')} has no member of type {wanted_type!r}"
+                        )
+
+            key_desc = rm.get("landmark") or repr(rm)
+            if problems:
+                all_pass = False
+                rows.append((f"regions[{ri}]", "FAIL", f"{key_desc}: {'; '.join(problems)}"))
+            else:
+                detail = f"{key_desc}: {len(matched_regions)} region(s)"
+                if matched_regions and matched_regions[0].get("memberIssueIds"):
+                    detail += f", {len(matched_regions[0]['memberIssueIds'])} members"
+                rows.append((f"regions[{ri}]", "PASS", detail))
+
+    # --- maxTopLevelItems ---
+    if "maxTopLevelItems" in expected:
+        cap = expected["maxTopLevelItems"]
+        clusters: list[dict] = diff_result.get("clusters", [])
+        regions: list[dict] = diff_result.get("regions", [])
+        claimed: set[str] = set()
+        for r in regions:
+            for mid in r.get("memberIssueIds", []):
+                claimed.add(mid)
+        for c in clusters:
+            for iid in c.get("issueIds", []):
+                claimed.add(iid)
+        standalone = [i for i in issues if i.get("id") not in claimed]
+        top_level = len(standalone) + len(clusters) + len(regions)
+        detail = (
+            f"{top_level} top-level "
+            f"({len(standalone)} standalone + {len(clusters)} clusters + {len(regions)} regions)"
+            f" <= cap {cap}"
+        )
+        if top_level <= cap:
+            rows.append(("maxTopLevelItems", "PASS", detail))
+        else:
+            all_pass = False
+            detail_fail = (
+                f"{top_level} top-level "
+                f"({len(standalone)} standalone + {len(clusters)} clusters + {len(regions)} regions)"
+                f" > cap {cap}"
+            )
+            rows.append(("maxTopLevelItems", "FAIL", detail_fail))
+
     return all_pass, rows
 
 

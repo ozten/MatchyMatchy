@@ -41,6 +41,23 @@
         }
       }
     },
+    "regions": {
+      "description": "Optional assertions on DiffResult.regions (region-saturation rollups). Each 'required' matcher pins a region by landmark and optional saturation/membership constraints.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/regionMatcher" }
+        }
+      }
+    },
+    "maxTopLevelItems": {
+      "description": "Optional cap on top-level work items: standalone issues (not in any region or cluster) + len(clusters) + len(regions). Use to assert that region rollups reduce triage burden to a manageable count.",
+      "type": "integer",
+      "minimum": 0
+    },
     "notes": {
       "description": "Intent statement plus any accepted knock-on issues declared in the variant manifest.",
       "type": "string",
@@ -113,6 +130,19 @@
         "minMembers": { "type": "integer", "minimum": 1 },
         "exactlyOne": { "type": "boolean" },
         "memberType": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "note": { "type": "string" }
+      }
+    },
+    "regionMatcher": {
+      "description": "Match region rollups by landmark, then assert saturation and membership. At least one property must be present.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "landmark": { "type": "string" },
+        "minSaturation": { "type": "number", "minimum": 0, "maximum": 1 },
+        "exactlyOne": { "type": "boolean" },
+        "memberIncludesType": { "type": "string", "pattern": "^[a-z0-9_]+$" },
         "note": { "type": "string" }
       }
     }
