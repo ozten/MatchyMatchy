@@ -527,10 +527,10 @@ pub fn render_outline(result: &DiffResult, opts: &DisclosureOptions) -> String {
     out
 }
 
-/// Collect the issues for a given SectionBranch from the result, respecting the
-/// same filter as compute_outline (non-uncertain, non-claimed, non-critical,
-/// matching key). Preserves result.issues order.
-fn collect_section_issues<'a>(result: &'a DiffResult, s: &SectionBranch) -> Vec<&'a Issue> {
+/// The compact-section members for a display section key: non-uncertain,
+/// non-claimed, non-critical issues whose section_key_of == key, in result order.
+/// Shared by render_outline (markdown) and the HTML compact grouping (U4).
+pub fn section_issues<'a>(result: &'a DiffResult, key: &(String, String)) -> Vec<&'a Issue> {
     let claimed = crate::report::claimed_issue_ids(result);
     let critical_lead_set: std::collections::BTreeSet<String> = result
         .issues
@@ -546,9 +546,16 @@ fn collect_section_issues<'a>(result: &'a DiffResult, s: &SectionBranch) -> Vec<
             !is_uncertain_pairing(&i.evidence)
                 && !claimed.contains(i.id.as_str())
                 && !critical_lead_set.contains(&i.id)
-                && section_key_of(i) == s.key
+                && &section_key_of(i) == key
         })
         .collect()
+}
+
+/// Collect the issues for a given SectionBranch from the result, respecting the
+/// same filter as compute_outline (non-uncertain, non-claimed, non-critical,
+/// matching key). Preserves result.issues order. Delegates to section_issues.
+fn collect_section_issues<'a>(result: &'a DiffResult, s: &SectionBranch) -> Vec<&'a Issue> {
+    section_issues(result, &s.key)
 }
 
 // ---------------------------------------------------------------------------

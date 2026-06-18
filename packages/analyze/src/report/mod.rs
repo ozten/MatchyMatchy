@@ -6,6 +6,24 @@ pub mod outline;
 use crate::contract::DiffResult;
 use std::collections::BTreeSet;
 
+/// Report disclosure mode: Compact (default — progressive-disclosure ToC) or
+/// Full (legacy complete dump, opt-in via --full; byte-identical to pre-feature).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DisclosureMode {
+    Compact,
+    Full,
+}
+
+impl DisclosureMode {
+    pub fn from_full_flag(full: bool) -> Self {
+        if full {
+            Self::Full
+        } else {
+            Self::Compact
+        }
+    }
+}
+
 /// The set of issue ids claimed by any saturated region (demoted into the region
 /// rollup). Mirrors the construction in `json.rs` (`region_claimed_ids`). Used by the
 /// markdown and HTML renderers to avoid double-reporting region members in the

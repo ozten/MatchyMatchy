@@ -104,9 +104,25 @@ fn section_key_of(issue: &crate::contract::Issue) -> SectionKey {
 // Public API
 // ---------------------------------------------------------------------------
 
-/// Render a DiffResult into a GitHub-flavoured Markdown string.
-/// Pure function, deterministic, no filesystem access.
+/// Full legacy markdown (back-compat wrapper; byte-identical to pre-feature).
 pub fn render_markdown(result: &DiffResult) -> String {
+    render_markdown_mode(result, crate::report::DisclosureMode::Full, "")
+}
+
+/// Render a DiffResult into a GitHub-flavoured Markdown string.
+/// `mode` selects compact (progressive-disclosure ToC) or full (legacy dump).
+/// `out_dir` is used for drill-command generation in compact mode.
+/// Pure function, deterministic, no filesystem access.
+// The determinism-safe fold pattern uses a HashMap for O(1) lookup and a
+// parallel Vec<FoldKey> for first-appearance order. The Entry API cannot
+// express the side-effecting `fold_order.push` on the vacant branch without
+// restructuring, so we suppress the map_entry lint here intentionally.
+#[allow(clippy::map_entry)]
+pub fn render_markdown_mode(
+    result: &DiffResult,
+    mode: crate::report::DisclosureMode,
+    out_dir: &str,
+) -> String {
     let mut out = String::with_capacity(32 * 1024);
 
     let status_str = match &result.status {
@@ -267,256 +283,267 @@ pub fn render_markdown(result: &DiffResult) -> String {
     }
 
     // ------------------------------------------------------------------
-    // 5. Regions (saturated ARIA-landmark rollups) — ahead of the issue tail (R8)
+    // 5+6. Regions + Issues — mode-dependent
+    // Full mode: legacy ## Regions block + ## Issues by section walk (unchanged).
+    // Compact mode: progressive-disclosure outline from outline.rs.
     // ------------------------------------------------------------------
-    if !result.regions.is_empty() {
-        out.push_str("## Regions\n\n");
-        for region in &result.regions {
-            out.push_str(&format!(
-                "- {} — saturation {:.2}, severity {}, members: {}\n",
-                md_cell(&region.summary),
-                region.saturation,
-                sev_str(&region.severity),
-                region.member_issue_ids.len(),
-            ));
-        }
-        out.push('\n');
-    }
-
-    // ------------------------------------------------------------------
-    // 6. Issues by section (non-uncertain issues grouped)
-    // ------------------------------------------------------------------
-    out.push_str("## Issues by section\n\n");
-
-    // Breadcrumb: region-claimed members are collapsed into ## Regions above and
-    // are intentionally not repeated here (R7/R10 — no information lost, just demoted).
-    if !result.regions.is_empty() {
-        let collapsed: Vec<String> = result
-            .regions
-            .iter()
-            .map(|r| {
-                format!(
-                    "{} ({} issue{})",
-                    md_cell(&r.landmark),
-                    r.member_issue_ids.len(),
-                    if r.member_issue_ids.len() == 1 {
-                        ""
-                    } else {
-                        "s"
-                    }
-                )
-            })
-            .collect();
-        out.push_str(&format!(
-            "> Saturated regions are collapsed into **## Regions** above; their member issues are not repeated below: {}.\n\n",
-            collapsed.join(", ")
-        ));
-    }
-
-    // Separate uncertain vs normal issues. Claimed issues (region members) are excluded
-    // from the per-issue listing — the region rollup is their single representation.
-    let normal_issues: Vec<&crate::contract::Issue> = result
-        .issues
-        .iter()
-        .filter(|i| !is_uncertain_pairing(&i.evidence) && !claimed.contains(i.id.as_str()))
-        .collect();
-
-    let uncertain_issues: Vec<&crate::contract::Issue> = result
-        .issues
-        .iter()
-        .filter(|i| is_uncertain_pairing(&i.evidence))
-        .collect();
-
-    if normal_issues.is_empty() && uncertain_issues.is_empty() {
-        out.push_str("No issues.\n\n");
-    } else {
-        // Group normal issues by section key, preserving first-appearance order for rows.
-        // Use BTreeMap to collect groups deterministically by key, but the row order
-        // within each section preserves first-appearance from the issues[] array.
-        let mut section_groups: BTreeMap<SectionKey, Vec<&crate::contract::Issue>> =
-            BTreeMap::new();
-        for issue in &normal_issues {
-            section_groups
-                .entry(section_key_of(issue))
-                .or_default()
-                .push(issue);
-        }
-
-        // Sort sections: count desc, tie-break by (landmark, heading) asc.
-        let mut sections: Vec<(SectionKey, Vec<&crate::contract::Issue>)> =
-            section_groups.into_iter().collect();
-        sections.sort_by(|(ka, va), (kb, vb)| {
-            vb.len()
-                .cmp(&va.len())
-                .then_with(|| ka.0.cmp(&kb.0))
-                .then_with(|| ka.1.cmp(&kb.1))
-        });
-
-        for ((lm, hd), issues) in &sections {
-            let n = issues.len();
-            out.push_str(&format!(
-                "### {} \u{203a} {} ({n} issue{})\n\n",
-                md_cell(lm),
-                md_cell(hd),
-                if n == 1 { "" } else { "s" }
-            ));
-
-            // Fold rows: fold key = (issue_type_str, message).
-            // Track first-appearance index so we can sort by it.
-            // FoldKey → (severity_worst, viewports_set, count, first_issue_ref)
-            type FoldKey = (String, String);
-            struct FoldEntry<'a> {
-                worst_sev: &'a IssueSeverity,
-                viewports: BTreeMap<String, ()>,
-                count: u32,
-                first_issue: &'a crate::contract::Issue,
-            }
-
-            // Use a Vec to preserve first-appearance ordering.
-            let mut fold_order: Vec<FoldKey> = Vec::new();
-            let mut fold_map: std::collections::HashMap<FoldKey, FoldEntry<'_>> =
-                std::collections::HashMap::new();
-
-            for issue in issues.iter() {
-                let fk: FoldKey = (issue.issue_type.as_str().to_string(), issue.message.clone());
-                if !fold_map.contains_key(&fk) {
-                    fold_order.push(fk.clone());
-                    let mut vp_map = BTreeMap::new();
-                    vp_map.insert(issue.viewport.clone(), ());
-                    fold_map.insert(
-                        fk,
-                        FoldEntry {
-                            worst_sev: &issue.severity,
-                            viewports: vp_map,
-                            count: 1,
-                            first_issue: issue,
-                        },
-                    );
-                } else {
-                    let entry = fold_map
-                        .get_mut(&(issue.issue_type.as_str().to_string(), issue.message.clone()))
-                        .unwrap();
-                    entry.worst_sev = worst_severity(entry.worst_sev, &issue.severity);
-                    entry.viewports.insert(issue.viewport.clone(), ());
-                    entry.count += 1;
-                }
-            }
-
-            // Emit table header.
-            out.push_str("| Type | Severity | Viewports | Count | Message |\n");
-            out.push_str("|---|---|---|---|---|\n");
-
-            // Rows in first-appearance order.
-            let mut has_rem = false;
-            for fk in &fold_order {
-                let entry = &fold_map[fk];
-                let vp_sorted: Vec<&String> = entry.viewports.keys().collect();
-                // BTreeMap keys are already sorted.
-                let vp_str = vp_sorted
-                    .iter()
-                    .map(|v| v.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                out.push_str(&format!(
-                    "| {} | {} | {} | {} | {} |\n",
-                    md_cell(&fk.0),
-                    sev_str(entry.worst_sev),
-                    md_cell(&vp_str),
-                    entry.count,
-                    md_cell(&fk.1),
-                ));
-                if entry
-                    .first_issue
-                    .remediation
-                    .as_ref()
-                    .map(has_grep_targets)
-                    .unwrap_or(false)
-                {
-                    has_rem = true;
-                }
-            }
-            out.push('\n');
-
-            // Remediation grep targets (one per fold key, first instance only).
-            if has_rem {
-                out.push_str("**Remediation grep targets:**\n\n");
-                for fk in &fold_order {
-                    let entry = &fold_map[fk];
-                    if let Some(rem) = &entry.first_issue.remediation {
-                        render_grep_bullets(&mut out, &entry.first_issue.id, rem);
-                    }
+    match mode {
+        crate::report::DisclosureMode::Full => {
+            // ------------------------------------------------------------------
+            // 5. Regions (saturated ARIA-landmark rollups) — ahead of the issue tail (R8)
+            // ------------------------------------------------------------------
+            if !result.regions.is_empty() {
+                out.push_str("## Regions\n\n");
+                for region in &result.regions {
+                    out.push_str(&format!(
+                        "- {} — saturation {:.2}, severity {}, members: {}\n",
+                        md_cell(&region.summary),
+                        region.saturation,
+                        sev_str(&region.severity),
+                        region.member_issue_ids.len(),
+                    ));
                 }
                 out.push('\n');
             }
-        }
 
-        // ------------------------------------------------------------------
-        // 6. Uncertain pairings subsection
-        // ------------------------------------------------------------------
-        if !uncertain_issues.is_empty() {
-            let n = uncertain_issues.len();
-            out.push_str(&format!(
-                "### Uncertain pairings (excluded from scores)\n\n"
-            ));
-            out.push_str("These style differences come from element pairings the matcher could not confidently establish; they are reported for completeness and do not affect scores.\n\n");
+            // ------------------------------------------------------------------
+            // 6. Issues by section (non-uncertain issues grouped)
+            // ------------------------------------------------------------------
+            out.push_str("## Issues by section\n\n");
 
-            out.push_str("| Type | Severity | Viewports | Count | Message |\n");
-            out.push_str("|---|---|---|---|---|\n");
-
-            // Fold uncertain issues (flat — no per-heading grouping).
-            type FoldKey2 = (String, String);
-            struct FoldEntry2<'a> {
-                worst_sev: &'a IssueSeverity,
-                viewports: BTreeMap<String, ()>,
-                count: u32,
-            }
-            let mut fold_order2: Vec<FoldKey2> = Vec::new();
-            let mut fold_map2: std::collections::HashMap<FoldKey2, FoldEntry2<'_>> =
-                std::collections::HashMap::new();
-
-            for issue in &uncertain_issues {
-                let fk: FoldKey2 = (issue.issue_type.as_str().to_string(), issue.message.clone());
-                if !fold_map2.contains_key(&fk) {
-                    fold_order2.push(fk.clone());
-                    let mut vp_map = BTreeMap::new();
-                    vp_map.insert(issue.viewport.clone(), ());
-                    fold_map2.insert(
-                        fk,
-                        FoldEntry2 {
-                            worst_sev: &issue.severity,
-                            viewports: vp_map,
-                            count: 1,
-                        },
-                    );
-                } else {
-                    let entry = fold_map2
-                        .get_mut(&(issue.issue_type.as_str().to_string(), issue.message.clone()))
-                        .unwrap();
-                    entry.worst_sev = worst_severity(entry.worst_sev, &issue.severity);
-                    entry.viewports.insert(issue.viewport.clone(), ());
-                    entry.count += 1;
-                }
-            }
-
-            for fk in &fold_order2 {
-                let entry = &fold_map2[fk];
-                let vp_str = entry
-                    .viewports
-                    .keys()
-                    .map(|v| v.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" ");
+            // Breadcrumb: region-claimed members are collapsed into ## Regions above and
+            // are intentionally not repeated here (R7/R10 — no information lost, just demoted).
+            if !result.regions.is_empty() {
+                let collapsed: Vec<String> = result
+                    .regions
+                    .iter()
+                    .map(|r| {
+                        format!(
+                            "{} ({} issue{})",
+                            md_cell(&r.landmark),
+                            r.member_issue_ids.len(),
+                            if r.member_issue_ids.len() == 1 {
+                                ""
+                            } else {
+                                "s"
+                            }
+                        )
+                    })
+                    .collect();
                 out.push_str(&format!(
-                    "| {} | {} | {} | {} | {} |\n",
-                    md_cell(&fk.0),
-                    sev_str(entry.worst_sev),
-                    md_cell(&vp_str),
-                    entry.count,
-                    md_cell(&fk.1),
+                    "> Saturated regions are collapsed into **## Regions** above; their member issues are not repeated below: {}.\n\n",
+                    collapsed.join(", ")
                 ));
             }
-            let _ = n;
-            out.push('\n');
+
+            // Separate uncertain vs normal issues. Claimed issues (region members) are excluded
+            // from the per-issue listing — the region rollup is their single representation.
+            let normal_issues: Vec<&crate::contract::Issue> = result
+                .issues
+                .iter()
+                .filter(|i| !is_uncertain_pairing(&i.evidence) && !claimed.contains(i.id.as_str()))
+                .collect();
+
+            let uncertain_issues: Vec<&crate::contract::Issue> = result
+                .issues
+                .iter()
+                .filter(|i| is_uncertain_pairing(&i.evidence))
+                .collect();
+
+            if normal_issues.is_empty() && uncertain_issues.is_empty() {
+                out.push_str("No issues.\n\n");
+            } else {
+                // Group normal issues by section key, preserving first-appearance order for rows.
+                // Use BTreeMap to collect groups deterministically by key, but the row order
+                // within each section preserves first-appearance from the issues[] array.
+                let mut section_groups: BTreeMap<SectionKey, Vec<&crate::contract::Issue>> =
+                    BTreeMap::new();
+                for issue in &normal_issues {
+                    section_groups
+                        .entry(section_key_of(issue))
+                        .or_default()
+                        .push(issue);
+                }
+
+                // Sort sections: count desc, tie-break by (landmark, heading) asc.
+                let mut sections: Vec<(SectionKey, Vec<&crate::contract::Issue>)> =
+                    section_groups.into_iter().collect();
+                sections.sort_by(|(ka, va), (kb, vb)| {
+                    vb.len()
+                        .cmp(&va.len())
+                        .then_with(|| ka.0.cmp(&kb.0))
+                        .then_with(|| ka.1.cmp(&kb.1))
+                });
+
+                for ((lm, hd), issues) in &sections {
+                    let n = issues.len();
+                    out.push_str(&format!(
+                        "### {} \u{203a} {} ({n} issue{})\n\n",
+                        md_cell(lm),
+                        md_cell(hd),
+                        if n == 1 { "" } else { "s" }
+                    ));
+
+                    // Fold rows: fold key = (issue_type_str, message).
+                    // Track first-appearance index so we can sort by it.
+                    // FoldKey → (severity_worst, viewports_set, count, first_issue_ref)
+                    type FoldKey = (String, String);
+                    struct FoldEntry<'a> {
+                        worst_sev: &'a IssueSeverity,
+                        viewports: BTreeMap<String, ()>,
+                        count: u32,
+                        first_issue: &'a crate::contract::Issue,
+                    }
+
+                    // Use a Vec to preserve first-appearance ordering.
+                    let mut fold_order: Vec<FoldKey> = Vec::new();
+                    let mut fold_map: std::collections::HashMap<FoldKey, FoldEntry<'_>> =
+                        std::collections::HashMap::new();
+
+                    for issue in issues.iter() {
+                        let fk: FoldKey = (issue.issue_type.as_str().to_string(), issue.message.clone());
+                        if !fold_map.contains_key(&fk) {
+                            fold_order.push(fk.clone());
+                            let mut vp_map = BTreeMap::new();
+                            vp_map.insert(issue.viewport.clone(), ());
+                            fold_map.insert(
+                                fk,
+                                FoldEntry {
+                                    worst_sev: &issue.severity,
+                                    viewports: vp_map,
+                                    count: 1,
+                                    first_issue: issue,
+                                },
+                            );
+                        } else {
+                            let entry = fold_map
+                                .get_mut(&(issue.issue_type.as_str().to_string(), issue.message.clone()))
+                                .unwrap();
+                            entry.worst_sev = worst_severity(entry.worst_sev, &issue.severity);
+                            entry.viewports.insert(issue.viewport.clone(), ());
+                            entry.count += 1;
+                        }
+                    }
+
+                    // Emit table header.
+                    out.push_str("| Type | Severity | Viewports | Count | Message |\n");
+                    out.push_str("|---|---|---|---|---|\n");
+
+                    // Rows in first-appearance order.
+                    let mut has_rem = false;
+                    for fk in &fold_order {
+                        let entry = &fold_map[fk];
+                        let vp_sorted: Vec<&String> = entry.viewports.keys().collect();
+                        // BTreeMap keys are already sorted.
+                        let vp_str = vp_sorted
+                            .iter()
+                            .map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        out.push_str(&format!(
+                            "| {} | {} | {} | {} | {} |\n",
+                            md_cell(&fk.0),
+                            sev_str(entry.worst_sev),
+                            md_cell(&vp_str),
+                            entry.count,
+                            md_cell(&fk.1),
+                        ));
+                        if entry
+                            .first_issue
+                            .remediation
+                            .as_ref()
+                            .map(has_grep_targets)
+                            .unwrap_or(false)
+                        {
+                            has_rem = true;
+                        }
+                    }
+                    out.push('\n');
+
+                    // Remediation grep targets (one per fold key, first instance only).
+                    if has_rem {
+                        out.push_str("**Remediation grep targets:**\n\n");
+                        for fk in &fold_order {
+                            let entry = &fold_map[fk];
+                            if let Some(rem) = &entry.first_issue.remediation {
+                                render_grep_bullets(&mut out, &entry.first_issue.id, rem);
+                            }
+                        }
+                        out.push('\n');
+                    }
+                }
+
+                // ------------------------------------------------------------------
+                // Uncertain pairings subsection
+                // ------------------------------------------------------------------
+                if !uncertain_issues.is_empty() {
+                    let n = uncertain_issues.len();
+                    out.push_str("### Uncertain pairings (excluded from scores)\n\n");
+                    out.push_str("These style differences come from element pairings the matcher could not confidently establish; they are reported for completeness and do not affect scores.\n\n");
+
+                    out.push_str("| Type | Severity | Viewports | Count | Message |\n");
+                    out.push_str("|---|---|---|---|---|\n");
+
+                    // Fold uncertain issues (flat — no per-heading grouping).
+                    type FoldKey2 = (String, String);
+                    struct FoldEntry2<'a> {
+                        worst_sev: &'a IssueSeverity,
+                        viewports: BTreeMap<String, ()>,
+                        count: u32,
+                    }
+                    let mut fold_order2: Vec<FoldKey2> = Vec::new();
+                    let mut fold_map2: std::collections::HashMap<FoldKey2, FoldEntry2<'_>> =
+                        std::collections::HashMap::new();
+
+                    for issue in &uncertain_issues {
+                        let fk: FoldKey2 = (issue.issue_type.as_str().to_string(), issue.message.clone());
+                        if !fold_map2.contains_key(&fk) {
+                            fold_order2.push(fk.clone());
+                            let mut vp_map = BTreeMap::new();
+                            vp_map.insert(issue.viewport.clone(), ());
+                            fold_map2.insert(
+                                fk,
+                                FoldEntry2 {
+                                    worst_sev: &issue.severity,
+                                    viewports: vp_map,
+                                    count: 1,
+                                },
+                            );
+                        } else {
+                            let entry = fold_map2
+                                .get_mut(&(issue.issue_type.as_str().to_string(), issue.message.clone()))
+                                .unwrap();
+                            entry.worst_sev = worst_severity(entry.worst_sev, &issue.severity);
+                            entry.viewports.insert(issue.viewport.clone(), ());
+                            entry.count += 1;
+                        }
+                    }
+
+                    for fk in &fold_order2 {
+                        let entry = &fold_map2[fk];
+                        let vp_str = entry
+                            .viewports
+                            .keys()
+                            .map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        out.push_str(&format!(
+                            "| {} | {} | {} | {} | {} |\n",
+                            md_cell(&fk.0),
+                            sev_str(entry.worst_sev),
+                            md_cell(&vp_str),
+                            entry.count,
+                            md_cell(&fk.1),
+                        ));
+                    }
+                    let _ = n;
+                    out.push('\n');
+                }
+            }
+        }
+        crate::report::DisclosureMode::Compact => {
+            let opts = crate::report::outline::DisclosureOptions::new(out_dir);
+            out.push_str(&crate::report::outline::render_outline(result, &opts));
         }
     }
 
@@ -587,10 +614,14 @@ pub fn render_markdown(result: &DiffResult) -> String {
 }
 
 /// Write the Markdown report to `out_dir/report.md` (creates the directory if needed).
-pub fn write_markdown(result: &DiffResult, out_dir: &Path) -> anyhow::Result<()> {
+pub fn write_markdown(
+    result: &DiffResult,
+    out_dir: &Path,
+    mode: crate::report::DisclosureMode,
+) -> anyhow::Result<()> {
     std::fs::create_dir_all(out_dir)
         .with_context(|| format!("failed to create output dir: {}", out_dir.display()))?;
-    let md = render_markdown(result);
+    let md = render_markdown_mode(result, mode, &out_dir.display().to_string());
     let path = out_dir.join("report.md");
     std::fs::write(&path, &md)
         .with_context(|| format!("failed to write report.md: {}", path.display()))?;
@@ -864,7 +895,8 @@ mod tests {
     fn test_write_markdown_creates_file() {
         let tmp = std::env::temp_dir().join("matchy_md_test");
         let result = make_fixture();
-        write_markdown(&result, &tmp).expect("write_markdown should succeed");
+        write_markdown(&result, &tmp, crate::report::DisclosureMode::Full)
+            .expect("write_markdown should succeed");
         let path = tmp.join("report.md");
         assert!(path.exists(), "report.md should be created");
         // cleanup
@@ -1570,5 +1602,126 @@ mod tests {
         let md2 = render_markdown(&result);
 
         assert_eq!(md1, md2, "render_markdown must be byte-deterministic");
+    }
+
+    // -----------------------------------------------------------------------
+    // NEW (U4): DisclosureMode tests
+    // -----------------------------------------------------------------------
+
+    /// Wrapper identity: render_markdown_mode with Full must equal render_markdown.
+    #[test]
+    fn test_full_mode_equals_legacy_render() {
+        let mut result = make_fixture();
+        result.issues.clear();
+        result.clusters.clear();
+
+        // Add a region so the fixture exercises the region path.
+        result.issues.push(make_issue(
+            "issue_r_0000000001",
+            IssueType::ChangedText,
+            IssueSeverity::Warning,
+            "desktop",
+            "region msg",
+            Some("contentinfo"),
+            Some("Products"),
+            false,
+        ));
+        result.issues.push(make_issue(
+            "issue_main_001_u4m",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "desktop",
+            "standalone link",
+            Some("main"),
+            Some("Body"),
+            false,
+        ));
+        let mut member_ids = vec!["issue_r_0000000001".to_string()];
+        member_ids.sort();
+        result.regions = vec![Region {
+            id: "region_u4_test_0001".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.80,
+            structural_count: 1,
+            old_node_count: 1,
+            member_issue_ids: member_ids,
+            severity: IssueSeverity::Warning,
+            summary: "contentinfo region: 1/1".to_string(),
+        }];
+        result.agent_summary.region_count = 1;
+
+        let via_wrapper = render_markdown(&result);
+        let via_mode = render_markdown_mode(&result, crate::report::DisclosureMode::Full, "");
+        assert_eq!(via_wrapper, via_mode, "render_markdown_mode Full must equal render_markdown wrapper");
+    }
+
+    /// Compact mode must contain the required check-m8 substrings.
+    #[test]
+    fn test_compact_check_m8_substrings() {
+        let result = make_fixture();
+        let md = render_markdown_mode(&result, crate::report::DisclosureMode::Compact, "");
+        assert!(md.contains("# matchy report"), "Missing '# matchy report'");
+        assert!(md.contains("## Summary"), "Missing '## Summary'");
+        assert!(md.contains("## Scores"), "Missing '## Scores'");
+        // render_outline emits "## Issues (table of contents)" which contains "## Issues".
+        assert!(md.contains("## Issues"), "Missing '## Issues'");
+    }
+
+    /// Compact mode for a fixture with a region must contain the outline ToC and a drill command.
+    #[test]
+    fn test_compact_mode_has_issues_toc() {
+        let mut result = make_fixture();
+        result.issues.clear();
+        result.clusters.clear();
+
+        // Saturated region.
+        let footer_ids: Vec<String> = (0u8..5).map(|i| format!("issue_cmp_{i:016x}")).collect();
+        for (i, id) in footer_ids.iter().enumerate() {
+            result.issues.push(make_issue(
+                id,
+                IssueType::ChangedText,
+                IssueSeverity::Warning,
+                "desktop",
+                &format!("footer msg {i}"),
+                Some("contentinfo"),
+                Some("PRODUCTS"),
+                false,
+            ));
+        }
+        let mut member_ids = footer_ids.clone();
+        member_ids.sort();
+        result.regions = vec![Region {
+            id: "region_compact_0001".to_string(),
+            landmark: "contentinfo".to_string(),
+            saturation: 0.86,
+            structural_count: 5,
+            old_node_count: 6,
+            member_issue_ids: member_ids,
+            severity: IssueSeverity::Error,
+            summary: "contentinfo region: 5/6".to_string(),
+        }];
+        result.agent_summary.region_count = 1;
+
+        // A standalone issue in main that must surface in the compact ToC.
+        result.issues.push(make_issue(
+            "issue_main_compact_01",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "desktop",
+            "standalone link broken",
+            Some("main"),
+            Some("Body"),
+            false,
+        ));
+
+        let md = render_markdown_mode(&result, crate::report::DisclosureMode::Compact, "/tmp/out");
+        assert!(
+            md.contains("## Issues (table of contents)"),
+            "Compact mode must contain '## Issues (table of contents)', got: {md}"
+        );
+        assert!(
+            md.contains("matchy show"),
+            "Compact mode must contain a matchy show drill command"
+        );
     }
 }

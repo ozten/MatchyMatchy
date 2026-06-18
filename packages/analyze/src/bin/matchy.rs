@@ -94,6 +94,11 @@ struct Cli {
     #[arg(long, global = true, default_value_t = false)]
     markdown: bool,
 
+    /// Emit the full legacy report dump instead of the default compact
+    /// progressive-disclosure view (applies to --markdown and --html).
+    #[arg(long, global = true, default_value_t = false)]
+    full: bool,
+
     /// Path to baseline accept-list JSON (array of {"id": "..."}).
     #[arg(long, global = true)]
     baseline: Option<String>,
@@ -249,6 +254,7 @@ fn main() {
                     );
                     std::process::exit(2);
                 });
+            let mode = matchy_analyze::report::DisclosureMode::from_full_flag(cli.full);
             match run_analyze(
                 &args.old_bundle,
                 &args.new_bundle,
@@ -260,6 +266,7 @@ fn main() {
                 cli.markdown,
                 image_dims_mode,
                 &cli.fail_on,
+                mode,
             ) {
                 Ok(code) => code,
                 Err(e) => {
@@ -296,6 +303,7 @@ fn main() {
                 });
             match (cli.old.as_deref(), cli.new.as_deref(), cli.out.as_deref()) {
                 (Some(old_url), Some(new_url), Some(out_dir)) => {
+                    let mode = matchy_analyze::report::DisclosureMode::from_full_flag(cli.full);
                     match run_full(
                         old_url,
                         new_url,
@@ -314,6 +322,7 @@ fn main() {
                         cli.markdown,
                         image_dims_mode,
                         cli.self_check,
+                        mode,
                     ) {
                         Ok(code) => code,
                         Err(e) => {
@@ -372,6 +381,7 @@ fn run_full(
     markdown: bool,
     image_dims_mode: ImageDimensionsMode,
     self_check: bool,
+    mode: matchy_analyze::report::DisclosureMode,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
     let out_path = PathBuf::from(out_dir);
@@ -489,10 +499,10 @@ fn run_full(
     );
     write_diff_result(&result, &out_path)?;
     if html {
-        matchy_analyze::report::html::write_html(&result, &out_path)?;
+        matchy_analyze::report::html::write_html(&result, &out_path, mode)?;
     }
     if markdown {
-        matchy_analyze::report::markdown::write_markdown(&result, &out_path)?;
+        matchy_analyze::report::markdown::write_markdown(&result, &out_path, mode)?;
     }
 
     let exit_code = compute_exit_code(&result, fail_on);
@@ -785,6 +795,7 @@ fn run_analyze(
     markdown: bool,
     image_dims_mode: ImageDimensionsMode,
     fail_on: &str,
+    mode: matchy_analyze::report::DisclosureMode,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
     let out_path = PathBuf::from(out_dir);
@@ -871,10 +882,10 @@ fn run_analyze(
     );
     write_diff_result(&result, &out_path)?;
     if html {
-        matchy_analyze::report::html::write_html(&result, &out_path)?;
+        matchy_analyze::report::html::write_html(&result, &out_path, mode)?;
     }
     if markdown {
-        matchy_analyze::report::markdown::write_markdown(&result, &out_path)?;
+        matchy_analyze::report::markdown::write_markdown(&result, &out_path, mode)?;
     }
 
     Ok(compute_exit_code(&result, fail_on))
@@ -1088,5 +1099,45 @@ fn compute_exit_code(result: &matchy_analyze::contract::DiffResult, fail_on: &st
         1
     } else {
         0
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    /// --full parses as a global flag on the top-level command (matchy run).
+    #[test]
+    fn test_full_flag_parses_global() {
+        // Default: no --full → full == false.
+        let cli = Cli::try_parse_from(["matchy", "--old", "u", "--new", "v", "--out", "o"])
+            .expect("parse without --full");
+        assert!(!cli.full, "--full must default to false");
+
+        // With --full → full == true.
+        let cli_full =
+            Cli::try_parse_from(["matchy", "--old", "u", "--new", "v", "--out", "o", "--full"])
+                .expect("parse with --full on run");
+        assert!(cli_full.full, "--full must be true when passed on run");
+
+        // --full on the analyze subcommand.
+        let cli_analyze = Cli::try_parse_from([
+            "matchy",
+            "analyze",
+            "--old-bundle",
+            "a",
+            "--new-bundle",
+            "b",
+            "--out",
+            "o",
+            "--full",
+        ])
+        .expect("parse with --full on analyze");
+        assert!(cli_analyze.full, "--full must be true when passed on analyze");
     }
 }
