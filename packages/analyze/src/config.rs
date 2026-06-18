@@ -242,6 +242,26 @@ pub const DUP_LABEL_BBOX_TOLERANCE_PX: f64 = 2.0;
 /// Note: 13px vs 14px (diff 1.0) is still reported.
 pub const STYLE_NUMERIC_EPSILON: f64 = 0.1;
 
+// ---------------------------------------------------------------------------
+// Progressive-disclosure budget (feat: agent-first progressive disclosure).
+//
+// PROVISIONAL — calibrated and frozen in U6 against the frozen p01 bundle.
+// The compact report inlines section branches in fix-value order until the
+// cumulative rendered-size (character) proxy would exceed DISCLOSURE_BUDGET;
+// the rest collapse to one-line drill pointers. Bands, not a knife-edge:
+// saturated regions and any section larger than DISCLOSURE_SECTION_CEILING
+// always collapse (high watermark); a total projected size <= the budget
+// inlines everything (low watermark, R4). Byte-identical DiffResult ->
+// byte-identical projection (R3/AE2).
+// ---------------------------------------------------------------------------
+
+/// Cumulative rendered-size budget (chars) for inlined compact-report section detail.
+pub const DISCLOSURE_BUDGET: usize = 3000;
+
+/// Per-section rendered-size ceiling (chars): a single section larger than this
+/// always collapses to a pointer even if the cumulative budget is not yet spent.
+pub const DISCLOSURE_SECTION_CEILING: usize = 1200;
+
 /// Minimum pair score required to emit style issues at Warning/Error severity.
 ///
 /// Bug p1-04: uncertain pairings (band != Matched OR score < this threshold)
