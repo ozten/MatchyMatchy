@@ -2156,4 +2156,65 @@ mod tests {
             "compact markdown must have a region drill pointer"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Tests for resolve_handle unknown id arms
+    // -----------------------------------------------------------------------
+
+    /// resolve_handle with a Cluster id that does not exist → empty Vec.
+    #[test]
+    fn test_resolve_handle_unknown_cluster_empty() {
+        let mut result = make_empty_result();
+        result.issues.push(make_issue(
+            "issue_cl_existing_001",
+            IssueType::StyleChanged,
+            IssueSeverity::Warning,
+            "existing cluster issue",
+            Some("main"),
+            Some("Hero"),
+            false,
+        ));
+        result.clusters = vec![Cluster {
+            id: "cluster_known_001".to_string(),
+            issue_ids: vec!["issue_cl_existing_001".to_string()],
+            shared_property: Some("color".to_string()),
+            shared_landmark: None,
+            summary: None,
+        }];
+
+        let handle = BranchHandle::Cluster {
+            id: "cluster_does_not_exist".into(),
+        };
+        let resolved = resolve_handle(&result, &handle);
+        assert!(
+            resolved.is_empty(),
+            "resolve_handle must return an empty Vec for an unknown cluster id, got: {:?}",
+            resolved.iter().map(|i| &i.id).collect::<Vec<_>>()
+        );
+    }
+
+    /// resolve_handle with an Issue id that does not exist → empty Vec.
+    #[test]
+    fn test_resolve_handle_unknown_issue_empty() {
+        let mut result = make_empty_result();
+        result.issues.push(make_issue(
+            "issue_known_001",
+            IssueType::BrokenLink,
+            IssueSeverity::Error,
+            "existing issue",
+            Some("main"),
+            Some("Body"),
+            false,
+        ));
+
+        let handle = BranchHandle::Issue {
+            id: "issue_nope".into(),
+        };
+        let resolved = resolve_handle(&result, &handle);
+        assert!(
+            resolved.is_empty(),
+            "resolve_handle must return an empty Vec for an unknown issue id, got: {:?}",
+            resolved.iter().map(|i| &i.id).collect::<Vec<_>>()
+        );
+    }
 }

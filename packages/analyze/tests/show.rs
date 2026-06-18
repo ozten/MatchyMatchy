@@ -587,6 +587,78 @@ fn test_show_newer_schema_exit2() {
     );
 }
 
+/// Point --out at the JSON file directly (not its directory) → exit 0, member id in stdout.
+/// Exercises the `p.is_file()` true branch in run_show.
+#[test]
+fn test_show_direct_file_path() {
+    let dir = TempDir::new().unwrap();
+    let mut result = make_empty_result();
+
+    let id1 = "issue_direct_001".to_string();
+    result.issues.push(make_issue(
+        &id1,
+        IssueType::ChangedText,
+        IssueSeverity::Warning,
+        "direct file path test",
+        Some("contentinfo"),
+        Some("Footer"),
+    ));
+    let mut member_ids = vec![id1.clone()];
+    member_ids.sort();
+    result.regions = vec![make_region("contentinfo", 0.75, member_ids)];
+    result.agent_summary.region_count = 1;
+
+    // write_diff_result returns the path to the JSON file itself.
+    let json_path = write_diff_result(&dir, &result);
+
+    // Pass the direct path to the JSON file as --out (not the directory).
+    let out = run_show(&[
+        "--region",
+        "contentinfo",
+        "--out",
+        json_path.to_str().unwrap(),
+    ]);
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "exit code must be 0 when --out points directly at the JSON file, stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains(&id1),
+        "stdout must contain the member id '{}', got: {}",
+        id1,
+        stdout
+    );
+}
+
+/// diff-result.json with schemaVersion "abc" → exit 2, stderr contains "unrecognized schemaVersion".
+/// Exercises the new None arm from Fix 1.
+#[test]
+fn test_show_malformed_schema_version() {
+    let dir = TempDir::new().unwrap();
+    let mut result = make_empty_result();
+    result.schema_version = "abc".to_string();
+    write_diff_result(&dir, &result);
+
+    let out = run_show(&["--region", "contentinfo", "--out", dir.path().to_str().unwrap()]);
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "exit 2 expected for malformed schemaVersion, got: {:?}",
+        out.status.code()
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("unrecognized schemaVersion"),
+        "stderr must contain 'unrecognized schemaVersion', got: {}",
+        stderr
+    );
+}
+
 /// Same region handle run twice → identical stdout (determinism).
 #[test]
 fn test_show_deterministic() {

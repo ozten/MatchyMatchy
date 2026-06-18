@@ -756,14 +756,22 @@ fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
         .split('.')
         .next()
         .and_then(|s| s.parse::<u32>().ok());
-    if !matches!(major, Some(m) if m <= SUPPORTED_SCHEMA_MAJOR) {
-        eprintln!(
-            "error: {} has schemaVersion '{}', newer than this matchy understands (supports {}.x) — upgrade matchy",
-            result_path.display(),
-            result.schema_version,
-            SUPPORTED_SCHEMA_MAJOR
-        );
-        return Ok(2);
+    match major {
+        Some(m) if m <= SUPPORTED_SCHEMA_MAJOR => { /* supported — fall through */ }
+        Some(m) => {
+            eprintln!(
+                "error: {} has schemaVersion '{}' (major {}), newer than this matchy understands (supports {}.x) — upgrade matchy",
+                result_path.display(), result.schema_version, m, SUPPORTED_SCHEMA_MAJOR
+            );
+            return Ok(2);
+        }
+        None => {
+            eprintln!(
+                "error: {} has an unrecognized schemaVersion '{}' (no parseable major version) — is it a valid diff-result.json?",
+                result_path.display(), result.schema_version
+            );
+            return Ok(2);
+        }
     }
 
     // 5. Resolve + print.
