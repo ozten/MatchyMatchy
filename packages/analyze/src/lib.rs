@@ -102,12 +102,32 @@ pub struct ViewportAnalysisParams<'a> {
     pub image_dims_mode: config::ImageDimensionsMode,
 }
 
+/// Compute per-landmark old-side node counts from a slice of SemanticNodes.
+///
+/// Iterates nodes, reads each node's `anchors.landmark` (it's `Option<String>`),
+/// maps `None` → the key `"(none)"`, and counts occurrences into a `BTreeMap<String, u32>`.
+/// Zero-count entries are never emitted. Consistent with `compute_by_landmark` in report/json.rs.
+pub fn old_landmark_node_counts(
+    nodes: &[contract::SemanticNode],
+) -> std::collections::BTreeMap<String, u32> {
+    let mut counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+    for node in nodes {
+        let key = node
+            .anchors
+            .landmark
+            .clone()
+            .unwrap_or_else(|| "(none)".to_string());
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    counts
+}
+
 /// Core analysis: given old and new bundles + paths, produce per-viewport issues + scores.
 ///
-/// Returns (issues, scores) for a single viewport.
+/// Returns (issues, scores, old_landmark_node_counts) for a single viewport.
 pub fn analyze_viewport(
     params: &ViewportAnalysisParams<'_>,
-) -> anyhow::Result<(Vec<contract::Issue>, contract::Scores)> {
+) -> anyhow::Result<(Vec<contract::Issue>, contract::Scores, std::collections::BTreeMap<String, u32>)> {
     let ViewportAnalysisParams {
         old_bundle,
         new_bundle,
@@ -127,6 +147,9 @@ pub fn analyze_viewport(
     use crate::visual_diff::{crop_diff_region, crop_region, diff_images, save_png};
 
     let env_mismatch = orchestrate::env_mismatch(old_bundle, new_bundle);
+
+    // Compute old-side per-landmark node counts (denominator for saturation metric, U2).
+    let landmark_counts = old_landmark_node_counts(&old_bundle.page.nodes);
 
     // --- Run hygiene checks FIRST (M2.md §5.5) ---
     let hygiene_outcome = hygiene::hygiene_issues(old_bundle, new_bundle, viewport_name, profile);
@@ -163,7 +186,7 @@ pub fn analyze_viewport(
             hygiene: hygiene_score,
             by_landmark: std::collections::BTreeMap::new(),
         };
-        return Ok((issues, scores));
+        return Ok((issues, scores, landmark_counts));
     }
 
     // --- Content diff: match nodes then derive semantic issues (M3.md §5.7) ---
@@ -534,7 +557,7 @@ pub fn analyze_viewport(
     let issue_refs: Vec<&contract::Issue> = issues.iter().collect();
     let scores = compute_scores_from_issues(&issue_refs, visual_score);
 
-    Ok((issues, scores))
+    Ok((issues, scores, landmark_counts))
 }
 
 // ---------------------------------------------------------------------------
@@ -544,6 +567,83 @@ pub fn analyze_viewport(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // -----------------------------------------------------------------------
+    // U2: old_landmark_node_counts unit tests
+    // -----------------------------------------------------------------------
+
+    fn make_node_with_landmark(id: &str, landmark: Option<&str>) -> contract::SemanticNode {
+        contract::SemanticNode {
+            id: id.to_string(),
+            kind: "text".to_string(),
+            role: None,
+            text: None,
+            acc_name: None,
+            href: None,
+            image_alt: None,
+            bbox: [0, 0, 100, 20],
+            seq_index: 0,
+            anchors: contract::NodeAnchors {
+                text: None,
+                role: None,
+                href: None,
+                alt: None,
+                aria_label: None,
+                nearest_heading: None,
+                landmark: landmark.map(str::to_string),
+                ordinal_in_landmark: None,
+            },
+            css_selector: None,
+            raw_href: None,
+            src: None,
+            natural_width: None,
+            natural_height: None,
+            loaded: None,
+            heading_level: None,
+        }
+    }
+
+    /// U2 happy path: known landmark distribution returns exact per-landmark BTreeMap.
+    #[test]
+    fn test_old_landmark_node_counts_happy_path() {
+        let nodes = vec![
+            make_node_with_landmark("n1", Some("contentinfo")),
+            make_node_with_landmark("n2", Some("contentinfo")),
+            make_node_with_landmark("n3", Some("contentinfo")),
+            make_node_with_landmark("n4", Some("main")),
+            make_node_with_landmark("n5", Some("main")),
+            make_node_with_landmark("n6", None),
+        ];
+        let counts = old_landmark_node_counts(&nodes);
+        assert_eq!(counts.get("contentinfo"), Some(&3));
+        assert_eq!(counts.get("main"), Some(&2));
+        assert_eq!(counts.get("(none)"), Some(&1));
+        assert_eq!(counts.len(), 3);
+    }
+
+    /// U2 edge: nodes with None landmark bucket under "(none)", not dropped.
+    #[test]
+    fn test_old_landmark_node_counts_none_buckets_to_none_key() {
+        let nodes = vec![
+            make_node_with_landmark("n1", None),
+            make_node_with_landmark("n2", None),
+        ];
+        let counts = old_landmark_node_counts(&nodes);
+        assert_eq!(counts.get("(none)"), Some(&2));
+        assert_eq!(counts.len(), 1, "only '(none)' key should exist");
+    }
+
+    /// U2 edge: a landmark with zero nodes does not appear as a key (no zero entries).
+    #[test]
+    fn test_old_landmark_node_counts_no_zero_entries() {
+        let nodes = vec![
+            make_node_with_landmark("n1", Some("main")),
+        ];
+        let counts = old_landmark_node_counts(&nodes);
+        // contentinfo was never seen, so it must not appear
+        assert!(!counts.contains_key("contentinfo"));
+        assert_eq!(counts.get("main"), Some(&1));
+    }
     use crate::config::CROP_PAD;
     use crate::contract::{Anchors, IssueCategory, IssueSeverity, IssueType, Locator};
     use crate::issue::{compute_issue_id, resolve_id_collisions};

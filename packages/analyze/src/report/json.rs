@@ -21,6 +21,7 @@ pub struct ViewportAnalysis {
     pub artifacts: Artifacts,
     pub old_det: CaptureDeterminism,
     pub new_det: CaptureDeterminism,
+    pub old_landmark_node_counts: std::collections::BTreeMap<String, u32>,
 }
 
 /// Scope options passed to assemble_diff_result.
@@ -866,6 +867,7 @@ mod tests {
             artifacts: empty_artifacts(),
             old_det: det_all_ran(),
             new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
         };
         let result = assemble_diff_result(
             "run-test",
@@ -918,6 +920,7 @@ mod tests {
             artifacts: empty_artifacts(),
             old_det: det_all_ran(),
             new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
         };
         let result = assemble_diff_result(
             "run-test",
@@ -978,6 +981,7 @@ mod tests {
             artifacts: empty_artifacts(),
             old_det: det_all_ran(),
             new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1033,6 +1037,7 @@ mod tests {
             artifacts: empty_artifacts(),
             old_det: det_all_ran(),
             new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1225,6 +1230,7 @@ mod tests {
             artifacts: empty_artifacts(),
             old_det: det_all_ran(),
             new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
         };
         let result = assemble_diff_result(
             "run-test",

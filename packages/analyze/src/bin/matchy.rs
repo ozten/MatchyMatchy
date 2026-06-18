@@ -692,7 +692,7 @@ fn run_analyze(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores) =
+    let (issues, scores, old_landmark_node_counts) =
         matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
@@ -717,6 +717,7 @@ fn run_analyze(
         artifacts,
         old_det: old_bundle.determinism,
         new_det: new_bundle.determinism,
+        old_landmark_node_counts,
     };
 
     let result = assemble_diff_result(
@@ -774,7 +775,7 @@ fn analyze_bundle_pair(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores) =
+    let (issues, scores, old_landmark_node_counts) =
         matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
@@ -796,6 +797,7 @@ fn analyze_bundle_pair(
         artifacts,
         old_det: old_bundle.determinism,
         new_det: new_bundle.determinism,
+        old_landmark_node_counts,
     })
 }
 
@@ -859,6 +861,7 @@ fn make_load_error_analysis(
         },
         old_det: make_default_determinism(),
         new_det: make_default_determinism(),
+        old_landmark_node_counts: std::collections::BTreeMap::new(),
     }
 }
 
