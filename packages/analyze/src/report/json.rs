@@ -413,7 +413,7 @@ fn compute_by_landmark(kept: &[&Issue]) -> BTreeMap<String, LandmarkScores> {
             .anchors
             .landmark
             .clone()
-            .unwrap_or_else(|| "(none)".to_string());
+            .unwrap_or_else(|| crate::contract::LANDMARK_NONE_KEY.to_string());
         groups.entry(key).or_default().push(issue);
     }
 
@@ -1641,6 +1641,77 @@ mod tests {
         assert!(
             !result.agent_summary.top_fixes.contains(&"ci_link_0000".to_string()),
             "error-severity member must NOT be dual-surfaced in top_fixes"
+        );
+        // The region id itself appears in top_fixes
+        assert!(
+            result.agent_summary.top_fixes.contains(&region.id),
+            "region id must appear in top_fixes"
+        );
+    }
+
+    /// R9b: a Warning-severity member of a saturated region is NOT dual-surfaced in top_fixes.
+    /// Only Critical severity triggers dual-surfacing.
+    #[test]
+    fn test_r9b_warning_member_not_dual_surfaced_in_top_fixes() {
+        let mut issues: Vec<Issue> = Vec::new();
+
+        // Saturate contentinfo: 12 MissingText / 15 old nodes = 0.8
+        for i in 0..12u32 {
+            issues.push(make_issue_typed(
+                &format!("ci_miss_{:04}", i),
+                IssueType::MissingText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("contentinfo"),
+                None,
+            ));
+        }
+        // One Warning-severity member: StyleChanged (must NOT be dual-surfaced)
+        issues.push(make_issue_typed(
+            "ci_warn_0000",
+            IssueType::StyleChanged,
+            IssueCategory::Style,
+            IssueSeverity::Warning,
+            Some("contentinfo"),
+            Some("color"),
+        ));
+
+        let mut old_counts = std::collections::BTreeMap::new();
+        old_counts.insert("contentinfo".to_string(), 15u32);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: old_counts,
+        };
+
+        let result = assemble_diff_result(
+            "run-r9b",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+        );
+
+        assert_eq!(result.regions.len(), 1, "contentinfo must saturate");
+        let region = &result.regions[0];
+
+        // warning member is in region.member_issue_ids
+        assert!(
+            region.member_issue_ids.contains(&"ci_warn_0000".to_string()),
+            "warning member must be in region.member_issue_ids"
+        );
+        // warning member is NOT dual-surfaced in top_fixes
+        assert!(
+            !result.agent_summary.top_fixes.contains(&"ci_warn_0000".to_string()),
+            "warning-severity member must NOT be dual-surfaced in top_fixes"
         );
         // The region id itself appears in top_fixes
         assert!(

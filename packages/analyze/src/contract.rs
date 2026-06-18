@@ -7,6 +7,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+/// Sentinel landmark key for nodes/issues with no ARIA landmark.
+pub const LANDMARK_NONE_KEY: &str = "(none)";
+
 // ---------------------------------------------------------------------------
 // CaptureBundle (consumed by analyze)
 // ---------------------------------------------------------------------------

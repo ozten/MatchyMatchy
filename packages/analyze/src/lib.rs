@@ -108,7 +108,7 @@ pub struct ViewportAnalysisParams<'a> {
 /// Iterates nodes, reads each node's `anchors.landmark` (it's `Option<String>`),
 /// maps `None` → the key `"(none)"`, and counts occurrences into a `BTreeMap<String, u32>`.
 /// Zero-count entries are never emitted. Consistent with `compute_by_landmark` in report/json.rs.
-pub fn old_landmark_node_counts(
+pub(crate) fn old_landmark_node_counts(
     nodes: &[contract::SemanticNode],
 ) -> std::collections::BTreeMap<String, u32> {
     let mut counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
@@ -117,7 +117,7 @@ pub fn old_landmark_node_counts(
             .anchors
             .landmark
             .clone()
-            .unwrap_or_else(|| "(none)".to_string());
+            .unwrap_or_else(|| crate::contract::LANDMARK_NONE_KEY.to_string());
         *counts.entry(key).or_insert(0) += 1;
     }
     counts

@@ -353,7 +353,7 @@ def evaluate_expected_issues(
     regions_spec = expected.get("regions")
     if isinstance(regions_spec, dict):
         regions: list[dict] = diff_result.get("regions", [])
-        issues_by_id: dict = {i.get("id"): i for i in issues}
+        issues_by_id = {i.get("id"): i for i in issues}
         for ri, rm in enumerate(regions_spec.get("required", [])):
             def _region_key_match(r: dict) -> bool:
                 if "landmark" in rm and r.get("landmark") != rm["landmark"]:
@@ -401,8 +401,8 @@ def evaluate_expected_issues(
     # --- maxTopLevelItems ---
     if "maxTopLevelItems" in expected:
         cap = expected["maxTopLevelItems"]
-        clusters: list[dict] = diff_result.get("clusters", [])
-        regions: list[dict] = diff_result.get("regions", [])
+        clusters = diff_result.get("clusters", [])
+        regions = diff_result.get("regions", [])
         claimed: set[str] = set()
         for r in regions:
             for mid in r.get("memberIssueIds", []):

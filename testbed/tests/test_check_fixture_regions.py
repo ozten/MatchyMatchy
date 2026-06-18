@@ -417,6 +417,27 @@ def test_regions_no_exactlyone_multiple_matches_ok():
 
 
 # ---------------------------------------------------------------------------
+# R14. maxTopLevelItems — exactly at cap PASSES (boundary: top_level == cap uses <=)
+# ---------------------------------------------------------------------------
+
+def test_max_top_level_items_exact_boundary_passes():
+    """top_level == cap must PASS because the check uses <=, not <."""
+    # 3 standalone issues, cap = 3 → top_level == cap → PASS
+    issue1 = _make_issue("issue_sa000000001", "style_changed", landmark="main")
+    issue2 = _make_issue("issue_sa000000002", "style_changed", landmark="main")
+    issue3 = _make_issue("issue_sa000000003", "style_changed", landmark="main")
+    dr = _diff_result(issues=[issue1, issue2, issue3])
+    exp = _expected(max_top=3)
+    all_pass, rows = evaluate_expected_issues(dr, exp)
+    result, detail = _find_row(rows, "maxTopLevelItems")
+    assert result == "PASS", (
+        f"Expected PASS when top_level == cap (boundary, <= not <), got {result}: {detail}"
+    )
+    assert all_pass, "all_pass should be True at exact boundary"
+    assert "<= cap 3" in detail, f"Detail should confirm <= cap: {detail}"
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------
 
@@ -439,6 +460,7 @@ if __name__ == "__main__":
         ("test_max_top_level_items_cluster_member_not_standalone", test_max_top_level_items_cluster_member_not_standalone),
         ("test_no_regions_spec_is_ignored", test_no_regions_spec_is_ignored),
         ("test_regions_no_exactlyone_multiple_matches_ok", test_regions_no_exactlyone_multiple_matches_ok),
+        ("test_max_top_level_items_exact_boundary_passes", test_max_top_level_items_exact_boundary_passes),
     ]
 
     for name, fn in tests:

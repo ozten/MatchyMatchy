@@ -657,7 +657,7 @@ mod tests {
         by_type.insert("changed_text".to_string(), 1u32);
 
         DiffResult {
-            schema_version: "1.1".to_string(),
+            schema_version: "1.2".to_string(),
             tool_version: "0.0.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "https://example.com/old".to_string(),

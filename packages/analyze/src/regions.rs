@@ -89,7 +89,7 @@ pub fn compute_regions(
     for issue in kept {
         if let Some(lm) = &issue.locator.anchors.landmark {
             // Defensively skip the literal "(none)" key too.
-            if lm == "(none)" {
+            if lm == crate::contract::LANDMARK_NONE_KEY {
                 continue;
             }
             groups.entry(lm.clone()).or_default().push(issue);
@@ -160,8 +160,7 @@ pub fn compute_regions(
     // Sort: saturation DESC, then id ASC (total order for byte-stability).
     regions.sort_by(|a, b| {
         b.saturation
-            .partial_cmp(&a.saturation)
-            .unwrap_or(std::cmp::Ordering::Equal)
+            .total_cmp(&a.saturation)
             .then_with(|| a.id.cmp(&b.id))
     });
 
@@ -429,6 +428,34 @@ mod tests {
         assert!(
             regions.is_empty(),
             "ChangedLinkTarget must not count as structural; no region should be emitted"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Exclusion: ChangedLinkText does not count toward structural_count
+    // -----------------------------------------------------------------------
+
+    /// ChangedLinkText issues anchored to a landmark must NOT count toward structural_count.
+    #[test]
+    fn test_exclusion_changed_link_text_not_structural() {
+        // 10 old nodes + 8 ChangedLinkText → structural_count = 0 → saturation = 0 → no region
+        let kept: Vec<Issue> = (0..8u32)
+            .map(|i| {
+                make_issue(
+                    &format!("nav_clt_{:04}", i),
+                    IssueType::ChangedLinkText,
+                    IssueSeverity::Warning,
+                    Some("navigation"),
+                )
+            })
+            .collect();
+        let mut counts: BTreeMap<String, u32> = BTreeMap::new();
+        counts.insert("navigation".to_string(), 10);
+
+        let regions = compute_regions(&kept, &counts);
+        assert!(
+            regions.is_empty(),
+            "ChangedLinkText must not count as structural; no region should be emitted"
         );
     }
 
