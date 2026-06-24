@@ -32,7 +32,7 @@ variants — 14 real regressions plus 2 render-identical controls:
 | Tool | Mechanism | Regressions detected | False positives | Also detects URL/transport defects |
 |---|---|:--:|:--:|:--:|
 | [SiteDiff](https://github.com/evolvingweb/sitediff) | HTTP fetch → HTML-text diff | 8 / 14 | 1 / 2 | 0 / 5 |
-| [Wraith](https://github.com/bbc-news/wraith) | screenshot → pixel diff | 11 / 14 | 0 / 2 | 0 / 5 |
+| [Wraith](https://github.com/bbc/wraith) | screenshot → pixel diff | 11 / 14 | 0 / 2 | 0 / 5 |
 | **matchy** | browser render → semantic diff | **14 / 14** | **0 / 2** | **5 / 5** |
 
 SiteDiff is blind to anything that doesn't change the HTML source (CSS-only regressions, a deleted
