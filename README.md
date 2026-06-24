@@ -23,6 +23,29 @@ matchy is **pure deterministic code end to end**. There is no AI/LLM layer, no h
 | Locale hygiene | Wrong-case locale segments (`es-mx`), underscore separators (`es_MX`), unknown locale codes |
 | Accessibility | New axe-core violations relative to the old page |
 
+## How matchy compares
+
+matchy was benchmarked head-to-head against the two established old↔new page-comparison tools, over a
+shared corpus of 21 single-change page pairs (this repo's own testbed). Across the 16 same-path
+variants — 14 real regressions plus 2 render-identical controls:
+
+| Tool | Mechanism | Regressions detected | False positives | Also detects URL/transport defects |
+|---|---|:--:|:--:|:--:|
+| [SiteDiff](https://github.com/evolvingweb/sitediff) | HTTP fetch → HTML-text diff | 8 / 14 | 1 / 2 | 0 / 5 |
+| [Wraith](https://github.com/bbc-news/wraith) | screenshot → pixel diff | 11 / 14 | 0 / 2 | 0 / 5 |
+| **matchy** | browser render → semantic diff | **14 / 14** | **0 / 2** | **5 / 5** |
+
+SiteDiff is blind to anything that doesn't change the HTML source (CSS-only regressions, a deleted
+image whose `src` is unchanged) and false-positives on render-equivalent DOM rewrites; Wraith is blind
+to anything invisible (a broken link that still renders, a console error, a missing `lang`); both miss
+the entire URL/transport class. The benchmarks are written to be fair — each report has a "where the
+other tool is better" section (SiteDiff's crawler, Wraith's pixel-truth gallery).
+
+**Full reports:** [How matchy compares — overview](docs/benchmarks/README.md) ·
+[matchy vs SiteDiff](docs/benchmarks/matchy-vs-sitediff.md) ·
+[matchy vs Wraith](docs/benchmarks/matchy-vs-wraith.md) ·
+[capability matrix](docs/benchmarks/capability-matrix.md)
+
 ## Installation
 
 ```bash
