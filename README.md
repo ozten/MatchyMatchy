@@ -62,6 +62,27 @@ The installer delivers two artifacts: the `matchy` binary and a bundled `capture
 
 Run `matchy doctor` after installing — it checks every requirement and prints the exact command to fix anything missing.
 
+### Where `capture.cjs` goes
+
+`matchy` runs the capture layer by shelling out to `capture.cjs`, so it has to locate that file at runtime. **The install script does this for you** — it places `capture.cjs` directly beside the `matchy` binary (both land in `/usr/local/bin`, or `~/.local/bin` when that isn't writable), which is the first location `matchy` looks. If you install manually or relocate the binary, keep the two together or point `matchy` at the file explicitly.
+
+Resolution order, first match wins:
+
+| Order | Location | When it applies |
+|---|---|---|
+| 1 | `$MATCHY_CAPTURE_PATH` | Set to an absolute path to keep `capture.cjs` anywhere you like (override / escape hatch) |
+| 2 | Sibling of the binary — `<dir-of-matchy>/capture.cjs` | The default; what the install script sets up |
+| 3 | `<ancestor>/packages/capture/dist/capture.cjs`, walking up from the binary | Running a binary built inside a repo checkout |
+| 4 | `<cwd>/packages/capture/dist/capture.cjs` | Running from inside a repo checkout |
+
+In short:
+
+- **Installed from a release** → leave `capture.cjs` next to `matchy` — the install script already does this.
+- **Custom location** → `export MATCHY_CAPTURE_PATH=/path/to/capture.cjs`.
+- **Running from a repo checkout** → nothing to place; it resolves to `packages/capture/dist/capture.cjs`.
+
+`matchy doctor` confirms the file is resolvable and prints the fix if it isn't.
+
 ## Usage
 
 ```bash
