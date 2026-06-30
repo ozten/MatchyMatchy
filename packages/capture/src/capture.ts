@@ -70,6 +70,7 @@ async function runDoctor(): Promise<void> {
   let launchSucceeded = false;
   let chromiumVersion = "";
   let browser: Browser | null = null;
+  let launchError: string | null = null;
 
   // Get the path Playwright would use for chromium, even before launching.
   let executablePath = "";
@@ -86,6 +87,7 @@ async function runDoctor(): Promise<void> {
     chromiumVersion = browser.version();
     launchSucceeded = true;
   } catch (err) {
+    launchError = String(err);
     log(`[doctor] Chromium launch failed: ${err}`);
   } finally {
     if (browser) {
@@ -104,6 +106,7 @@ async function runDoctor(): Promise<void> {
     version: chromiumVersion,
     executablePath,
     exists: executableExists,
+    launchError,
   };
 
   if (chromiumOk) {

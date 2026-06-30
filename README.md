@@ -57,8 +57,24 @@ The installer delivers two artifacts: the `matchy` binary and a bundled `capture
 | Requirement | Version |
 |---|---|
 | Node.js | ≥ 20 |
-| Playwright | the version pinned in the release; install **globally** (`npm install -g playwright`) so `capture.cjs` can resolve it |
-| Chromium | the build matching that Playwright version (`npx playwright install chromium`) |
+| Playwright | **exactly `1.60.0`** — install **globally** and pinned so `capture.cjs` can resolve it: `npm install -g playwright@1.60.0` |
+| Chromium | the build that Playwright `1.60.0` pins (currently build `1223`) — pulled automatically by `npx playwright install chromium` |
+| System libraries | the shared libs Chromium links against (`libatk-1.0.so.0`, `libnss3`, `libgbm`, …) — **without these the browser downloads but won't launch** |
+
+Pin the Playwright version exactly. The Chromium build is **not** chosen by matchy — it is derived from whatever Playwright version is installed, so a mismatched Playwright pulls a mismatched Chromium and `matchy doctor` will fail. Install pinned, then let Playwright fetch its matching browser, then install the system libraries it needs to launch:
+
+```bash
+npm install -g playwright@1.60.0
+npx playwright install chromium
+
+# system libraries — pick the line for your distro:
+sudo npx playwright install-deps chromium        # Debian / Ubuntu
+sudo dnf install -y nss nspr atk at-spi2-atk at-spi2-core cups-libs \
+  libdrm libxkbcommon libXcomposite libXdamage libXext libXfixes \
+  libXrandr libgbm mesa-libgbm libX11 libxcb pango cairo alsa-lib   # RHEL / Amazon Linux
+```
+
+> **Heads up — the most common failure.** If `matchy doctor` reports *"Chromium build 1223 not found"* but the build is clearly downloaded, the real cause is almost always **missing system libraries**: doctor verifies Chromium by *launching* it, and a launch failure surfaces as "not found." Confirm with `ldd ~/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome | grep "not found"` (empty output = all libs present). `playwright install-deps` only supports Debian/Ubuntu; on Amazon Linux / RHEL install the equivalents with `dnf` as above, then re-run for any straggler with `sudo dnf provides '*/libNAME.so.0'`.
 
 Run `matchy doctor` after installing — it checks every requirement and prints the exact command to fix anything missing.
 
@@ -217,8 +233,9 @@ The `matchy` binary delegates page capture to `capture.cjs` (Node.js + Playwrigh
 | Requirement | Version | Notes |
 |---|---|---|
 | Node.js | ≥ 20 (tested on 24.x) | runs `capture.cjs` |
-| Playwright | pinned exactly 1.60.0 | bundled into `capture.cjs`; version recorded in every capture bundle |
-| Chromium | build matching pinned Playwright | install with `npx playwright install chromium` |
+| Playwright | pinned exactly 1.60.0 | bundled into `capture.cjs`; version recorded in every capture bundle. Install globally + pinned: `npm install -g playwright@1.60.0` |
+| Chromium | build matching pinned Playwright (build `1223`) | derived from the Playwright version, not chosen by matchy; install with `npx playwright install chromium` |
+| System libraries | Chromium's shared-lib deps (`libatk-1.0.so.0`, `libnss3`, `libgbm`, …) | required to *launch* Chromium. Debian/Ubuntu: `sudo npx playwright install-deps chromium`. Amazon Linux/RHEL: `sudo dnf install` the equivalents (see [Install](#install)). A launch failure here is reported by doctor as "build not found." |
 | Rust | ≥ 1.85 (build only) | not required to run a pre-built binary |
 
 Run `matchy doctor` after installing — it checks each requirement and prints the exact command to fix anything missing.

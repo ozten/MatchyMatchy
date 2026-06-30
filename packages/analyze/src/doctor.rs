@@ -149,6 +149,7 @@ struct DoctorResponse {
     chromium_executable_path: Option<String>, // new: may be absent in old builds
     chromium_exists: Option<bool>,            // new: may be absent in old builds
     browsers_path: Option<String>,            // new: may be absent in old builds
+    chromium_launch_error: Option<String>,    // new: may be absent in old builds
 }
 
 fn parse_doctor_response(value: &serde_json::Value) -> DoctorResponse {
@@ -188,6 +189,11 @@ fn parse_doctor_response(value: &serde_json::Value) -> DoctorResponse {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    let chromium_launch_error = chromium
+        .and_then(|c| c.get("launchError"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
     DoctorResponse {
         playwright_ok,
         playwright_version,
@@ -196,6 +202,7 @@ fn parse_doctor_response(value: &serde_json::Value) -> DoctorResponse {
         chromium_executable_path,
         chromium_exists,
         browsers_path,
+        chromium_launch_error,
     }
 }
 
@@ -305,71 +312,8 @@ fn check_capture_doctor(capture_path: &str) -> Vec<Check> {
 
     let resp = parse_doctor_response(&value);
 
-    // Determine final chromium ok:
-    // If exists field is present, ok requires both raw ok AND exists==true.
-    // If exists is absent (old build), fall back to raw ok.
-    let chromium_ok = match resp.chromium_exists {
-        Some(exists) => resp.chromium_ok_raw && exists,
-        None => resp.chromium_ok_raw,
-    };
-
-    // Build chromium detail and remediation
-    let browsers_path_display = resp
-        .browsers_path
-        .as_deref()
-        .unwrap_or("(not set — Playwright is using ~/.cache/ms-playwright)");
-
-    let chromium_detail = if chromium_ok {
-        format!(
-            "build {}  browsers: {}",
-            resp.chromium_version, browsers_path_display
-        )
-    } else {
-        format!("build {}  (FAIL)", resp.chromium_version)
-    };
-
-    let chromium_remediation = if chromium_ok {
-        None
-    } else {
-        // Construct targeted remedy
-        let executable_line = resp
-            .chromium_executable_path
-            .as_deref()
-            .map(|p| format!("  Expected executable: {}", p))
-            .unwrap_or_default();
-
-        // Try to derive repo root from capture_path (resolve_capture_script recorded it,
-        // but we can also find it by walking ancestors of capture_path).
-        let repo_root = find_repo_root_from_capture(capture_path);
-
-        let remedy_block = match repo_root.as_deref() {
-            Some(root) => {
-                // Build the standard install command
-                let rev = resp
-                    .chromium_executable_path
-                    .as_deref()
-                    .and_then(extract_chromium_rev)
-                    .unwrap_or_else(|| "?".to_string());
-                format!(
-                    "Chromium build {} not found.\n  Current browsers path: {}\n{}\n  Install:\n    cd {}/packages/capture && PLAYWRIGHT_BROWSERS_PATH={}/.pw-browsers npx playwright install chromium\n  Then run matchy with:\n    export PLAYWRIGHT_BROWSERS_PATH={}/.pw-browsers",
-                    rev,
-                    browsers_path_display,
-                    executable_line,
-                    root.display(),
-                    root.display(),
-                    root.display()
-                )
-            }
-            None => {
-                let missing_path = resp
-                    .chromium_executable_path
-                    .as_deref()
-                    .unwrap_or("<unknown>");
-                format_browser_remedy(missing_path, None)
-            }
-        };
-        Some(remedy_block)
-    };
+    let (chromium_ok, chromium_detail, chromium_remediation) =
+        build_chromium_status(&resp, capture_path);
 
     vec![
         Check {
@@ -389,6 +333,117 @@ fn check_capture_doctor(capture_path: &str) -> Vec<Check> {
             remediation: chromium_remediation,
         },
     ]
+}
+
+/// Returns (final_chromium_ok, detail, remediation) for the chromium check.
+fn build_chromium_status(
+    resp: &DoctorResponse,
+    capture_path: &str,
+) -> (bool, String, Option<String>) {
+    // Determine final chromium ok:
+    // If exists field is present, ok requires both raw ok AND exists==true.
+    // If exists is absent (old build), fall back to raw ok.
+    let chromium_ok = match resp.chromium_exists {
+        Some(exists) => resp.chromium_ok_raw && exists,
+        None => resp.chromium_ok_raw,
+    };
+
+    // Build chromium detail and remediation
+    let browsers_path_display = resp
+        .browsers_path
+        .as_deref()
+        .unwrap_or("(not set — Playwright is using ~/.cache/ms-playwright)");
+
+    if chromium_ok {
+        let detail = format!(
+            "build {}  browsers: {}",
+            resp.chromium_version, browsers_path_display
+        );
+        return (true, detail, None);
+    }
+
+    // Not OK: distinguish "installed but won't launch" from "not installed".
+    let launch_failed = resp.chromium_exists == Some(true) && !resp.chromium_ok_raw;
+
+    if launch_failed {
+        let rev = resp
+            .chromium_executable_path
+            .as_deref()
+            .and_then(extract_chromium_rev)
+            .unwrap_or_else(|| "?".to_string());
+
+        let detail = format!("build {} present but won't launch (FAIL)", rev);
+
+        let executable_line = resp
+            .chromium_executable_path
+            .as_deref()
+            .map(|p| format!("  Executable: {}\n", p))
+            .unwrap_or_default();
+
+        let launch_error_line = resp
+            .chromium_launch_error
+            .as_deref()
+            .map(|e| format!("  Launch error: {}\n", e))
+            .unwrap_or_default();
+
+        let ldd_target = resp
+            .chromium_executable_path
+            .as_deref()
+            .unwrap_or("<unknown>");
+
+        let remedy = format!(
+            "Chromium build {rev} is installed but failed to LAUNCH — the host is missing system libraries Chromium needs (e.g. libatk-1.0.so.0, libnss3, libgbm). This is not a re-download problem.\n{executable_line}{launch_error_line}  Diagnose (lists missing libs; empty = all present):\n    ldd {ldd_target} | grep \"not found\"\n  Fix — Debian/Ubuntu:\n    sudo npx playwright install-deps chromium\n  Fix — Amazon Linux / RHEL:\n    sudo dnf install -y nss nspr atk at-spi2-atk at-spi2-core cups-libs libdrm libxkbcommon libXcomposite libXdamage libXext libXfixes libXrandr libgbm mesa-libgbm libX11 libxcb pango cairo alsa-lib",
+            rev = rev,
+            executable_line = executable_line,
+            launch_error_line = launch_error_line,
+            ldd_target = ldd_target,
+        );
+
+        return (false, detail, Some(remedy));
+    }
+
+    // Not installed (exists == Some(false), or exists == None && !ok_raw for old builds).
+    let detail = format!("build {}  (FAIL)", resp.chromium_version);
+
+    // Construct targeted remedy
+    let executable_line = resp
+        .chromium_executable_path
+        .as_deref()
+        .map(|p| format!("  Expected executable: {}", p))
+        .unwrap_or_default();
+
+    // Try to derive repo root from capture_path (resolve_capture_script recorded it,
+    // but we can also find it by walking ancestors of capture_path).
+    let repo_root = find_repo_root_from_capture(capture_path);
+
+    let remedy_block = match repo_root.as_deref() {
+        Some(root) => {
+            // Build the standard install command
+            let rev = resp
+                .chromium_executable_path
+                .as_deref()
+                .and_then(extract_chromium_rev)
+                .unwrap_or_else(|| "?".to_string());
+            format!(
+                "Chromium build {} not found.\n  Current browsers path: {}\n{}\n  Install:\n    cd {}/packages/capture && PLAYWRIGHT_BROWSERS_PATH={}/.pw-browsers npx playwright install chromium\n  Then run matchy with:\n    export PLAYWRIGHT_BROWSERS_PATH={}/.pw-browsers",
+                rev,
+                browsers_path_display,
+                executable_line,
+                root.display(),
+                root.display(),
+                root.display()
+            )
+        }
+        None => {
+            let missing_path = resp
+                .chromium_executable_path
+                .as_deref()
+                .unwrap_or("<unknown>");
+            format_browser_remedy(missing_path, None)
+        }
+    };
+
+    (false, detail, Some(remedy_block))
 }
 
 /// Walk ancestors of `capture_path` to find the repo root
@@ -489,5 +544,143 @@ mod tests {
         let resp = parse_doctor_response(&value);
         // null browsersPath should be treated as absent
         assert!(resp.browsers_path.is_none());
+    }
+
+    #[test]
+    fn parse_doctor_response_launch_error_present_and_absent() {
+        let with_error = json!({
+            "ok": false,
+            "node": "v24.0.0",
+            "playwright": "1.60.0",
+            "chromium": {
+                "ok": false,
+                "version": "",
+                "executablePath": "/repo/.pw-browsers/chromium-1223/chrome-linux64/chrome",
+                "exists": true,
+                "launchError": "libatk-1.0.so.0: cannot open shared object file"
+            },
+            "browsersPath": "/repo/.pw-browsers"
+        });
+        let resp = parse_doctor_response(&with_error);
+        assert_eq!(
+            resp.chromium_launch_error.as_deref(),
+            Some("libatk-1.0.so.0: cannot open shared object file")
+        );
+
+        // Old build that omits launchError entirely should tolerate absence -> None
+        let without_error = json!({
+            "ok": true,
+            "node": "v24.0.0",
+            "playwright": "1.60.0",
+            "chromium": { "ok": true, "version": "chromium-1223" }
+        });
+        let resp2 = parse_doctor_response(&without_error);
+        assert!(resp2.chromium_launch_error.is_none());
+    }
+
+    fn doctor_response_base() -> DoctorResponse {
+        DoctorResponse {
+            playwright_ok: true,
+            playwright_version: "1.60.0".to_string(),
+            chromium_ok_raw: false,
+            chromium_version: String::new(),
+            chromium_executable_path: None,
+            chromium_exists: None,
+            browsers_path: None,
+            chromium_launch_error: None,
+        }
+    }
+
+    const TEST_CAPTURE_PATH: &str = "/repo/packages/capture/dist/capture.cjs";
+
+    #[test]
+    fn build_chromium_status_ok() {
+        let resp = DoctorResponse {
+            chromium_ok_raw: true,
+            chromium_exists: Some(true),
+            chromium_version: "chromium-1223".to_string(),
+            ..doctor_response_base()
+        };
+        let (ok, _detail, remedy) = build_chromium_status(&resp, TEST_CAPTURE_PATH);
+        assert!(ok);
+        assert!(remedy.is_none());
+    }
+
+    #[test]
+    fn build_chromium_status_not_installed_new_build() {
+        let resp = DoctorResponse {
+            chromium_ok_raw: false,
+            chromium_exists: Some(false),
+            chromium_version: "chromium-1223".to_string(),
+            ..doctor_response_base()
+        };
+        let (ok, _detail, remedy) = build_chromium_status(&resp, TEST_CAPTURE_PATH);
+        assert!(!ok);
+        let remedy = remedy.expect("expected a remedy");
+        assert!(remedy.contains("not found"));
+        assert!(remedy.contains("npx playwright install chromium"));
+        assert!(!remedy.contains("install-deps"));
+    }
+
+    #[test]
+    fn build_chromium_status_not_installed_old_build_back_compat() {
+        let resp = DoctorResponse {
+            chromium_ok_raw: false,
+            chromium_exists: None,
+            chromium_version: "chromium-1223".to_string(),
+            ..doctor_response_base()
+        };
+        let (ok, _detail, remedy) = build_chromium_status(&resp, TEST_CAPTURE_PATH);
+        assert!(!ok);
+        let remedy = remedy.expect("expected a remedy");
+        assert!(remedy.contains("not found"));
+        assert!(!remedy.contains("failed to LAUNCH"));
+    }
+
+    #[test]
+    fn build_chromium_status_launch_failed_no_error_string() {
+        let resp = DoctorResponse {
+            chromium_ok_raw: false,
+            chromium_exists: Some(true),
+            chromium_launch_error: None,
+            chromium_executable_path: Some(
+                "/repo/.pw-browsers/chromium-1223/chrome-linux64/chrome".to_string(),
+            ),
+            ..doctor_response_base()
+        };
+        let (ok, _detail, remedy) = build_chromium_status(&resp, TEST_CAPTURE_PATH);
+        assert!(!ok);
+        let remedy = remedy.expect("expected a remedy");
+        assert!(remedy.contains("failed to LAUNCH"));
+        assert!(remedy.contains("install-deps"));
+        assert!(remedy.contains("dnf install"));
+        assert!(remedy.contains("ldd"));
+        assert!(!remedy.contains("npx playwright install chromium"));
+        assert!(!remedy.contains("Launch error:"));
+    }
+
+    #[test]
+    fn build_chromium_status_launch_failed_with_error_string() {
+        let resp = DoctorResponse {
+            chromium_ok_raw: false,
+            chromium_exists: Some(true),
+            chromium_launch_error: Some(
+                "libatk-1.0.so.0: cannot open shared object file".to_string(),
+            ),
+            chromium_executable_path: Some(
+                "/repo/.pw-browsers/chromium-1223/chrome-linux64/chrome".to_string(),
+            ),
+            ..doctor_response_base()
+        };
+        let (ok, _detail, remedy) = build_chromium_status(&resp, TEST_CAPTURE_PATH);
+        assert!(!ok);
+        let remedy = remedy.expect("expected a remedy");
+        assert!(remedy.contains("failed to LAUNCH"));
+        assert!(remedy.contains("install-deps"));
+        assert!(remedy.contains("dnf install"));
+        assert!(remedy.contains("ldd"));
+        assert!(!remedy.contains("npx playwright install chromium"));
+        assert!(remedy.contains("libatk-1.0.so.0: cannot open shared object file"));
+        assert!(remedy.contains("Launch error:"));
     }
 }
