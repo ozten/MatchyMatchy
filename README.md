@@ -62,6 +62,23 @@ The installer delivers two artifacts: the `matchy` binary and a bundled `capture
 
 Run `matchy doctor` after installing — it checks every requirement and prints the exact command to fix anything missing.
 
+### Build from source
+
+Prefer to build it yourself? Clone the repo and run `make build`. You need a Rust toolchain (≥ 1.85) and Node.js (≥ 20); the build compiles the `matchy` binary and bundles the capture layer.
+
+```bash
+git clone https://github.com/ozten/MatchyMatchy && cd MatchyMatchy
+source "$HOME/.cargo/env"   # if cargo isn't already on your PATH
+make build                  # cargo build --release + packages/capture bundle
+```
+
+This produces:
+
+- the release binary at `target/release/matchy`
+- the bundled `capture.cjs` at `packages/capture/dist/capture.cjs`
+
+`matchy` shells out to `capture.cjs` at runtime, so keep the two together when you install them — copy both into the same directory (e.g. `~/.local/bin`), exactly as the install script does. To build only the binary, run `cargo build --release` (skips the capture bundle). Then run `matchy doctor` to confirm Node, Playwright, and Chromium are present.
+
 ### Where `capture.cjs` goes
 
 `matchy` runs the capture layer by shelling out to `capture.cjs`, so it has to locate that file at runtime. **The install script does this for you** — it places `capture.cjs` directly beside the `matchy` binary (both land in `/usr/local/bin`, or `~/.local/bin` when that isn't writable), which is the first location `matchy` looks. If you install manually or relocate the binary, keep the two together or point `matchy` at the file explicitly.
