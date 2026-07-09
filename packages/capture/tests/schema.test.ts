@@ -1,5 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { CaptureBundleSchema } from "../src/schema.js";
+import { CaptureBundleSchema, CaptureConfigSchema } from "../src/schema.js";
+
+/**
+ * A minimal known-good CaptureConfig sample (capture mode) for testing schema
+ * validation. viewport/stabilization/etc. are omitted since they have defaults.
+ */
+const MINIMAL_CAPTURE_CONFIG = {
+  mode: "capture" as const,
+  url: "http://localhost:3000/",
+  outDir: "/tmp/matchy-out",
+  prefix: "old" as const,
+};
+
+/**
+ * The exact prefix literals the Rust runner emits via build_capture_config
+ * call sites (packages/analyze/src/bin/matchy.rs): run_full emits "old"/"new",
+ * run_self_check emits "old-selfcheck". If the Rust runner grows a new prefix,
+ * this list and the CaptureConfigSchema prefix enum must be updated together.
+ */
+const EXPECTED_RUST_PREFIXES = ["old", "new", "old-selfcheck"] as const;
 
 /**
  * A minimal known-good CaptureBundle sample for testing schema validation.
@@ -816,5 +835,46 @@ describe("CaptureBundleSchema", () => {
     };
     const result = CaptureBundleSchema.safeParse(bundle);
     expect(result.success).toBe(false);
+  });
+});
+
+describe("CaptureConfigSchema", () => {
+  it("accepts a minimal capture config for each prefix the Rust runner emits", () => {
+    for (const prefix of EXPECTED_RUST_PREFIXES) {
+      const result = CaptureConfigSchema.safeParse({ ...MINIMAL_CAPTURE_CONFIG, prefix });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it("accepts a config with prefix omitted (doctor mode sends none)", () => {
+    const result = CaptureConfigSchema.safeParse({ mode: "doctor" as const });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown prefix", () => {
+    const result = CaptureConfigSchema.safeParse({ ...MINIMAL_CAPTURE_CONFIG, prefix: "foo" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["prefix"]);
+    }
+  });
+
+  it("rejects a near-miss prefix", () => {
+    const result = CaptureConfigSchema.safeParse({
+      ...MINIMAL_CAPTURE_CONFIG,
+      prefix: "old-selfcheck2",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["prefix"]);
+    }
+  });
+
+  it("rejects a non-string prefix", () => {
+    const result = CaptureConfigSchema.safeParse({ ...MINIMAL_CAPTURE_CONFIG, prefix: 42 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["prefix"]);
+    }
   });
 });

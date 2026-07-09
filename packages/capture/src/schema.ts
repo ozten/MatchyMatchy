@@ -31,7 +31,10 @@ export const CaptureConfigSchema = z.object({
   mode: z.enum(["capture", "doctor"]),
   url: z.string().optional(),
   outDir: z.string().optional(),
-  prefix: z.enum(["old", "new"]).optional(),
+  // Vocabulary emitted by the Rust runner's build_capture_config call sites
+  // (packages/analyze/src/bin/matchy.rs, run_self_check): "old", "new", "old-selfcheck".
+  // New Rust-side prefixes require extending this enum + the vocabulary test in tests/schema.test.ts.
+  prefix: z.enum(["old", "new", "old-selfcheck"]).optional(),
   viewport: ViewportConfigSchema.default({
     name: "desktop",
     width: 1440,
