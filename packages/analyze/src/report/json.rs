@@ -360,7 +360,9 @@ pub fn assemble_diff_result(
     //   2. capture_integrity_delta (old then new)
     //   3. capture_retried_without_time_freeze (old then new)
     //   4. baseline_stale_ids
-    //   5. extra_warnings (appended last, e.g. volatile_capture from --self-check)
+    //   5. extra_warnings (appended last, in the fixed relative order the caller
+    //      built them in — currently `--self-check`'s `run_self_check` produces, at
+    //      most, `volatile_capture` followed by `self_check_failed`)
     // ------------------------------------------------------------------
     let mut warnings = build_warnings(&old_det, &new_det, baseline, &suppressed.ids);
     warnings.extend(extra_warnings);
@@ -1250,11 +1252,21 @@ mod tests {
     /// extra_warnings are appended after all generated warnings.
     #[test]
     fn test_extra_warnings_appended_last() {
-        let extra = vec![RunWarning {
-            code: "volatile_capture".to_string(),
-            message: "self-check found issues".to_string(),
-            context: None,
-        }];
+        // Two extra warnings, in the fixed relative order run_self_check builds them:
+        // volatile_capture (if any) before self_check_failed (if any).
+        let extra = vec![
+            RunWarning {
+                code: "volatile_capture".to_string(),
+                message: "self-check found issues".to_string(),
+                context: None,
+            },
+            RunWarning {
+                code: "self_check_failed".to_string(),
+                message: "self-check probe failed for 1 of 2 viewport(s): mobile (analysis)"
+                    .to_string(),
+                context: None,
+            },
+        ];
         let vp = ViewportAnalysis {
             name: "desktop".to_string(),
             issues: vec![],
@@ -1274,13 +1286,21 @@ mod tests {
             &ScopeOptions::default(),
             extra,
         );
-        // The last warning should be volatile_capture.
-        let last = result.warnings.last();
-        assert!(last.is_some(), "warnings must not be empty");
+        // Both extra warnings must be appended after any generated warnings, and in
+        // the relative order they were passed in: volatile_capture then
+        // self_check_failed.
+        assert!(
+            result.warnings.len() >= 2,
+            "warnings must contain both extra warnings"
+        );
+        let last_two = &result.warnings[result.warnings.len() - 2..];
         assert_eq!(
-            last.unwrap().code,
-            "volatile_capture",
-            "volatile_capture must be last"
+            last_two[0].code, "volatile_capture",
+            "volatile_capture must precede self_check_failed"
+        );
+        assert_eq!(
+            last_two[1].code, "self_check_failed",
+            "self_check_failed must be last"
         );
     }
 

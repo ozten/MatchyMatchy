@@ -529,6 +529,13 @@ fn run_self_check(
     run_id: &str,
 ) -> anyhow::Result<Vec<matchy_analyze::contract::RunWarning>> {
     use matchy_analyze::contract::RunWarning;
+    use std::collections::BTreeMap;
+
+    // Per-viewport failures, keyed by viewport name, valued by a closed-vocabulary
+    // stage: "capture" | "missing_old_bundle" | "analysis". Raw error text (anyhow
+    // chains, paths, exit statuses) stays on stderr only — never folded into the
+    // warning, to keep the warning byte-deterministic across machines/runs.
+    let mut failed: BTreeMap<String, &'static str> = BTreeMap::new();
 
     let mut sc_viewport_analyses: Vec<ViewportAnalysis> = Vec::new();
 
@@ -556,6 +563,7 @@ fn run_self_check(
                     "[self-check] second capture of old URL failed for viewport '{}': {}",
                     vp.name, e
                 );
+                failed.insert(vp.name.clone(), "capture");
                 continue;
             }
         };
@@ -568,6 +576,7 @@ fn run_self_check(
                 old_bundle_path.display(),
                 vp.name
             );
+            failed.insert(vp.name.clone(), "missing_old_bundle");
             continue;
         }
 
@@ -585,12 +594,19 @@ fn run_self_check(
                     "[self-check] analysis failed for viewport '{}': {}",
                     vp.name, e
                 );
+                failed.insert(vp.name.clone(), "analysis");
             }
         }
     }
 
     if sc_viewport_analyses.is_empty() {
-        return Ok(vec![]);
+        // Every viewport failed: no self-check.json can be assembled/written.
+        // Report a warning instead of the previous silent Ok(vec![]).
+        let mut warnings = Vec::new();
+        if let Some(w) = build_self_check_failed_warning(&failed, false, viewports.len()) {
+            warnings.push(w);
+        }
+        return Ok(warnings);
     }
 
     let sc_result = assemble_diff_result(
@@ -606,36 +622,92 @@ fn run_self_check(
 
     // Write self-check.json.
     let sc_path = out_path.join("self-check.json");
+    let mut write_failed = false;
     if let Err(e) = std::fs::write(&sc_path, sc_result.to_json()?) {
         eprintln!("[self-check] failed to write self-check.json: {}", e);
+        write_failed = true;
     }
+
+    let mut warnings: Vec<RunWarning> = Vec::new();
 
     let issue_count = sc_result.issues.len() as u32;
-    if issue_count == 0 {
-        return Ok(vec![]);
+    if issue_count > 0 {
+        // Build byType BTreeMap (deterministic).
+        let mut by_type: BTreeMap<String, u32> = BTreeMap::new();
+        for issue in &sc_result.issues {
+            *by_type
+                .entry(issue.issue_type.as_str().to_string())
+                .or_insert(0) += 1;
+        }
+
+        warnings.push(RunWarning {
+            code: "volatile_capture".to_string(),
+            message: format!(
+                "self-check: {} issue(s) appeared when diffing two captures of the old page against each other; treat similar issues in the main result with suspicion (capture volatility, e.g. rotating content)",
+                issue_count
+            ),
+            context: Some(serde_json::json!({
+                "issueCount": issue_count,
+                "byType": by_type,
+            })),
+        });
     }
 
-    // Build byType BTreeMap (deterministic).
-    let mut by_type: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
-    for issue in &sc_result.issues {
-        *by_type
-            .entry(issue.issue_type.as_str().to_string())
-            .or_insert(0) += 1;
+    if let Some(w) = build_self_check_failed_warning(&failed, write_failed, viewports.len()) {
+        warnings.push(w);
     }
 
-    let warning = RunWarning {
-        code: "volatile_capture".to_string(),
-        message: format!(
-            "self-check: {} issue(s) appeared when diffing two captures of the old page against each other; treat similar issues in the main result with suspicion (capture volatility, e.g. rotating content)",
-            issue_count
-        ),
-        context: Some(serde_json::json!({
-            "issueCount": issue_count,
-            "byType": by_type,
-        })),
+    Ok(warnings)
+}
+
+/// Build the `self_check_failed` `RunWarning` (if any) from the per-viewport failure
+/// map and the self-check.json write outcome. Pure and deterministic: the message and
+/// context are built ONLY from viewport names (already-owned `String`s) and the closed
+/// failure-stage vocabulary — never from raw error text — so two calls with the same
+/// inputs always serialize identically. `failed` iteration order is the `BTreeMap`'s
+/// sorted order.
+///
+/// Returns `None` when there is nothing to report (no failed viewports and the write,
+/// if attempted, succeeded).
+fn build_self_check_failed_warning(
+    failed: &std::collections::BTreeMap<String, &'static str>,
+    write_failed: bool,
+    total_viewports: usize,
+) -> Option<matchy_analyze::contract::RunWarning> {
+    use matchy_analyze::contract::RunWarning;
+
+    if failed.is_empty() && !write_failed {
+        return None;
+    }
+
+    let message = if failed.is_empty() {
+        // All viewports succeeded; only the self-check.json write failed.
+        "self-check probe ran but self-check.json could not be written".to_string()
+    } else {
+        let details: Vec<String> = failed
+            .iter()
+            .map(|(name, stage)| format!("{} ({})", name, stage))
+            .collect();
+        let mut msg = format!(
+            "self-check probe failed for {} of {} viewport(s): {}",
+            failed.len(),
+            total_viewports,
+            details.join(", ")
+        );
+        if write_failed {
+            msg.push_str("; failed to write self-check.json");
+        }
+        msg
     };
 
-    Ok(vec![warning])
+    Some(RunWarning {
+        code: "self_check_failed".to_string(),
+        message,
+        context: Some(serde_json::json!({
+            "failedViewports": failed,
+            "selfCheckJsonWriteFailed": write_failed,
+        })),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -1147,5 +1219,114 @@ mod tests {
         ])
         .expect("parse with --full on analyze");
         assert!(cli_analyze.full, "--full must be true when passed on analyze");
+    }
+
+    // -------------------------------------------------------------------
+    // build_self_check_failed_warning (U2)
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn test_self_check_failed_warning_none_when_all_ok() {
+        let failed: std::collections::BTreeMap<String, &'static str> =
+            std::collections::BTreeMap::new();
+        let warning = build_self_check_failed_warning(&failed, false, 2);
+        assert!(
+            warning.is_none(),
+            "no failed viewports and a successful write must produce no warning"
+        );
+    }
+
+    #[test]
+    fn test_self_check_failed_warning_two_failed_viewports() {
+        let mut failed: std::collections::BTreeMap<String, &'static str> =
+            std::collections::BTreeMap::new();
+        failed.insert("mobile".to_string(), "analysis");
+        failed.insert("desktop".to_string(), "capture");
+
+        let warning = build_self_check_failed_warning(&failed, false, 2)
+            .expect("two failed viewports must produce a warning");
+
+        assert_eq!(warning.code, "self_check_failed");
+        assert_eq!(
+            warning.message,
+            "self-check probe failed for 2 of 2 viewport(s): desktop (capture), mobile (analysis)"
+        );
+
+        let context = warning.context.expect("context must be present");
+        let failed_viewports = context
+            .get("failedViewports")
+            .expect("failedViewports key must be present")
+            .as_object()
+            .expect("failedViewports must be an object");
+        assert_eq!(failed_viewports.len(), 2);
+        assert_eq!(
+            failed_viewports.get("desktop").and_then(|v| v.as_str()),
+            Some("capture")
+        );
+        assert_eq!(
+            failed_viewports.get("mobile").and_then(|v| v.as_str()),
+            Some("analysis")
+        );
+        assert_eq!(
+            context
+                .get("selfCheckJsonWriteFailed")
+                .and_then(|v| v.as_bool()),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn test_self_check_failed_warning_write_only_failure() {
+        let failed: std::collections::BTreeMap<String, &'static str> =
+            std::collections::BTreeMap::new();
+        let warning = build_self_check_failed_warning(&failed, true, 2)
+            .expect("write failure alone must still produce a warning");
+
+        assert_eq!(warning.code, "self_check_failed");
+        assert_eq!(
+            warning.message,
+            "self-check probe ran but self-check.json could not be written"
+        );
+
+        let context = warning.context.expect("context must be present");
+        // Stable key-set: failedViewports present (empty object) even though nothing failed.
+        let failed_viewports = context
+            .get("failedViewports")
+            .expect("failedViewports key must be present")
+            .as_object()
+            .expect("failedViewports must be an object");
+        assert!(failed_viewports.is_empty());
+        assert_eq!(
+            context
+                .get("selfCheckJsonWriteFailed")
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn test_self_check_failed_warning_deterministic() {
+        let mut failed: std::collections::BTreeMap<String, &'static str> =
+            std::collections::BTreeMap::new();
+        failed.insert("desktop".to_string(), "missing_old_bundle");
+
+        let a = build_self_check_failed_warning(&failed, true, 1).unwrap();
+        let b = build_self_check_failed_warning(&failed, true, 1).unwrap();
+
+        let a_json = serde_json::to_string(&a).unwrap();
+        let b_json = serde_json::to_string(&b).unwrap();
+        assert_eq!(
+            a_json, b_json,
+            "identical inputs must serialize identically"
+        );
+    }
+
+    #[test]
+    fn test_self_check_failed_warning_code_is_exact() {
+        let mut failed: std::collections::BTreeMap<String, &'static str> =
+            std::collections::BTreeMap::new();
+        failed.insert("desktop".to_string(), "capture");
+        let warning = build_self_check_failed_warning(&failed, false, 1).unwrap();
+        assert_eq!(warning.code, "self_check_failed");
     }
 }
