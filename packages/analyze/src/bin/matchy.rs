@@ -108,9 +108,9 @@ struct Cli {
     #[arg(long, global = true)]
     scope: Vec<String>,
 
-    /// Capture the old page twice and diff the two captures against each other; any issues
-    /// found are capture volatility, not real differences. Adds a volatile_capture warning
-    /// and writes self-check.json. Run subcommand only; no-op on analyze subcommand.
+    /// Capture the old page a second time and diff old-vs-old; writes self-check.json.
+    /// Adds a volatile_capture warning if that probe finds drift, or self_check_failed
+    /// if the probe itself fails; never affects the exit code. Run subcommand only.
     #[arg(long, global = false, default_value_t = false)]
     self_check: bool,
 }

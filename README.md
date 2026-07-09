@@ -143,6 +143,7 @@ Useful flags:
 - `--baseline accepted.json` — suppress issues you've reviewed and accepted (see [The migration loop](#the-migration-loop)).
 - `--profile strict-visual | content-structure` — what counts as a failure. The default `content-structure` profile treats content/structure/hygiene problems as failures and pixel-level differences as informational, which is what you want when the redesign is intentional.
 - `--fail-on info|warning|error|critical` — CI gate threshold.
+- `--self-check` — capture the old URL a second time and diff it against itself, writing the old-vs-old result to `self-check.json`. Any issues found there are capture volatility, not real differences: if the probe finds drift, a `volatile_capture` warning (with an issue count and breakdown by type) is added to the main result's `warnings[]`; if the probe itself fails for one or more viewports, a `self_check_failed` warning is added (both can appear when only some viewports fail). Either way, self-check never changes the exit code.
 
 A config file mirrors all flags and adds tuning for matching thresholds, stabilization, visual thresholds, redaction, and egress.
 
