@@ -220,7 +220,10 @@ def run_capture(
         old.png, new.png, old-vp.png, new-vp.png
         old-selfcheck.{bundle.json,png,-vp.png}
 
-    And writes out_dir/self-check.json.
+    And writes out_dir/diff-result.json (the main run's DiffResult — this is
+    where volatile_capture / self_check_failed warnings actually land) and
+    out_dir/self-check.json (the old-vs-old probe's own DiffResult; not read
+    by freeze_and_scaffold).
 
     Aborts with a clear error if a URL is unreachable or matchy exits non-zero.
     """
@@ -310,7 +313,8 @@ def freeze_and_scaffold(
       2. Run the privacy gate BEFORE any write to pairs_dir.
       3. Freeze (explicit allowlist) preserving <viewport>/ nesting.
       4. Compute SHA-256 of frozen bundles.
-      5. Read self-check.json for volatile_capture warnings.
+      5. Read the CAPTURE RUN's diff-result.json for volatile_capture /
+         self_check_failed warnings, seeding pair.json.knownDrift.
       6. Write pair.json scaffold (schema-valid).
       7. Seed matchy analyze.
       8. Write expected-issues.json STUB (required/forbidden always empty).
@@ -423,21 +427,54 @@ def freeze_and_scaffold(
     new_sha = _sha256(new_frozen)
 
     # ------------------------------------------------------------------
-    # 5. Read self-check.json for volatile_capture warnings (then discard)
+    # 5. Read the CAPTURE RUN's diff-result.json for knownDrift seeding.
+    #
+    #    IMPORTANT — there are TWO diff-result.json files in this flow, and they
+    #    are NOT interchangeable:
+    #      * tmp_dir/diff-result.json (read here) is the MAIN diff-result.json
+    #        written by the `matchy --old ... --new ... --out tmp_dir --self-check
+    #        ...` invocation inside run_capture(). Its `warnings[]` is where
+    #        run_self_check() actually places `volatile_capture` (drift found on
+    #        the old-vs-old probe) and/or `self_check_failed` (probe failure).
+    #      * runs_dir/<case_id>/diff-result.json (written later, step 7 below, by
+    #        seed_analyze()) comes from `matchy analyze --old-bundle ...
+    #        --new-bundle ...` on the FROZEN bundles. That subcommand never runs
+    #        the self-check probe, so volatile_capture/self_check_failed can
+    #        NEVER appear there — reading it for knownDrift would always be empty.
+    #    self-check.json itself is never read here: nothing else in this module
+    #    consumes it, and volatile_capture/self_check_failed are warnings on the
+    #    MAIN diff-result, not on the self-check probe's own (old-vs-old) result.
     # ------------------------------------------------------------------
     known_drift: list[str] = []
-    self_check_path = tmp_dir / "self-check.json"
-    if self_check_path.exists():
+    capture_diff_result_path = tmp_dir / "diff-result.json"
+    if capture_diff_result_path.exists():
         try:
-            sc = json.loads(self_check_path.read_text(encoding="utf-8"))
-            # Look for volatile_capture warnings anywhere in the structure.
-            # self-check.json shape varies; we scan for the key "volatile_capture".
-            known_drift = _extract_volatile_capture_warnings(sc)
-            if known_drift:
-                print(f"  volatile_capture warnings detected: {known_drift}")
+            capture_diff_result = json.loads(
+                capture_diff_result_path.read_text(encoding="utf-8")
+            )
         except Exception as exc:
-            print(f"  WARNING: could not parse self-check.json: {exc}", file=sys.stderr)
-        # Do NOT copy self-check.json into pairs/.
+            print(
+                f"  WARNING: could not parse {capture_diff_result_path}: {exc}",
+                file=sys.stderr,
+            )
+            capture_diff_result = None
+
+        if capture_diff_result is not None:
+            self_check_failed = _self_check_failed_warning(capture_diff_result)
+            if self_check_failed is not None:
+                print(
+                    f"[pair-add] self-check probe failed "
+                    f"({self_check_failed.get('message', '<no message>')}); "
+                    f"knownDrift not seeded from this run",
+                    file=sys.stderr,
+                )
+            else:
+                known_drift = _extract_known_drift(capture_diff_result)
+                if known_drift:
+                    print(f"  volatile_capture warnings detected: {known_drift}")
+    # else: no capture-run diff-result.json found (e.g. a hand-built tmp_dir in
+    # tests, or a run without --self-check) — knownDrift stays empty, silently,
+    # matching prior behavior for a missing self-check.json.
 
     # ------------------------------------------------------------------
     # 6. Read bundle fields needed for pair.json
@@ -561,38 +598,50 @@ def freeze_and_scaffold(
 
 
 # ---------------------------------------------------------------------------
-# Helper: extract volatile_capture warnings from self-check.json
+# Helpers: extract knownDrift-seeding warnings from a diff-result.json dict
 # ---------------------------------------------------------------------------
 
 
-def _extract_volatile_capture_warnings(sc: dict) -> list[str]:
+def _extract_known_drift(diff_result: dict) -> list[str]:
     """
-    Extract 'volatile_capture' warning strings from a self-check.json dict.
-    The exact shape is not publicly documented; we search for the key recursively
-    up to 3 levels deep to be robust against minor changes.
+    Extract knownDrift-seeding strings from a (capture-run) diff-result.json dict.
+
+    `diff_result["warnings"]` is a list of RunWarning dicts shaped
+    `{"code": str, "message": str, "context": dict | None}` (see
+    contract/diff-result.schema.json / packages/analyze/src/contract.rs). This
+    filters for entries whose `code` is exactly "volatile_capture" (a VALUE of
+    the code field — never a dict key) and returns each matching entry's
+    `message` string.
+
+    knownDrift stays warning-message-shaped (not issue-id-keyed): issue-id
+    stability across re-captures is a separate tracked bug (see CLAUDE.md /
+    matchy-issue-id-instability), and testbed/schemas/pair.schema.json
+    constrains knownDrift to an array of strings.
     """
-    warnings: list[str] = []
+    warnings = diff_result.get("warnings")
+    if not isinstance(warnings, list):
+        return []
+    drift: list[str] = []
+    for entry in warnings:
+        if isinstance(entry, dict) and entry.get("code") == "volatile_capture":
+            message = entry.get("message")
+            if isinstance(message, str):
+                drift.append(message)
+    return drift
 
-    def _scan(obj, depth: int) -> None:
-        if depth > 4:
-            return
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if k == "volatile_capture":
-                    if isinstance(v, str):
-                        warnings.append(v)
-                    elif isinstance(v, list):
-                        for item in v:
-                            if isinstance(item, str):
-                                warnings.append(item)
-                else:
-                    _scan(v, depth + 1)
-        elif isinstance(obj, list):
-            for item in obj:
-                _scan(item, depth + 1)
 
-    _scan(sc, 0)
-    return warnings
+def _self_check_failed_warning(diff_result: dict) -> dict | None:
+    """
+    Return the first `self_check_failed` RunWarning entry in
+    diff_result["warnings"], or None if the probe did not fail.
+    """
+    warnings = diff_result.get("warnings")
+    if not isinstance(warnings, list):
+        return None
+    for entry in warnings:
+        if isinstance(entry, dict) and entry.get("code") == "self_check_failed":
+            return entry
+    return None
 
 
 # ---------------------------------------------------------------------------

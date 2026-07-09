@@ -15,7 +15,9 @@ PNG files: tiny placeholder bytes (freeze just copies; analyze never called).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import sys
 import tempfile
@@ -40,7 +42,8 @@ pair_add = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(pair_add)
 
 freeze_and_scaffold = pair_add.freeze_and_scaffold
-_extract_volatile_capture_warnings = pair_add._extract_volatile_capture_warnings
+_extract_known_drift = pair_add._extract_known_drift
+_self_check_failed_warning = pair_add._self_check_failed_warning
 
 # Pair schema path (used for validate checks)
 PAIR_SCHEMA_PATH = _TESTBED_DIR / "schemas" / "pair.schema.json"
@@ -168,12 +171,17 @@ def _build_tmp(
     old_bundle: dict | None = None,
     new_bundle: dict | None = None,
     include_selfcheck: bool = False,
-    self_check_json: dict | None = None,
+    capture_diff_result: dict | None = None,
     old_png_data: bytes = b"\x89PNG\r\n\x1a\nOLD",
     new_png_data: bytes = b"\x89PNG\r\n\x1a\nNEW",
 ) -> Path:
     """
     Build a hand-crafted temp dir mimicking what run_capture() produces.
+
+    `capture_diff_result`, if given, is written to td/diff-result.json -- the
+    MAIN diff-result.json produced by the `matchy ... --self-check` invocation
+    in run_capture() (see the comment in freeze_and_scaffold's step 5 for why
+    this is the file knownDrift is seeded from, not self-check.json).
 
     Returns the path to the temp dir (caller must manage its lifecycle).
     """
@@ -198,8 +206,10 @@ def _build_tmp(
         _write_png(vp / "old-selfcheck.png", b"\x89PNG-SC")
         _write_png(vp / "old-selfcheck-vp.png", b"\x89PNG-SC-VP")
 
-    if self_check_json is not None:
-        (td / "self-check.json").write_text(json.dumps(self_check_json), encoding="utf-8")
+    if capture_diff_result is not None:
+        (td / "diff-result.json").write_text(
+            json.dumps(capture_diff_result), encoding="utf-8"
+        )
 
     return td
 
@@ -588,28 +598,44 @@ def test_f1_selfcheck_artifacts_excluded():
 
 # ===========================================================================
 # T6. volatile_capture warning → pair.json.knownDrift
+#
+# These fixtures use the REAL RunWarning shape matchy emits into the main
+# diff-result.json ({"code", "message", "context"} in warnings[]) -- see the
+# volatile_capture / self_check_failed examples in the U4 design brief.
 # ===========================================================================
 
 
 def test_volatile_capture_seeded_into_known_drift():
     """
-    A self-check.json containing a volatile_capture warning is surfaced and
-    seeded into pair.json.knownDrift.
+    Scenario (a): a capture-run diff-result.json containing one volatile_capture
+    warning seeds pair.json.knownDrift with exactly that warning's message
+    string. The resulting pair.json also validates against pair.schema.json
+    (scenario e).
     """
     import shutil
 
-    sc_json = {
-        "viewports": {
-            "desktop": {
-                "volatile_capture": "Analytics tag detected in old-selfcheck — content may rotate.",
-                "selfcheck_status": "warn",
+    drift_message = (
+        "self-check: 2 issue(s) appeared when diffing two captures of the old "
+        "page against each other; treat similar issues in the main result with "
+        "suspicion (capture volatility, e.g. rotating content)"
+    )
+    capture_dr = {
+        "schemaVersion": "1.2",
+        "runId": "test-run",
+        "status": "warn",
+        "issues": [],
+        "warnings": [
+            {
+                "code": "volatile_capture",
+                "message": drift_message,
+                "context": {"issueCount": 2, "byType": {"text-changed": 2}},
             }
-        }
+        ],
     }
 
     tmp_dir = _build_tmp(
         viewport_name="desktop",
-        self_check_json=sc_json,
+        capture_diff_result=capture_dr,
     )
     try:
         with tempfile.TemporaryDirectory() as pairs_td, \
@@ -637,14 +663,190 @@ def test_volatile_capture_seeded_into_known_drift():
             pair_json = json.loads((pairs_dir / "p99-drift-test" / "pair.json").read_text())
 
             known_drift = pair_json.get("knownDrift", [])
-            assert len(known_drift) >= 1, (
-                f"Expected volatile_capture warning in knownDrift, got: {known_drift}"
+            assert known_drift == [drift_message], (
+                f"Expected knownDrift == [message string], got: {known_drift}"
             )
-            assert any("Analytics" in w or "volatile" in w.lower() for w in known_drift), (
-                f"Expected the volatile_capture string in knownDrift, got: {known_drift}"
+
+            # Scenario (e): seeded pair.json still validates against the schema.
+            _validate_schema_or_fail(pair_json, PAIR_SCHEMA_PATH, "pair.json (knownDrift-seeded)")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_clean_probe_no_known_drift_no_operator_warning():
+    """
+    Scenario (b): a capture-run diff-result.json with an empty warnings list
+    (clean self-check probe, no drift) → knownDrift is empty and no operator
+    warning about self-check failure is printed.
+    """
+    import shutil
+
+    capture_dr = {
+        "schemaVersion": "1.2",
+        "runId": "test-run",
+        "status": "pass",
+        "issues": [],
+        "warnings": [],
+    }
+
+    tmp_dir = _build_tmp(
+        viewport_name="desktop",
+        capture_diff_result=capture_dr,
+    )
+    try:
+        with tempfile.TemporaryDirectory() as pairs_td, \
+             tempfile.TemporaryDirectory() as runs_td:
+
+            pairs_dir = Path(pairs_td)
+            runs_dir = Path(runs_td)
+
+            stub_seed = _make_stub_seed_analyze({"status": "pass", "issues": []})
+
+            stderr_capture = io.StringIO()
+            with contextlib.redirect_stderr(stderr_capture):
+                freeze_and_scaffold(
+                    tmp_dir=tmp_dir,
+                    case_id="p99-clean-probe-test",
+                    viewport_name="desktop",
+                    url_old="https://old.example.com/",
+                    url_new="https://new.example.com/",
+                    profile="content-structure",
+                    capture_flags=[],
+                    pairs_dir=pairs_dir,
+                    runs_dir=runs_dir,
+                    assume_yes=True,
+                    seed_analyze=stub_seed,
+                )
+
+            pair_json = json.loads((pairs_dir / "p99-clean-probe-test" / "pair.json").read_text())
+            assert pair_json.get("knownDrift", []) == [], (
+                f"Expected empty knownDrift, got: {pair_json.get('knownDrift')}"
+            )
+            assert "self-check probe failed" not in stderr_capture.getvalue(), (
+                "No operator warning expected for a clean probe, got: "
+                f"{stderr_capture.getvalue()!r}"
             )
     finally:
-        import shutil
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_self_check_failed_seeds_empty_known_drift_and_warns_operator():
+    """
+    Scenario (c): a capture-run diff-result.json carrying a self_check_failed
+    warning → knownDrift stays empty (never fabricated from a failed probe)
+    and the operator message is printed to stderr; the flow is NOT aborted.
+    """
+    import shutil
+
+    capture_dr = {
+        "schemaVersion": "1.2",
+        "runId": "test-run",
+        "status": "pass",
+        "issues": [],
+        "warnings": [
+            {
+                "code": "self_check_failed",
+                "message": (
+                    "self-check probe failed for 1 of 1 viewport(s): "
+                    "desktop (capture)"
+                ),
+                "context": {
+                    "failedViewports": {"desktop": "capture"},
+                    "selfCheckJsonWriteFailed": False,
+                },
+            }
+        ],
+    }
+
+    tmp_dir = _build_tmp(
+        viewport_name="desktop",
+        capture_diff_result=capture_dr,
+    )
+    try:
+        with tempfile.TemporaryDirectory() as pairs_td, \
+             tempfile.TemporaryDirectory() as runs_td:
+
+            pairs_dir = Path(pairs_td)
+            runs_dir = Path(runs_td)
+
+            stub_seed = _make_stub_seed_analyze({"status": "pass", "issues": []})
+
+            stderr_capture = io.StringIO()
+            with contextlib.redirect_stderr(stderr_capture):
+                freeze_and_scaffold(
+                    tmp_dir=tmp_dir,
+                    case_id="p99-self-check-failed-test",
+                    viewport_name="desktop",
+                    url_old="https://old.example.com/",
+                    url_new="https://new.example.com/",
+                    profile="content-structure",
+                    capture_flags=[],
+                    pairs_dir=pairs_dir,
+                    runs_dir=runs_dir,
+                    assume_yes=True,
+                    seed_analyze=stub_seed,
+                )
+
+            # Flow was not aborted: pair.json was still written.
+            pair_json = json.loads(
+                (pairs_dir / "p99-self-check-failed-test" / "pair.json").read_text()
+            )
+            assert pair_json.get("knownDrift", []) == [], (
+                f"Expected empty knownDrift on self_check_failed, got: {pair_json.get('knownDrift')}"
+            )
+
+            stderr_text = stderr_capture.getvalue()
+            assert "self-check probe failed" in stderr_text, (
+                f"Expected operator message about self-check failure, got: {stderr_text!r}"
+            )
+            assert "knownDrift not seeded" in stderr_text, (
+                f"Expected operator message to mention knownDrift was not seeded, got: {stderr_text!r}"
+            )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_missing_diff_result_json_known_drift_empty():
+    """
+    Scenario (d): no capture-run diff-result.json at all (e.g. a run without
+    --self-check, or a hand-built tmp_dir) → existing graceful behavior is
+    preserved: knownDrift is empty and freeze_and_scaffold does not raise.
+    """
+    import shutil
+
+    tmp_dir = _build_tmp(viewport_name="desktop")  # no capture_diff_result
+    assert not (tmp_dir / "diff-result.json").exists()
+
+    try:
+        with tempfile.TemporaryDirectory() as pairs_td, \
+             tempfile.TemporaryDirectory() as runs_td:
+
+            pairs_dir = Path(pairs_td)
+            runs_dir = Path(runs_td)
+
+            stub_seed = _make_stub_seed_analyze({"status": "pass", "issues": []})
+
+            freeze_and_scaffold(
+                tmp_dir=tmp_dir,
+                case_id="p99-missing-diff-result-test",
+                viewport_name="desktop",
+                url_old="https://old.example.com/",
+                url_new="https://new.example.com/",
+                profile="content-structure",
+                capture_flags=[],
+                pairs_dir=pairs_dir,
+                runs_dir=runs_dir,
+                assume_yes=True,
+                seed_analyze=stub_seed,
+            )
+
+            pair_json = json.loads(
+                (pairs_dir / "p99-missing-diff-result-test" / "pair.json").read_text()
+            )
+            assert pair_json.get("knownDrift", []) == [], (
+                f"Expected empty knownDrift when diff-result.json is missing, got: {pair_json.get('knownDrift')}"
+            )
+    finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
@@ -843,43 +1045,65 @@ def test_pair_json_validates_against_schema():
 
 
 # ===========================================================================
-# T9. _extract_volatile_capture_warnings: unit coverage
+# T9. _extract_known_drift / _self_check_failed_warning: unit coverage
+#
+# Both operate on a diff-result.json-shaped dict with a REAL warnings[] list
+# of {code, message, context} RunWarning entries (not a self-check.json
+# key-scan — see U4 in docs/plans/2026-07-09-001-fix-self-check-silent-noop-plan.md).
 # ===========================================================================
 
 
-def test_extract_volatile_capture_warnings_flat():
-    """Flat dict with volatile_capture key is extracted."""
-    sc = {"volatile_capture": "Analytics detected"}
-    result = _extract_volatile_capture_warnings(sc)
+def test_extract_known_drift_single_match():
+    """A single volatile_capture warning's message is extracted."""
+    dr = {"warnings": [{"code": "volatile_capture", "message": "Analytics detected", "context": None}]}
+    result = _extract_known_drift(dr)
     assert result == ["Analytics detected"], f"Got: {result}"
 
 
-def test_extract_volatile_capture_warnings_nested():
-    """Nested structure (as matchy self-check.json actually produces)."""
-    sc = {
-        "viewports": {
-            "desktop": {
-                "volatile_capture": "A/B content detected",
-                "other_key": "irrelevant",
-            }
-        }
+def test_extract_known_drift_multiple_and_other_codes_ignored():
+    """Only volatile_capture entries are extracted; other codes are ignored, order preserved."""
+    dr = {
+        "warnings": [
+            {"code": "capture_step_failed", "message": "unrelated", "context": None},
+            {"code": "volatile_capture", "message": "Banner 1 detected", "context": None},
+            {"code": "volatile_capture", "message": "Banner 2 detected", "context": None},
+        ]
     }
-    result = _extract_volatile_capture_warnings(sc)
-    assert result == ["A/B content detected"], f"Got: {result}"
+    result = _extract_known_drift(dr)
+    assert result == ["Banner 1 detected", "Banner 2 detected"], f"Got: {result}"
 
 
-def test_extract_volatile_capture_warnings_list():
-    """volatile_capture can be a list of strings."""
-    sc = {"volatile_capture": ["Banner 1 detected", "Banner 2 detected"]}
-    result = _extract_volatile_capture_warnings(sc)
-    assert set(result) == {"Banner 1 detected", "Banner 2 detected"}, f"Got: {result}"
-
-
-def test_extract_volatile_capture_warnings_none():
-    """No volatile_capture key → empty list."""
-    sc = {"status": "ok", "other": {"nested": "value"}}
-    result = _extract_volatile_capture_warnings(sc)
+def test_extract_known_drift_no_warnings_key():
+    """No 'warnings' key at all → empty list (not an error)."""
+    result = _extract_known_drift({"status": "pass", "issues": []})
     assert result == [], f"Expected empty list, got: {result}"
+
+
+def test_extract_known_drift_empty_warnings_list():
+    """Empty warnings list → empty list."""
+    result = _extract_known_drift({"warnings": []})
+    assert result == [], f"Expected empty list, got: {result}"
+
+
+def test_self_check_failed_warning_present():
+    """A self_check_failed entry in warnings[] is returned as a dict."""
+    dr = {
+        "warnings": [
+            {
+                "code": "self_check_failed",
+                "message": "self-check probe failed for 1 of 1 viewport(s): desktop (capture)",
+                "context": {"failedViewports": {"desktop": "capture"}, "selfCheckJsonWriteFailed": False},
+            }
+        ]
+    }
+    w = _self_check_failed_warning(dr)
+    assert w is not None and w["code"] == "self_check_failed", f"Got: {w}"
+
+
+def test_self_check_failed_warning_absent():
+    """No self_check_failed entry → None."""
+    dr = {"warnings": [{"code": "volatile_capture", "message": "x", "context": None}]}
+    assert _self_check_failed_warning(dr) is None
 
 
 # ===========================================================================
@@ -995,18 +1219,28 @@ if __name__ == "__main__":
         ("test_gate_before_freeze_no_partial_write", test_gate_before_freeze_no_partial_write),
         # F1: selfcheck excluded
         ("test_f1_selfcheck_artifacts_excluded", test_f1_selfcheck_artifacts_excluded),
-        # volatile_capture → knownDrift
+        # volatile_capture → knownDrift (U4 scenario a + e)
         ("test_volatile_capture_seeded_into_known_drift", test_volatile_capture_seeded_into_known_drift),
+        # U4 scenario b: clean probe → empty knownDrift, no operator warning
+        ("test_clean_probe_no_known_drift_no_operator_warning", test_clean_probe_no_known_drift_no_operator_warning),
+        # U4 scenario c: self_check_failed → empty knownDrift + operator message
+        ("test_self_check_failed_seeds_empty_known_drift_and_warns_operator",
+         test_self_check_failed_seeds_empty_known_drift_and_warns_operator),
+        # U4 scenario d: missing diff-result.json → graceful empty knownDrift
+        ("test_missing_diff_result_json_known_drift_empty", test_missing_diff_result_json_known_drift_empty),
         # --refresh
         ("test_refresh_rewrites_hashes_leaves_expected_issues_unchanged",
          test_refresh_rewrites_hashes_leaves_expected_issues_unchanged),
         # Schema validation
         ("test_pair_json_validates_against_schema", test_pair_json_validates_against_schema),
-        # _extract_volatile_capture_warnings unit
-        ("test_extract_volatile_capture_warnings_flat", test_extract_volatile_capture_warnings_flat),
-        ("test_extract_volatile_capture_warnings_nested", test_extract_volatile_capture_warnings_nested),
-        ("test_extract_volatile_capture_warnings_list", test_extract_volatile_capture_warnings_list),
-        ("test_extract_volatile_capture_warnings_none", test_extract_volatile_capture_warnings_none),
+        # _extract_known_drift / _self_check_failed_warning unit coverage
+        ("test_extract_known_drift_single_match", test_extract_known_drift_single_match),
+        ("test_extract_known_drift_multiple_and_other_codes_ignored",
+         test_extract_known_drift_multiple_and_other_codes_ignored),
+        ("test_extract_known_drift_no_warnings_key", test_extract_known_drift_no_warnings_key),
+        ("test_extract_known_drift_empty_warnings_list", test_extract_known_drift_empty_warnings_list),
+        ("test_self_check_failed_warning_present", test_self_check_failed_warning_present),
+        ("test_self_check_failed_warning_absent", test_self_check_failed_warning_absent),
         # Error paths
         ("test_missing_artifact_raises_system_exit", test_missing_artifact_raises_system_exit),
         # No seed (binary absent)
