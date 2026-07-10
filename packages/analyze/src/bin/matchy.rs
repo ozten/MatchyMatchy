@@ -602,11 +602,9 @@ fn run_self_check(
     if sc_viewport_analyses.is_empty() {
         // Every viewport failed: no self-check.json can be assembled/written.
         // Report a warning instead of the previous silent Ok(vec![]).
-        let mut warnings = Vec::new();
-        if let Some(w) = build_self_check_failed_warning(&failed, false, viewports.len()) {
-            warnings.push(w);
-        }
-        return Ok(warnings);
+        return Ok(build_self_check_failed_warning(&failed, false, viewports.len())
+            .into_iter()
+            .collect());
     }
 
     let sc_result = assemble_diff_result(
@@ -630,27 +628,8 @@ fn run_self_check(
 
     let mut warnings: Vec<RunWarning> = Vec::new();
 
-    let issue_count = sc_result.issues.len() as u32;
-    if issue_count > 0 {
-        // Build byType BTreeMap (deterministic).
-        let mut by_type: BTreeMap<String, u32> = BTreeMap::new();
-        for issue in &sc_result.issues {
-            *by_type
-                .entry(issue.issue_type.as_str().to_string())
-                .or_insert(0) += 1;
-        }
-
-        warnings.push(RunWarning {
-            code: "volatile_capture".to_string(),
-            message: format!(
-                "self-check: {} issue(s) appeared when diffing two captures of the old page against each other; treat similar issues in the main result with suspicion (capture volatility, e.g. rotating content)",
-                issue_count
-            ),
-            context: Some(serde_json::json!({
-                "issueCount": issue_count,
-                "byType": by_type,
-            })),
-        });
+    if let Some(w) = build_volatile_capture_warning(&sc_result.issues) {
+        warnings.push(w);
     }
 
     if let Some(w) = build_self_check_failed_warning(&failed, write_failed, viewports.len()) {
@@ -658,6 +637,43 @@ fn run_self_check(
     }
 
     Ok(warnings)
+}
+
+/// Build the `volatile_capture` `RunWarning` (if any) from the self-check diff's
+/// issues. Pure and deterministic: `byType` is a `BTreeMap` keyed by issue type, so
+/// the same issue list always serializes identically regardless of iteration order.
+///
+/// Returns `None` when there is nothing to report (no issues found).
+fn build_volatile_capture_warning(
+    issues: &[matchy_analyze::contract::Issue],
+) -> Option<matchy_analyze::contract::RunWarning> {
+    use matchy_analyze::contract::RunWarning;
+    use std::collections::BTreeMap;
+
+    let issue_count = issues.len() as u32;
+    if issue_count == 0 {
+        return None;
+    }
+
+    // Build byType BTreeMap (deterministic).
+    let mut by_type: BTreeMap<String, u32> = BTreeMap::new();
+    for issue in issues {
+        *by_type
+            .entry(issue.issue_type.as_str().to_string())
+            .or_insert(0) += 1;
+    }
+
+    Some(RunWarning {
+        code: "volatile_capture".to_string(),
+        message: format!(
+            "self-check: {} issue(s) appeared when diffing two captures of the old page against each other; treat similar issues in the main result with suspicion (capture volatility, e.g. rotating content)",
+            issue_count
+        ),
+        context: Some(serde_json::json!({
+            "issueCount": issue_count,
+            "byType": by_type,
+        })),
+    })
 }
 
 /// Build the `self_check_failed` `RunWarning` (if any) from the per-viewport failure
@@ -1190,6 +1206,7 @@ fn compute_exit_code(result: &matchy_analyze::contract::DiffResult, fail_on: &st
 mod tests {
     use super::*;
     use clap::Parser;
+    use std::collections::BTreeMap;
 
     /// --full parses as a global flag on the top-level command (matchy run).
     #[test]
@@ -1227,8 +1244,7 @@ mod tests {
 
     #[test]
     fn test_self_check_failed_warning_none_when_all_ok() {
-        let failed: std::collections::BTreeMap<String, &'static str> =
-            std::collections::BTreeMap::new();
+        let failed = BTreeMap::new();
         let warning = build_self_check_failed_warning(&failed, false, 2);
         assert!(
             warning.is_none(),
@@ -1238,8 +1254,7 @@ mod tests {
 
     #[test]
     fn test_self_check_failed_warning_two_failed_viewports() {
-        let mut failed: std::collections::BTreeMap<String, &'static str> =
-            std::collections::BTreeMap::new();
+        let mut failed = BTreeMap::new();
         failed.insert("mobile".to_string(), "analysis");
         failed.insert("desktop".to_string(), "capture");
 
@@ -1277,8 +1292,7 @@ mod tests {
 
     #[test]
     fn test_self_check_failed_warning_write_only_failure() {
-        let failed: std::collections::BTreeMap<String, &'static str> =
-            std::collections::BTreeMap::new();
+        let failed = BTreeMap::new();
         let warning = build_self_check_failed_warning(&failed, true, 2)
             .expect("write failure alone must still produce a warning");
 
@@ -1306,8 +1320,7 @@ mod tests {
 
     #[test]
     fn test_self_check_failed_warning_deterministic() {
-        let mut failed: std::collections::BTreeMap<String, &'static str> =
-            std::collections::BTreeMap::new();
+        let mut failed = BTreeMap::new();
         failed.insert("desktop".to_string(), "missing_old_bundle");
 
         let a = build_self_check_failed_warning(&failed, true, 1).unwrap();
@@ -1323,8 +1336,7 @@ mod tests {
 
     #[test]
     fn test_self_check_failed_warning_code_is_exact() {
-        let mut failed: std::collections::BTreeMap<String, &'static str> =
-            std::collections::BTreeMap::new();
+        let mut failed = BTreeMap::new();
         failed.insert("desktop".to_string(), "capture");
         let warning = build_self_check_failed_warning(&failed, false, 1).unwrap();
         assert_eq!(warning.code, "self_check_failed");

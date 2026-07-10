@@ -602,31 +602,44 @@ def freeze_and_scaffold(
 # ---------------------------------------------------------------------------
 
 
+def _warnings_by_code(diff_result: dict, code: str) -> list[dict]:
+    """
+    Return the RunWarning dict entries in diff_result["warnings"] whose `code`
+    field equals `code` (in list order), or [] if `warnings` is missing or not
+    a list.
+
+    `diff_result["warnings"]` is a list of RunWarning dicts shaped
+    `{"code": str, "message": str, "context": dict | None}` (see
+    contract/diff-result.schema.json / packages/analyze/src/contract.rs).
+    `code` is matched against the entry's `code` VALUE — never a dict key.
+    """
+    warnings = diff_result.get("warnings")
+    if not isinstance(warnings, list):
+        return []
+    return [
+        entry
+        for entry in warnings
+        if isinstance(entry, dict) and entry.get("code") == code
+    ]
+
+
 def _extract_known_drift(diff_result: dict) -> list[str]:
     """
     Extract knownDrift-seeding strings from a (capture-run) diff-result.json dict.
 
-    `diff_result["warnings"]` is a list of RunWarning dicts shaped
-    `{"code": str, "message": str, "context": dict | None}` (see
-    contract/diff-result.schema.json / packages/analyze/src/contract.rs). This
-    filters for entries whose `code` is exactly "volatile_capture" (a VALUE of
-    the code field — never a dict key) and returns each matching entry's
-    `message` string.
+    Filters `diff_result["warnings"]` for "volatile_capture" entries and
+    returns each matching entry's `message` string.
 
     knownDrift stays warning-message-shaped (not issue-id-keyed): issue-id
     stability across re-captures is a separate tracked bug (see CLAUDE.md /
     matchy-issue-id-instability), and testbed/schemas/pair.schema.json
     constrains knownDrift to an array of strings.
     """
-    warnings = diff_result.get("warnings")
-    if not isinstance(warnings, list):
-        return []
     drift: list[str] = []
-    for entry in warnings:
-        if isinstance(entry, dict) and entry.get("code") == "volatile_capture":
-            message = entry.get("message")
-            if isinstance(message, str):
-                drift.append(message)
+    for entry in _warnings_by_code(diff_result, "volatile_capture"):
+        message = entry.get("message")
+        if isinstance(message, str):
+            drift.append(message)
     return drift
 
 
@@ -635,13 +648,8 @@ def _self_check_failed_warning(diff_result: dict) -> dict | None:
     Return the first `self_check_failed` RunWarning entry in
     diff_result["warnings"], or None if the probe did not fail.
     """
-    warnings = diff_result.get("warnings")
-    if not isinstance(warnings, list):
-        return None
-    for entry in warnings:
-        if isinstance(entry, dict) and entry.get("code") == "self_check_failed":
-            return entry
-    return None
+    entries = _warnings_by_code(diff_result, "self_check_failed")
+    return entries[0] if entries else None
 
 
 # ---------------------------------------------------------------------------
