@@ -404,6 +404,14 @@ fn run_full(
 
     let mut viewport_analyses: Vec<ViewportAnalysis> = Vec::new();
 
+    // Viewports whose OLD-side capture
+    // failed THIS run. A stale old.bundle.json from a previous run into the
+    // same --out dir must never let the self-check probe diff against it as
+    // if this run's old capture had succeeded — so we track it here and skip
+    // the probe for these viewports (main already reports load_error for them).
+    let mut old_capture_failed: std::collections::BTreeSet<String> =
+        std::collections::BTreeSet::new();
+
     for vp in &viewports {
         let vp_dir = out_path.join(&vp.name);
         std::fs::create_dir_all(&vp_dir)?;
@@ -445,10 +453,20 @@ fn run_full(
                 );
                 return Ok(2);
             }
-            (Err(e), Ok(_)) | (Ok(_), Err(e)) => {
-                // One side failed: emit load_error
+            (Err(old_err), Ok(_)) => {
+                // OLD side failed, NEW side succeeded: emit load_error, and record
+                // this viewport so run_self_check (which probes the OLD url) skips
+                // it rather than diffing against a stale old.bundle.json.
+                old_capture_failed.insert(vp.name.clone());
                 let vp_analysis =
-                    make_load_error_analysis(&vp.name, &e.to_string(), &vp_dir, &profile);
+                    make_load_error_analysis(&vp.name, &old_err.to_string(), &vp_dir, &profile);
+                viewport_analyses.push(vp_analysis);
+            }
+            (Ok(_), Err(new_err)) => {
+                // NEW side failed only: the OLD capture this run is fine, so the
+                // self-check probe (old-vs-old) is still valid for this viewport.
+                let vp_analysis =
+                    make_load_error_analysis(&vp.name, &new_err.to_string(), &vp_dir, &profile);
                 viewport_analyses.push(vp_analysis);
             }
             (Ok(old_bundle_path), Ok(new_bundle_path)) => {
@@ -482,6 +500,7 @@ fn run_full(
             &profile,
             image_dims_mode,
             &run_id,
+            &old_capture_failed,
         )?
     } else {
         vec![]
@@ -513,6 +532,12 @@ fn run_full(
 // --self-check implementation
 // ---------------------------------------------------------------------------
 
+/// Run the `--self-check` probe: a second capture of the OLD url, diffed
+/// old-vs-old, surfaced only as `warnings[]` on the MAIN result (never the
+/// exit code). Every fallible step is degraded to a per-viewport/whole-probe
+/// failure recorded in `failed`/`write_failed` rather than propagated via `?`
+/// — this function must always return `Ok(..)` (see the exit-code promise in
+/// `run_full`'s docs). The `Result` signature is kept for call-site compatibility.
 #[allow(clippy::too_many_arguments)]
 fn run_self_check(
     old_url: &str,
@@ -527,9 +552,18 @@ fn run_self_check(
     profile: &ParityProfile,
     image_dims_mode: ImageDimensionsMode,
     run_id: &str,
+    old_capture_failed: &std::collections::BTreeSet<String>,
 ) -> anyhow::Result<Vec<matchy_analyze::contract::RunWarning>> {
     use matchy_analyze::contract::RunWarning;
     use std::collections::BTreeMap;
+
+    // Best-effort cleanup of stale probe
+    // state from a previous run into a REUSED --out dir. Without this, a stale
+    // self-check.json (or stale <vp>/self-check/ artifacts) from a prior run
+    // could survive a run where the probe now fails entirely, silently
+    // contradicting this run's warnings[]. Best-effort: failure to remove is
+    // not itself a probe failure.
+    let _ = std::fs::remove_file(out_path.join("self-check.json"));
 
     // Per-viewport failures, keyed by viewport name, valued by a closed-vocabulary
     // stage: "capture" | "missing_old_bundle" | "analysis". Raw error text (anyhow
@@ -541,7 +575,37 @@ fn run_self_check(
 
     for vp in viewports {
         let vp_dir = out_path.join(&vp.name);
-        std::fs::create_dir_all(&vp_dir)?;
+
+        // If THIS run's old-side capture already failed for this
+        // viewport, old.bundle.json is stale-or-absent — main already emits
+        // load_error for it. Diffing the probe against a stale old.bundle.json
+        // would silently validate the wrong capture, so skip before even the
+        // stale-state cleanup below.
+        if old_capture_failed.contains(&vp.name) {
+            eprintln!(
+                "[self-check] skipping viewport '{}': this run's old-side capture failed",
+                vp.name
+            );
+            failed.insert(vp.name.clone(), "missing_old_bundle");
+            continue;
+        }
+
+        // Stale per-viewport probe artifacts (diff.png /
+        // issues/) from a previous run into this same --out dir.
+        let _ = std::fs::remove_dir_all(vp_dir.join("self-check"));
+
+        // Degrade instead of `?` — a failure to create the viewport dir
+        // must not escape run_self_check.
+        if let Err(e) = std::fs::create_dir_all(&vp_dir) {
+            eprintln!(
+                "[self-check] failed to create viewport dir {} for '{}': {}",
+                vp_dir.display(),
+                vp.name,
+                e
+            );
+            failed.insert(vp.name.clone(), "capture");
+            continue;
+        }
 
         // The first old capture already exists with prefix "old".
         // Capture a second time with prefix "old-selfcheck".
@@ -571,6 +635,8 @@ fn run_self_check(
         // The original old bundle path.
         let old_bundle_path = vp_dir.join("old.bundle.json");
         if !old_bundle_path.exists() {
+            // Backstop: old_capture_failed should already have caught
+            // this, but keep the direct existence check too.
             eprintln!(
                 "[self-check] old bundle not found at {}; skipping viewport '{}'",
                 old_bundle_path.display(),
@@ -580,10 +646,30 @@ fn run_self_check(
             continue;
         }
 
+        // Probe-private artifact dir. analyze_bundle_pair writes
+        // <dir>/diff.png and <dir>/issues/* unconditionally, and previously
+        // received the SAME vp_dir the main run used — so a successful probe
+        // silently overwrote the main run's visual artifacts. Isolating the
+        // probe under <vp_dir>/self-check/ means the main run's diff.png /
+        // issue crops (referenced by diff-result.json) are never touched.
+        // self-check.json's embedded viewport-relative crop paths are
+        // diagnostic only — its consumed surface is warnings[].
+        let sc_artifact_dir = vp_dir.join("self-check");
+        if let Err(e) = std::fs::create_dir_all(&sc_artifact_dir) {
+            eprintln!(
+                "[self-check] failed to create probe artifact dir {} for '{}': {}",
+                sc_artifact_dir.display(),
+                vp.name,
+                e
+            );
+            failed.insert(vp.name.clone(), "analysis");
+            continue;
+        }
+
         match analyze_bundle_pair(
             &old_bundle_path,
             &sc_bundle_path,
-            &vp_dir,
+            &sc_artifact_dir,
             &vp.name,
             profile,
             image_dims_mode,
@@ -618,12 +704,28 @@ fn run_self_check(
         vec![],
     );
 
-    // Write self-check.json.
+    // Degrade `to_json()?` — serialization failure must not escape.
+    // volatile_capture is still built from sc_result.issues (available
+    // in-memory regardless of serialization outcome); write_failed folds into
+    // the self_check_failed warning.
+    let sc_json = match sc_result.to_json() {
+        Ok(j) => Some(j),
+        Err(e) => {
+            eprintln!("[self-check] failed to serialize self-check.json: {}", e);
+            None
+        }
+    };
+
     let sc_path = out_path.join("self-check.json");
     let mut write_failed = false;
-    if let Err(e) = std::fs::write(&sc_path, sc_result.to_json()?) {
-        eprintln!("[self-check] failed to write self-check.json: {}", e);
-        write_failed = true;
+    match sc_json {
+        Some(json) => {
+            if let Err(e) = std::fs::write(&sc_path, json) {
+                eprintln!("[self-check] failed to write self-check.json: {}", e);
+                write_failed = true;
+            }
+        }
+        None => write_failed = true,
     }
 
     let mut warnings: Vec<RunWarning> = Vec::new();

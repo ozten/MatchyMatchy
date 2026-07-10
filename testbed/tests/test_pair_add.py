@@ -730,11 +730,16 @@ def test_clean_probe_no_known_drift_no_operator_warning():
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def test_self_check_failed_seeds_empty_known_drift_and_warns_operator():
+def test_self_check_failed_only_seeds_empty_known_drift_and_warns_operator():
     """
-    Scenario (c): a capture-run diff-result.json carrying a self_check_failed
-    warning → knownDrift stays empty (never fabricated from a failed probe)
-    and the operator message is printed to stderr; the flow is NOT aborted.
+    Scenario (c): a capture-run diff-result.json carrying ONLY a
+    self_check_failed warning (no volatile_capture entries) → knownDrift stays
+    empty (there is nothing to extract) and the operator message is printed to
+    stderr; the flow is NOT aborted. knownDrift is still seeded
+    UNCONDITIONALLY (via _extract_known_drift) -- it's just empty here because
+    there's no volatile_capture warning to seed from. See
+    test_self_check_failed_and_volatile_capture_coexist_seeds_drift_and_warns_operator
+    for the coexistence case.
     """
     import shutil
 
@@ -792,16 +797,111 @@ def test_self_check_failed_seeds_empty_known_drift_and_warns_operator():
                 (pairs_dir / "p99-self-check-failed-test" / "pair.json").read_text()
             )
             assert pair_json.get("knownDrift", []) == [], (
-                f"Expected empty knownDrift on self_check_failed, got: {pair_json.get('knownDrift')}"
+                f"Expected empty knownDrift when there is no volatile_capture "
+                f"warning to seed from, got: {pair_json.get('knownDrift')}"
             )
 
             stderr_text = stderr_capture.getvalue()
-            assert "self-check probe failed" in stderr_text, (
+            assert "self-check probe reported a failure" in stderr_text, (
                 f"Expected operator message about self-check failure, got: {stderr_text!r}"
             )
-            assert "knownDrift not seeded" in stderr_text, (
-                f"Expected operator message to mention knownDrift was not seeded, got: {stderr_text!r}"
+            assert "knownDrift may be incomplete" in stderr_text, (
+                f"Expected operator message to warn knownDrift may be incomplete, got: {stderr_text!r}"
             )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_self_check_failed_and_volatile_capture_coexist_seeds_drift_and_warns_operator():
+    """
+    Coexistence case (fix round: pair-add must not discard drift): a
+    capture-run diff-result.json carrying BOTH a volatile_capture warning
+    (e.g. one viewport's probe drifted) AND a self_check_failed warning (e.g.
+    another viewport's probe failed outright) → knownDrift IS seeded with the
+    volatile_capture message(s) (never discarded just because self_check_failed
+    is ALSO present) AND the operator message about the self-check failure is
+    still printed to stderr.
+    """
+    import shutil
+
+    drift_message = (
+        "self-check: 1 issue(s) appeared when diffing two captures of the old "
+        "page against each other; treat similar issues in the main result with "
+        "suspicion (capture volatility, e.g. rotating content)"
+    )
+    capture_dr = {
+        "schemaVersion": "1.2",
+        "runId": "test-run",
+        "status": "warn",
+        "issues": [],
+        "warnings": [
+            {
+                "code": "volatile_capture",
+                "message": drift_message,
+                "context": {"issueCount": 1, "byType": {"text-changed": 1}},
+            },
+            {
+                "code": "self_check_failed",
+                "message": (
+                    "self-check probe failed for 1 of 2 viewport(s): "
+                    "mobile (capture)"
+                ),
+                "context": {
+                    "failedViewports": {"mobile": "capture"},
+                    "selfCheckJsonWriteFailed": False,
+                },
+            },
+        ],
+    }
+
+    tmp_dir = _build_tmp(
+        viewport_name="desktop",
+        capture_diff_result=capture_dr,
+    )
+    try:
+        with tempfile.TemporaryDirectory() as pairs_td, \
+             tempfile.TemporaryDirectory() as runs_td:
+
+            pairs_dir = Path(pairs_td)
+            runs_dir = Path(runs_td)
+
+            stub_seed = _make_stub_seed_analyze({"status": "warn", "issues": []})
+
+            stderr_capture = io.StringIO()
+            with contextlib.redirect_stderr(stderr_capture):
+                freeze_and_scaffold(
+                    tmp_dir=tmp_dir,
+                    case_id="p99-coexist-test",
+                    viewport_name="desktop",
+                    url_old="https://old.example.com/",
+                    url_new="https://new.example.com/",
+                    profile="content-structure",
+                    capture_flags=[],
+                    pairs_dir=pairs_dir,
+                    runs_dir=runs_dir,
+                    assume_yes=True,
+                    seed_analyze=stub_seed,
+                )
+
+            pair_json = json.loads(
+                (pairs_dir / "p99-coexist-test" / "pair.json").read_text()
+            )
+            known_drift = pair_json.get("knownDrift", [])
+            assert known_drift == [drift_message], (
+                f"Expected knownDrift seeded with the volatile_capture message "
+                f"even though self_check_failed is ALSO present, got: {known_drift}"
+            )
+
+            stderr_text = stderr_capture.getvalue()
+            assert "self-check probe reported a failure" in stderr_text, (
+                f"Expected operator message about self-check failure, got: {stderr_text!r}"
+            )
+            assert "knownDrift may be incomplete" in stderr_text, (
+                f"Expected operator message to warn knownDrift may be incomplete, got: {stderr_text!r}"
+            )
+
+            # Seeded pair.json still validates against the schema.
+            _validate_schema_or_fail(pair_json, PAIR_SCHEMA_PATH, "pair.json (coexistence)")
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -1223,9 +1323,13 @@ if __name__ == "__main__":
         ("test_volatile_capture_seeded_into_known_drift", test_volatile_capture_seeded_into_known_drift),
         # U4 scenario b: clean probe → empty knownDrift, no operator warning
         ("test_clean_probe_no_known_drift_no_operator_warning", test_clean_probe_no_known_drift_no_operator_warning),
-        # U4 scenario c: self_check_failed → empty knownDrift + operator message
-        ("test_self_check_failed_seeds_empty_known_drift_and_warns_operator",
-         test_self_check_failed_seeds_empty_known_drift_and_warns_operator),
+        # U4 scenario c: self_check_failed alone → empty knownDrift + operator message
+        ("test_self_check_failed_only_seeds_empty_known_drift_and_warns_operator",
+         test_self_check_failed_only_seeds_empty_known_drift_and_warns_operator),
+        # Fix round: self_check_failed + volatile_capture coexist → knownDrift IS
+        # seeded (never discarded) + operator message still printed
+        ("test_self_check_failed_and_volatile_capture_coexist_seeds_drift_and_warns_operator",
+         test_self_check_failed_and_volatile_capture_coexist_seeds_drift_and_warns_operator),
         # U4 scenario d: missing diff-result.json → graceful empty knownDrift
         ("test_missing_diff_result_json_known_drift_empty", test_missing_diff_result_json_known_drift_empty),
         # --refresh

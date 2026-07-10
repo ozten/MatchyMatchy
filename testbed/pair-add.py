@@ -460,18 +460,22 @@ def freeze_and_scaffold(
             capture_diff_result = None
 
         if capture_diff_result is not None:
+            # Seed knownDrift UNCONDITIONALLY: a self_check_failed warning and a
+            # volatile_capture warning legitimately coexist (e.g. one viewport's
+            # probe drifted while another viewport's probe failed outright).
+            # Discarding real drift just because the probe ALSO failed elsewhere
+            # would silently under-seed knownDrift.
             self_check_failed = _self_check_failed_warning(capture_diff_result)
             if self_check_failed is not None:
                 print(
-                    f"[pair-add] self-check probe failed "
+                    f"[pair-add] self-check probe reported a failure "
                     f"({self_check_failed.get('message', '<no message>')}); "
-                    f"knownDrift not seeded from this run",
+                    f"knownDrift may be incomplete",
                     file=sys.stderr,
                 )
-            else:
-                known_drift = _extract_known_drift(capture_diff_result)
-                if known_drift:
-                    print(f"  volatile_capture warnings detected: {known_drift}")
+            known_drift = _extract_known_drift(capture_diff_result)
+            if known_drift:
+                print(f"  volatile_capture warnings detected: {known_drift}")
     # else: no capture-run diff-result.json found (e.g. a hand-built tmp_dir in
     # tests, or a run without --self-check) — knownDrift stays empty, silently,
     # matching prior behavior for a missing self-check.json.

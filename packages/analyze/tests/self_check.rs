@@ -49,9 +49,21 @@ function readStdin() {
 // A minimal valid 10x10 white RGBA PNG, hand-built (zlib deflate + PNG chunk
 // framing, no external tools/deps) and confirmed to decode via the Rust `image`
 // crate the analyzer itself uses. Reused for every screenshot the stub writes —
-// no visual diff is exercised by these tests.
+// no visual diff is exercised by most of these tests.
 const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAEUlEQVR42mP4TyRgGFVIX4UAI/uOgGWVNeQAAAAASUVORK5CYII=',
+  'base64'
+);
+
+// A second minimal valid 10x10 PNG (solid black, opaque), built the same way
+// as TINY_PNG and confirmed to decode via the Rust `image` crate. Used ONLY
+// when a prefix is listed in control.distinctScreenshotPrefixes, so a test can
+// make the self-check probe's screenshot pixel-diff genuinely differ from the
+// main run's — needed for the clobber-regression test (self_check.rs), which
+// would otherwise trivially pass even with the P1 clobber bug present (every
+// screenshot being byte-identical makes every diff.png byte-identical too).
+const BLACK_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAE0lEQVR42mNgYGD4TyQeVUhPhQA0vWOdRb+VhQAAAABJRU5ErkJggg==',
   'base64'
 );
 
@@ -160,7 +172,7 @@ function main() {
   fs.mkdirSync(stubDir, { recursive: true });
   fs.appendFileSync(path.join(stubDir, 'configs.jsonl'), JSON.stringify(config) + '\n');
 
-  let control = { failPrefixes: [], failViewportPrefixes: [], driftPrefixes: [], driftViewportPrefixes: [] };
+  let control = { failPrefixes: [], failViewportPrefixes: [], driftPrefixes: [], driftViewportPrefixes: [], distinctScreenshotPrefixes: [] };
   const controlPath = path.join(stubDir, 'control.json');
   if (fs.existsSync(controlPath)) {
     control = Object.assign(control, JSON.parse(fs.readFileSync(controlPath, 'utf-8')));
@@ -185,8 +197,9 @@ function main() {
   const bundle = buildBundle(config, prefix, viewportName, drift);
   const bundlePath = path.join(vpDir, prefix + '.bundle.json');
   fs.writeFileSync(bundlePath, JSON.stringify(bundle));
-  fs.writeFileSync(path.join(vpDir, prefix + '.png'), TINY_PNG);
-  fs.writeFileSync(path.join(vpDir, prefix + '-vp.png'), TINY_PNG);
+  const screenshot = control.distinctScreenshotPrefixes.includes(prefix) ? BLACK_PNG : TINY_PNG;
+  fs.writeFileSync(path.join(vpDir, prefix + '.png'), screenshot);
+  fs.writeFileSync(path.join(vpDir, prefix + '-vp.png'), screenshot);
 
   process.stdout.write(JSON.stringify({ ok: true, bundlePath: bundlePath }) + '\n');
   process.exit(0);
@@ -230,8 +243,6 @@ fn matchy_bin() -> PathBuf {
 
 struct RunOutcome {
     code: i32,
-    #[allow(dead_code)]
-    stdout: String,
     stderr: String,
 }
 
@@ -261,7 +272,6 @@ fn run_matchy(
 
     RunOutcome {
         code: output.status.code().unwrap_or(127),
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
         stderr: String::from_utf8_lossy(&output.stderr).to_string(),
     }
 }
@@ -607,5 +617,319 @@ fn self_check_partial_failure_one_viewport_survives_with_drift() {
         vol_idx < failed_idx,
         "volatile_capture must precede self_check_failed in warnings[]: {:?}",
         codes
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 6: missing_old_bundle — THIS run's OLD-side capture already failed
+// for one viewport (of the two default viewports). run_self_check must skip
+// the probe for that viewport at stage "missing_old_bundle" (never diffing
+// against a stale/nonexistent old.bundle.json), while the main result still
+// carries a load_error for that viewport, and the surviving viewport's probe
+// still runs.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn self_check_missing_old_bundle_skips_probe_for_failed_viewport() {
+    let tmp = TempDir::new().unwrap();
+    let stub_dir = tmp.path().join("stub");
+    fs::create_dir_all(&stub_dir).unwrap();
+    let capture_script = write_stub_script(&stub_dir);
+    // Fail ONLY the real "old" capture for "desktop" (default viewports:
+    // desktop + mobile). desktop's "new" and mobile's "old"/"new" all succeed,
+    // as do both viewports' "old-selfcheck" captures (were they attempted).
+    write_control(
+        &stub_dir,
+        &serde_json::json!({ "failViewportPrefixes": ["desktop:old"] }),
+    );
+
+    let out = tmp.path().join("out");
+    fs::create_dir_all(&out).unwrap();
+
+    let outcome = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out,
+        &["--self-check"],
+    );
+    assert_eq!(
+        outcome.code, 1,
+        "a load_error issue on desktop should cross the default --fail-on=error \
+         threshold; stderr:\n{}",
+        outcome.stderr
+    );
+
+    // Main diff-result.json has a load_error issue for the failed viewport.
+    let dr_path = out.join("diff-result.json");
+    let dr: serde_json::Value = serde_json::from_slice(&fs::read(&dr_path).unwrap())
+        .expect("diff-result.json must parse");
+    let issues = dr["issues"]
+        .as_array()
+        .expect("diff-result.json must have an issues array");
+    let has_load_error = issues
+        .iter()
+        .any(|i| i["type"] == "load_error" && i["viewport"] == "desktop");
+    assert!(
+        has_load_error,
+        "expected a load_error issue for viewport 'desktop': {:#?}",
+        issues
+    );
+
+    // self_check_failed.context.failedViewports == {"desktop": "missing_old_bundle"}.
+    let warnings = read_warnings(&out);
+    let sc_failed = find_warning(&warnings, "self_check_failed")
+        .unwrap_or_else(|| panic!("self_check_failed warning expected; got {:?}", warnings));
+    let failed_viewports = sc_failed["context"]["failedViewports"]
+        .as_object()
+        .expect("context.failedViewports must be an object");
+    assert_eq!(
+        failed_viewports.len(),
+        1,
+        "only the desktop viewport should be listed as failed: {:?}",
+        failed_viewports
+    );
+    assert_eq!(
+        failed_viewports.get("desktop").and_then(|v| v.as_str()),
+        Some("missing_old_bundle"),
+        "desktop should be recorded at stage 'missing_old_bundle': {:?}",
+        failed_viewports
+    );
+
+    // The surviving viewport's (mobile) probe still ran: self-check.json exists.
+    assert!(
+        out.join("self-check.json").exists(),
+        "self-check.json should be written from the surviving viewport (mobile)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 7: write-failure + drift coexistence — self-check.json is
+// pre-created as a DIRECTORY (so the eventual write fails), and one viewport
+// drifts. Exit code must be unchanged vs. an equivalent run without
+// --self-check; warnings must contain volatile_capture THEN self_check_failed,
+// in that order; self_check_failed.context.selfCheckJsonWriteFailed == true
+// and failedViewports == {} (no per-viewport failures — only the top-level
+// self-check.json write failed).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn self_check_write_failure_and_drift_coexist() {
+    let tmp = TempDir::new().unwrap();
+    let stub_dir = tmp.path().join("stub");
+    fs::create_dir_all(&stub_dir).unwrap();
+    let capture_script = write_stub_script(&stub_dir);
+    // Default viewports (desktop + mobile); mobile's probe drifts, nothing fails.
+    write_control(
+        &stub_dir,
+        &serde_json::json!({ "driftViewportPrefixes": ["mobile:old-selfcheck"] }),
+    );
+
+    let out_with = tmp.path().join("out_with_self_check");
+    fs::create_dir_all(&out_with).unwrap();
+    // Pre-create self-check.json AS A DIRECTORY so std::fs::write(..) fails.
+    // run_self_check's stale-state cleanup (`remove_file`) cannot remove a
+    // directory, so it silently no-ops and the directory survives to make the
+    // write fail.
+    fs::create_dir_all(out_with.join("self-check.json")).unwrap();
+
+    let with_sc = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out_with,
+        &["--self-check"],
+    );
+
+    let out_without = tmp.path().join("out_without_self_check");
+    fs::create_dir_all(&out_without).unwrap();
+    let without_sc = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out_without,
+        &[],
+    );
+
+    assert_eq!(
+        with_sc.code, without_sc.code,
+        "a self-check.json write failure must never change the exit code \
+         (with={}, without={})\n--self-check stderr:\n{}\nno-self-check stderr:\n{}",
+        with_sc.code, without_sc.code, with_sc.stderr, without_sc.stderr
+    );
+
+    let warnings = read_warnings(&out_with);
+    let codes = warning_codes(&warnings);
+    let vol_idx = codes
+        .iter()
+        .position(|c| *c == "volatile_capture")
+        .unwrap_or_else(|| panic!("volatile_capture must be present: {:?}", codes));
+    let failed_idx = codes
+        .iter()
+        .position(|c| *c == "self_check_failed")
+        .unwrap_or_else(|| panic!("self_check_failed must be present: {:?}", codes));
+    assert!(
+        vol_idx < failed_idx,
+        "volatile_capture must precede self_check_failed in warnings[]: {:?}",
+        codes
+    );
+
+    let sc_failed = find_warning(&warnings, "self_check_failed").unwrap();
+    assert_eq!(
+        sc_failed["context"]["selfCheckJsonWriteFailed"].as_bool(),
+        Some(true),
+        "selfCheckJsonWriteFailed must be true: {:?}",
+        sc_failed
+    );
+    let failed_viewports = sc_failed["context"]["failedViewports"]
+        .as_object()
+        .expect("context.failedViewports must be an object");
+    assert!(
+        failed_viewports.is_empty(),
+        "no per-viewport failures expected (only the top-level write failed): {:?}",
+        failed_viewports
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 8: clobber regression (P1) — running with --self-check must never
+// change the MAIN run's <vp>/diff.png bytes. The "old-selfcheck" screenshot is
+// made pixel-distinct (BLACK_PNG) from "old"/"new" (TINY_PNG) so the probe's
+// own diff.png would provably differ from the main diff.png if the two paths
+// ever collided again (the underlying P1 bug: the probe used to write into
+// the SAME <vp>/diff.png the main run just wrote).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn self_check_does_not_clobber_main_diff_png() {
+    let tmp = TempDir::new().unwrap();
+    let stub_dir = tmp.path().join("stub");
+    fs::create_dir_all(&stub_dir).unwrap();
+    let capture_script = write_stub_script(&stub_dir);
+    write_control(
+        &stub_dir,
+        &serde_json::json!({
+            "driftPrefixes": ["old-selfcheck"],
+            "distinctScreenshotPrefixes": ["old-selfcheck"],
+        }),
+    );
+
+    let out_with = tmp.path().join("out_with_self_check");
+    fs::create_dir_all(&out_with).unwrap();
+    let with_sc = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out_with,
+        &["--self-check", "--viewport", "only=800x600"],
+    );
+    assert_eq!(
+        with_sc.code, 0,
+        "clean old-vs-new diff (no drift on the main pair) should exit 0; stderr:\n{}",
+        with_sc.stderr
+    );
+
+    let out_without = tmp.path().join("out_without_self_check");
+    fs::create_dir_all(&out_without).unwrap();
+    let without_sc = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out_without,
+        &["--viewport", "only=800x600"],
+    );
+    assert_eq!(without_sc.code, 0);
+
+    let main_diff_with = fs::read(out_with.join("only/diff.png"))
+        .expect("main diff.png must exist in the --self-check run");
+    let main_diff_without = fs::read(out_without.join("only/diff.png"))
+        .expect("main diff.png must exist in the no-self-check run");
+    assert_eq!(
+        main_diff_with, main_diff_without,
+        "the main run's <vp>/diff.png bytes must be byte-identical whether or \
+         not --self-check ran (byte-determinism makes this exact)"
+    );
+
+    assert!(
+        out_with.join("only/self-check/diff.png").exists(),
+        "the probe's own artifact-isolated diff.png must exist under <vp>/self-check/"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 9: stale-state regression — running twice into the SAME --out dir.
+// Run 1 is a clean self-check (self-check.json written). Run 2's probe fails
+// entirely (control fails prefix "old-selfcheck" outright). After run 2,
+// self-check.json must be ABSENT (cleaned up, not stale from run 1) and
+// self_check_failed must be present in run 2's diff-result.json.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn self_check_stale_state_does_not_survive_a_second_run_in_the_same_out_dir() {
+    let tmp = TempDir::new().unwrap();
+    let stub_dir = tmp.path().join("stub");
+    fs::create_dir_all(&stub_dir).unwrap();
+    let capture_script = write_stub_script(&stub_dir);
+    write_control(&stub_dir, &serde_json::json!({}));
+
+    let out = tmp.path().join("out");
+    fs::create_dir_all(&out).unwrap();
+
+    // Run 1: happy path — self-check.json written.
+    let run1 = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out,
+        &["--self-check", "--viewport", "only=800x600"],
+    );
+    assert_eq!(run1.code, 0, "run 1 should be clean; stderr:\n{}", run1.stderr);
+    assert!(
+        out.join("self-check.json").exists(),
+        "run 1 should write self-check.json"
+    );
+
+    // Run 2, SAME --out dir: control now fails "old-selfcheck" entirely.
+    write_control(
+        &stub_dir,
+        &serde_json::json!({ "failPrefixes": ["old-selfcheck"] }),
+    );
+    let run2 = run_matchy(
+        &capture_script,
+        &stub_dir,
+        "http://old.example.com/",
+        "http://new.example.com/",
+        &out,
+        &["--self-check", "--viewport", "only=800x600"],
+    );
+
+    assert!(
+        !out.join("self-check.json").exists(),
+        "run 2 must clean up run 1's stale self-check.json, not leave it \
+         behind to contradict run 2's self_check_failed warning; stderr:\n{}",
+        run2.stderr
+    );
+
+    let warnings = read_warnings(&out);
+    let sc_failed = find_warning(&warnings, "self_check_failed").unwrap_or_else(|| {
+        panic!(
+            "self_check_failed warning expected in run 2's diff-result.json; got {:?}",
+            warnings
+        )
+    });
+    let failed_viewports = sc_failed["context"]["failedViewports"]
+        .as_object()
+        .expect("context.failedViewports must be an object");
+    assert_eq!(
+        failed_viewports.get("only").and_then(|v| v.as_str()),
+        Some("capture"),
+        "viewport 'only' should be recorded at stage 'capture' in run 2: {:?}",
+        failed_viewports
     );
 }

@@ -91,17 +91,17 @@ endif
 # ---------------------------------------------------------------------------
 
 verify:
-	@echo "=== 1/8  cargo build + test ==="
+	@echo "=== 1/9  cargo build + test ==="
 	cargo build --release
 	cargo test
 
-	@echo "=== 2/8  capture build + test ==="
+	@echo "=== 2/9  capture build + test ==="
 	cd packages/capture && npm install --no-audit --no-fund && npm run build && npm test
 
-	@echo "=== 3/8  testbed servers ==="
+	@echo "=== 3/9  testbed servers ==="
 	python3 testbed/run-all.py check
 
-	@echo "=== 4/8  M1–M8 fixture gate (issues + clusters) ==="
+	@echo "=== 4/9  M1–M8 fixture gate (issues + clusters) ==="
 	python3 testbed/check-fixture.py v01-identical
 	python3 testbed/check-fixture.py v02-banner-added
 	python3 testbed/check-fixture.py v03-font-size
@@ -124,10 +124,13 @@ verify:
 	python3 testbed/check-fixture.py v20-console-error
 	python3 testbed/check-fixture.py v21-a11y-lang
 
-	@echo "=== 5/8  M8 acceptance (reporters, profiles, baseline) ==="
+	@echo "=== 5/9  M8 acceptance (reporters, profiles, baseline) ==="
 	python3 testbed/check-m8.py
 
-	@echo "=== 6/8  Tier-3 real-pair regression gate ==="
+	@echo "=== 6/9  pair-add.py unit tests ==="
+	python3 testbed/tests/test_pair_add.py
+
+	@echo "=== 7/9  Tier-3 real-pair regression gate ==="
 	@if [ -d testbed/pairs ] && [ -n "$$(ls -d testbed/pairs/*/ 2>/dev/null)" ]; then \
 		for dir in testbed/pairs/*/; do \
 			[ -f "$$dir/pair.json" ] || continue; \
@@ -139,7 +142,7 @@ verify:
 		echo "  no Tier-3 pairs yet — skipping"; \
 	fi
 
-	@echo "=== 7/8  golden comparisons ==="
+	@echo "=== 8/9  golden comparisons ==="
 	@if [ -d testbed/goldens ] && [ -n "$$(ls testbed/goldens/*.diffresult.json 2>/dev/null)" ]; then \
 		for golden in testbed/goldens/*.diffresult.json; do \
 			variant=$$(basename "$$golden" .diffresult.json); \
@@ -151,7 +154,7 @@ verify:
 		echo "  no goldens yet — skipping golden comparison"; \
 	fi
 
-	@echo "=== 8/8  determinism spot-check ==="
+	@echo "=== 9/9  determinism spot-check ==="
 	python3 testbed/determinism-check.py v02-banner-added
 	python3 testbed/determinism-check.py v08-cta-removed
 	python3 testbed/determinism-check.py v06-gradient-removed
