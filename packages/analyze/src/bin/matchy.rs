@@ -25,8 +25,18 @@ use matchy_analyze::scoring::ParityProfile;
 // CLI definition
 // ---------------------------------------------------------------------------
 
+/// Version string shown by `--version` / `-V`: crate version + git provenance
+/// (short SHA, committer UTC timestamp, dirty flag). Composed at compile time
+/// from build.rs's MATCHY_BUILD_INFO; degrades to "<version> (unknown)" without git.
+const MATCHY_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (",
+    env!("MATCHY_BUILD_INFO"),
+    ")"
+);
+
 #[derive(Parser, Debug)]
-#[command(name = "matchy", version, about = "Page pair visual diff tool")]
+#[command(name = "matchy", version = MATCHY_VERSION, about = "Page pair visual diff tool")]
 struct Cli {
     #[command(subcommand)]
     command: Option<CliCommand>,

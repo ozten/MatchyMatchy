@@ -343,6 +343,12 @@ fn test_diff_result_has_required_keys() {
     let dr: serde_json::Value =
         serde_json::from_slice(&dr_bytes).expect("diff-result.json must be valid JSON");
 
+    assert_eq!(
+        dr.get("toolVersion").and_then(|v| v.as_str()),
+        Some(env!("CARGO_PKG_VERSION")),
+        "toolVersion must stay plain CARGO_PKG_VERSION (R7) — build provenance must NOT leak into JSON"
+    );
+
     // Required top-level keys per contract (DiffResult struct, camelCase serialization)
     for key in &[
         "status",
