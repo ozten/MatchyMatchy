@@ -95,6 +95,8 @@ This produces:
 
 `matchy` shells out to `capture.cjs` at runtime, so keep the two together when you install them — copy both into the same directory (e.g. `~/.local/bin`), exactly as the install script does. To build only the binary, run `cargo build --release` (skips the capture bundle). Then run `matchy doctor` to confirm Node, Playwright, and Chromium are present.
 
+> **Keeping an installed binary current.** If you installed by copying or symlinking `target/release/matchy`, a later `git pull` updates the *source tree* but **not** the installed binary — you must re-run `make build` (or `cargo build --release`) after pulling, then reinstall/refresh the copy. To detect a stale install, compare the SHA in `matchy --version` (e.g. `matchy 0.1.0 (a02f5bf 2026-07-14T17:18:40Z, dirty=false)`) against `git rev-parse --short HEAD`; if they differ, your binary predates your checkout.
+
 ### Where `capture.cjs` goes
 
 `matchy` runs the capture layer by shelling out to `capture.cjs`, so it has to locate that file at runtime. **The install script does this for you** — it places `capture.cjs` directly beside the `matchy` binary (both land in `/usr/local/bin`, or `~/.local/bin` when that isn't writable), which is the first location `matchy` looks. If you install manually or relocate the binary, keep the two together or point `matchy` at the file explicitly.
@@ -315,7 +317,7 @@ Run `matchy doctor` after installing — it checks each requirement and prints t
 
 | Target | What it does |
 |---|---|
-| `make build` | `cargo build --release` + `packages/capture` npm install and bundle |
+| `make build` | `cargo build --release` + `packages/capture` npm install and bundle; echoes the built binary's `--version` provenance (SHA/timestamp) on completion |
 | `make verify` | Full CI gate: build, unit tests, testbed servers, M1 fixture checks, M8 acceptance, **Tier-3 real-pair gate**, golden comparisons, determinism spot-check |
 | `make fixture VARIANT=vNN` | Run `check-fixture.py` for one variant (e.g. `VARIANT=v02-banner-added`) |
 | `make pair CASE=pNN-…` | Replay + assert one Tier-3 real-pair fixture hermetically (`check-pair.py`) |
