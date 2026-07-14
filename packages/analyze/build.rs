@@ -15,32 +15,42 @@ fn main() {
     let info = build_info().unwrap_or_else(|| "unknown".to_string());
     println!("cargo:rustc-env=MATCHY_BUILD_INFO={}", info);
 
-    // Re-run this script when git HEAD (or the ref it points at) moves, so a
+    // Re-run this script when the commit HEAD resolves to changes, so a
     // commit-only change (no Rust source edit) still refreshes the embedded
-    // SHA (R3). Only emit these when git itself is available and the paths
-    // actually exist — an emitted-but-missing path would make cargo re-run
-    // the script on every single build instead of only on git changes.
-    if let Some(git_dir) = run_git(&["rev-parse", "--absolute-git-dir"]) {
-        let head_path = format!("{}/HEAD", git_dir);
-        if std::path::Path::new(&head_path).exists() {
-            println!("cargo:rerun-if-changed={}", head_path);
-        }
+    // SHA (R3). `git rev-parse --git-path` is worktree-aware: HEAD resolves to
+    // the per-worktree file, while a symbolic branch ref resolves to the shared
+    // common dir where `git commit` actually writes it. Joining paths onto the
+    // per-worktree git dir by hand would silently miss commits made from a
+    // linked worktree (the branch ref lives in the common dir, not there), and
+    // that stale-SHA outcome is exactly the bug this feature exists to catch.
+    // Only emit directives for paths that exist — an emitted-but-missing path
+    // makes cargo re-run the script on every build instead of only on changes.
+    if let Some(head_path) = run_git(&["rev-parse", "--git-path", "HEAD"]) {
+        watch_if_exists(&head_path);
 
         // If HEAD is a symbolic ref ("ref: refs/heads/main"), also watch the
         // resolved ref file — that's what actually moves on a normal commit.
         if let Ok(head_contents) = std::fs::read_to_string(&head_path) {
             if let Some(refname) = head_contents.trim().strip_prefix("ref: ") {
-                let ref_path = format!("{}/{}", git_dir, refname);
-                if std::path::Path::new(&ref_path).exists() {
-                    println!("cargo:rerun-if-changed={}", ref_path);
+                if let Some(ref_path) = run_git(&["rev-parse", "--git-path", refname]) {
+                    watch_if_exists(&ref_path);
                 }
             }
         }
+    }
 
-        let packed_refs_path = format!("{}/packed-refs", git_dir);
-        if std::path::Path::new(&packed_refs_path).exists() {
-            println!("cargo:rerun-if-changed={}", packed_refs_path);
-        }
+    // packed-refs covers refs that haven't been unpacked to a loose file.
+    if let Some(packed_refs) = run_git(&["rev-parse", "--git-path", "packed-refs"]) {
+        watch_if_exists(&packed_refs);
+    }
+}
+
+/// Emit a `cargo:rerun-if-changed` directive only when the path exists. A
+/// directive naming a missing path forces cargo to re-run the script on every
+/// build (it can never observe the path as "unchanged"), so guard on existence.
+fn watch_if_exists(path: &str) {
+    if std::path::Path::new(path).exists() {
+        println!("cargo:rerun-if-changed={}", path);
     }
 }
 
