@@ -54,30 +54,21 @@ fn version_has_provenance_shape() {
         rest
     );
 
-    let open_paren = rest.find(" (").unwrap_or_else(|| {
-        panic!(
-            "expected ' (' separating semver from provenance, got: {:?}",
-            rest
-        )
-    });
-    assert!(
-        rest.ends_with(')'),
-        "--version output must end with ')', got: {:?}",
-        stdout
-    );
-    let inner = &rest[open_paren + 2..rest.len() - 1];
+    // "<semver> (<inner>)" → <inner>, folding the trailing ')' check into the extraction.
+    let inner = rest
+        .strip_suffix(')')
+        .and_then(|s| s.split_once(" ("))
+        .map(|(_semver, inner)| inner)
+        .unwrap_or_else(|| panic!("expected '<semver> (<provenance>)', got: {:?}", rest));
 
     if inner == "unknown" {
         // R4 fallback shape — nothing further to check.
         return;
     }
 
-    assert!(
-        inner.contains(", dirty="),
-        "provenance inner must contain ', dirty=', got: {:?}",
-        inner
-    );
-    let (left, dirty_val) = inner.split_once(", dirty=").unwrap();
+    let (left, dirty_val) = inner
+        .split_once(", dirty=")
+        .unwrap_or_else(|| panic!("provenance inner must contain ', dirty=', got: {:?}", inner));
     assert!(
         dirty_val == "true" || dirty_val == "false",
         "dirty flag must be exactly 'true' or 'false', got: {:?}",
