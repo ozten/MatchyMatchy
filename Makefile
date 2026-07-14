@@ -31,6 +31,8 @@ testbed-check:
 build:
 	cargo build --release
 	cd packages/capture && npm install --no-audit --no-fund && npm run build
+	@echo "→ built binary provenance (compare against 'git rev-parse --short HEAD' to spot a stale install):"
+	@./target/release/matchy --version
 
 # ---------------------------------------------------------------------------
 # fixture: run check-fixture.py for a single variant
