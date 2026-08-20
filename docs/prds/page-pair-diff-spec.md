@@ -403,6 +403,14 @@ This is the product. Optimize it for an agent that will fix the issues.
 }
 ```
 
+`agentSummary.byType` and `agentSummary.bySeverity` (port-parity U5/R4d) are counts over the
+exact same kept set: after `--baseline` suppression (7.4) and `--scope` partitioning (14) have
+both been applied, so suppressed and out-of-scope issues are excluded from both maps — this is a
+contract guarantee, not an implementation detail. Both maps are always present, serialized as an
+empty object when nothing survives, never omitted. `bySeverity` exists specifically so a gate can
+assert directly against it (e.g. "no error-or-worse issues remain") without re-deriving counts
+from `issues[]`.
+
 ### 7.1 `Issue` (every field exists to reduce agent work)
 ```jsonc
 {

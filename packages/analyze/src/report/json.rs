@@ -1875,4 +1875,329 @@ mod tests {
             "region_count must be 1"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // U5: agentSummary.bySeverity — post-baseline, post-scope guarantee
+    // -----------------------------------------------------------------------
+
+    /// Manual count of severities directly from a serialized `issues[]` array,
+    /// used to cross-check `agentSummary.bySeverity` / `byType` against the
+    /// actual visible-issue list rather than trusting the summary alone.
+    fn manual_by_severity(issues: &[Issue]) -> BTreeMap<String, u64> {
+        let mut m: BTreeMap<String, u64> = BTreeMap::new();
+        for issue in issues {
+            *m.entry(issue.severity.as_str().to_string()).or_insert(0) += 1;
+        }
+        m
+    }
+
+    fn manual_by_type(issues: &[Issue]) -> BTreeMap<String, u32> {
+        let mut m: BTreeMap<String, u32> = BTreeMap::new();
+        for issue in issues {
+            *m.entry(issue.issue_type.as_str().to_string()).or_insert(0) += 1;
+        }
+        m
+    }
+
+    /// Happy path: 3 error-severity issues where 1 is baseline-suppressed and 1 is
+    /// out-of-scope. `bySeverity["error"]` must equal 1 (only the surviving error
+    /// issue), and it must equal a manual count over the serialized `issues[]`.
+    #[test]
+    fn test_by_severity_happy_path_baseline_and_scope() {
+        // issue A: error, in "main" landmark, in scope, not baselined → survives.
+        let issue_a = make_issue_typed(
+            "issue_a_survivor",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+        // issue B: error, baselined → suppressed.
+        let issue_b = make_issue_typed(
+            "issue_b_baselined",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+        // issue C: error, in "navigation" landmark → scoped out (scope = ["main"]).
+        let issue_c = make_issue_typed(
+            "issue_c_outofscope",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("navigation"),
+            None,
+        );
+
+        let baseline = Baseline::from_ids(vec!["issue_b_baselined".to_string()]);
+        let scope_opts = ScopeOptions {
+            scope: vec!["main".to_string()],
+        };
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![issue_a, issue_b, issue_c],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+        };
+
+        let result = assemble_diff_result(
+            "run-u5-happy",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &baseline,
+            &scope_opts,
+            vec![],
+            None,
+        );
+
+        // Exactly the survivor remains in issues[].
+        assert_eq!(result.issues.len(), 1, "only the survivor issue is kept");
+        assert_eq!(result.issues[0].id, "issue_a_survivor");
+
+        assert_eq!(
+            result.agent_summary.by_severity.get("error").copied(),
+            Some(1),
+            "bySeverity[\"error\"] must equal 1 after suppression + scoping"
+        );
+
+        // Cross-check against a manual count over the serialized issues[] array.
+        let manual = manual_by_severity(&result.issues);
+        assert_eq!(
+            result.agent_summary.by_severity, manual,
+            "bySeverity must equal a manual count over the visible issues[] array"
+        );
+    }
+
+    /// Edge case: all issues suppressed (baselined) → `bySeverity` and `byType`
+    /// must both serialize as an EMPTY OBJECT (present, not absent) — gates rely
+    /// on this always-present guarantee.
+    #[test]
+    fn test_by_severity_all_suppressed_serializes_empty_object() {
+        let issue_a = make_issue_typed(
+            "issue_all_suppressed_a",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+        let issue_b = make_issue_typed(
+            "issue_all_suppressed_b",
+            IssueType::StyleChanged,
+            IssueCategory::Style,
+            IssueSeverity::Warning,
+            Some("main"),
+            Some("color"),
+        );
+
+        let baseline = Baseline::from_ids(vec![
+            "issue_all_suppressed_a".to_string(),
+            "issue_all_suppressed_b".to_string(),
+        ]);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![issue_a, issue_b],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+        };
+
+        let result = assemble_diff_result(
+            "run-u5-all-suppressed",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &baseline,
+            &ScopeOptions::default(),
+            vec![],
+            None,
+        );
+
+        assert!(result.issues.is_empty(), "all issues must be suppressed");
+        assert!(
+            result.agent_summary.by_severity.is_empty(),
+            "bySeverity must be an empty map when all issues are suppressed"
+        );
+        assert!(
+            result.agent_summary.by_type.is_empty(),
+            "byType must be an empty map when all issues are suppressed"
+        );
+
+        // Pin the wire-level guarantee: the field is present as `{}`, not omitted,
+        // in the serialized JSON — this is what gates depend on (no `?? {}`
+        // fallback needed on the consumer side).
+        let json = serde_json::to_value(&result.agent_summary).expect("serialize agentSummary");
+        assert_eq!(
+            json.get("bySeverity"),
+            Some(&serde_json::json!({})),
+            "bySeverity must serialize as an empty object, not be absent"
+        );
+        assert_eq!(
+            json.get("byType"),
+            Some(&serde_json::json!({})),
+            "byType must serialize as an empty object, not be absent"
+        );
+    }
+
+    /// Integration-shaped: `--scope` partitioning AND `--baseline` together.
+    /// `bySeverity` and `byType` must both equal counts derived from the
+    /// visible `issues[]` array exactly (same kept set for both).
+    #[test]
+    fn test_by_severity_and_by_type_match_visible_issues_with_scope_and_baseline() {
+        let issues: Vec<Issue> = vec![
+            // In-scope ("main"), not baselined → 2 errors, 1 warning survive.
+            make_issue_typed(
+                "main_err_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("main"),
+                None,
+            ),
+            make_issue_typed(
+                "main_err_0001",
+                IssueType::MissingText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("main"),
+                None,
+            ),
+            make_issue_typed(
+                "main_warn_0000",
+                IssueType::StyleChanged,
+                IssueCategory::Style,
+                IssueSeverity::Warning,
+                Some("main"),
+                Some("color"),
+            ),
+            // In-scope but baselined → suppressed, must not count.
+            make_issue_typed(
+                "main_baselined_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("main"),
+                None,
+            ),
+            // Out-of-scope ("navigation") → must not count, even though it's an error.
+            make_issue_typed(
+                "nav_err_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("navigation"),
+                None,
+            ),
+            // Out-of-scope AND baselined → double-excluded, must not count.
+            make_issue_typed(
+                "nav_baselined_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Critical,
+                Some("navigation"),
+                None,
+            ),
+            // Page-level (no landmark), not baselined → always in scope, must count.
+            make_issue_typed(
+                "page_info_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Info,
+                None,
+                None,
+            ),
+        ];
+
+        let baseline = Baseline::from_ids(vec![
+            "main_baselined_0000".to_string(),
+            "nav_baselined_0000".to_string(),
+        ]);
+        let scope_opts = ScopeOptions {
+            scope: vec!["main".to_string()],
+        };
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+        };
+
+        let result = assemble_diff_result(
+            "run-u5-integration",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &baseline,
+            &scope_opts,
+            vec![],
+            None,
+        );
+
+        // Visible set: main_err_0000, main_err_0001, main_warn_0000, page_info_0000.
+        let visible_ids: BTreeSet<&str> = result.issues.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(visible_ids.len(), 4, "exactly four issues survive");
+        for expect_present in [
+            "main_err_0000",
+            "main_err_0001",
+            "main_warn_0000",
+            "page_info_0000",
+        ] {
+            assert!(
+                visible_ids.contains(expect_present),
+                "{} must be visible",
+                expect_present
+            );
+        }
+        for expect_absent in ["main_baselined_0000", "nav_err_0000", "nav_baselined_0000"] {
+            assert!(
+                !visible_ids.contains(expect_absent),
+                "{} must not be visible",
+                expect_absent
+            );
+        }
+
+        let manual_sev = manual_by_severity(&result.issues);
+        let manual_typ = manual_by_type(&result.issues);
+        assert_eq!(
+            result.agent_summary.by_severity, manual_sev,
+            "bySeverity must equal a manual count over the visible issues[] array"
+        );
+        assert_eq!(
+            result.agent_summary.by_type, manual_typ,
+            "byType must equal a manual count over the visible issues[] array"
+        );
+
+        // Spell out the expected counts explicitly too, not just cross-checked.
+        assert_eq!(
+            result.agent_summary.by_severity.get("error").copied(),
+            Some(2)
+        );
+        assert_eq!(
+            result.agent_summary.by_severity.get("warning").copied(),
+            Some(1)
+        );
+        assert_eq!(
+            result.agent_summary.by_severity.get("info").copied(),
+            Some(1)
+        );
+        assert_eq!(result.agent_summary.by_severity.get("critical"), None);
+    }
 }

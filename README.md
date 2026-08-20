@@ -186,6 +186,20 @@ The resolved overrides your map actually contributed (denied entries excluded) a
 
 Info-severity issues are excluded from that category's `scores.*` value (see [The DiffResult contract](#the-diffresult-contract)), so demoting a noisy property or type with `--severity-map` legitimately raises the corresponding score — that's the intended lever for tuning signal-to-noise without touching the underlying detectors.
 
+### Gating on issues
+
+`agentSummary.byType` and `agentSummary.bySeverity` are counts over the exact same kept set: after `--baseline` suppression and `--scope` partitioning have both been applied. Suppressed issues (in `suppressed.ids`) and out-of-scope issues (in `outOfScope.ids`) are excluded from both maps. Both maps are always present — an empty object `{}` when nothing survives, never absent — so a gate can read them directly without re-deriving counts from `issues[]`:
+
+```bash
+matchy --old https://old.example.com --new https://new.example.com \
+       --out ./report --scope main --baseline ledger.json --json
+
+jq -e '(.agentSummary.bySeverity.error // 0) == 0 and (.agentSummary.bySeverity.critical // 0) == 0' \
+   ./report/diff-result.json
+```
+
+That asserts "no unaccepted error-or-worse issues remain in the `main` landmark" without walking `issues[]`. The same guarantee makes `byType` usable the same way, e.g. `jq -e '(.agentSummary.byType.missing_form // 0) == 0'` to gate on one issue type specifically.
+
 ### Other commands
 
 - **`matchy doctor`** — verify Node.js, Playwright, and Chromium are present and print the exact fix for anything missing.
