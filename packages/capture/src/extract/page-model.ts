@@ -109,6 +109,9 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
   // getComputedStyle resolved value for `margin: auto` is a used value that proved
   // unstable (0px / 104px / 120px) across byte-identical captures; computedStyleMap
   // returns the computed value "auto" (deterministic).
+  // 33 properties total (issue #4 / R4b: text-decoration-line, z-index,
+  // max-width, pointer-events added — text-decoration-line NOT the
+  // `text-decoration` shorthand, which embeds color and would be noise).
   const COMPUTED_STYLE_PROPS: string[] = [
     "color",
     "background-color",
@@ -139,6 +142,10 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     "align-items",
     "gap",
     "grid-template-columns",
+    "text-decoration-line",
+    "z-index",
+    "max-width",
+    "pointer-events",
   ];
 
   // The four margin properties read via Typed OM instead of getComputedStyle.

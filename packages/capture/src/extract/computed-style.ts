@@ -18,6 +18,10 @@
  * list in analyze (covered by background-color/background-image; avoids double-
  * reporting). "border" shorthand stays in the diff list (no border longhands
  * captured).
+ *
+ * 33 properties total (issue #4 / R4b: text-decoration-line, z-index,
+ * max-width, pointer-events added — text-decoration-line captured instead of
+ * the `text-decoration` shorthand, which embeds color and would be noise).
  */
 export const COMPUTED_STYLE_PROPS: readonly string[] = [
   "color",
@@ -49,6 +53,10 @@ export const COMPUTED_STYLE_PROPS: readonly string[] = [
   "align-items",
   "gap",
   "grid-template-columns",
+  "text-decoration-line",
+  "z-index",
+  "max-width",
+  "pointer-events",
 ];
 
 /**

@@ -37,14 +37,18 @@ describe("COMPUTED_STYLE_PROPS", () => {
       "align-items",
       "gap",
       "grid-template-columns",
+      "text-decoration-line",
+      "z-index",
+      "max-width",
+      "pointer-events",
     ];
     for (const prop of required) {
       expect(COMPUTED_STYLE_PROPS).toContain(prop);
     }
   });
 
-  it("has 29 properties total", () => {
-    expect(COMPUTED_STYLE_PROPS.length).toBe(29);
+  it("has 33 properties total", () => {
+    expect(COMPUTED_STYLE_PROPS.length).toBe(33);
   });
 
   it("includes background shorthand (captured but excluded from diff list in analyze)", () => {
@@ -80,6 +84,43 @@ describe("COMPUTED_STYLE_PROPS", () => {
   it("is a readonly list with no duplicates", () => {
     const set = new Set(COMPUTED_STYLE_PROPS);
     expect(set.size).toBe(COMPUTED_STYLE_PROPS.length);
+  });
+});
+
+describe("issue #4 / R4b: extended computed-style coverage", () => {
+  it("includes the four newly-added properties in a captured style entry", () => {
+    // A "captured style entry" is the Record<string,string> shape readComputedStyle()
+    // builds per-node/per-ancestor — one key per COMPUTED_STYLE_PROPS entry.
+    const capturedEntry: Record<string, string> = {};
+    for (const prop of COMPUTED_STYLE_PROPS) {
+      capturedEntry[prop] = "test-value";
+    }
+    expect(capturedEntry).toHaveProperty("text-decoration-line");
+    expect(capturedEntry).toHaveProperty("z-index");
+    expect(capturedEntry).toHaveProperty("max-width");
+    expect(capturedEntry).toHaveProperty("pointer-events");
+  });
+
+  it("captures text-decoration-line instead of the text-decoration shorthand (embeds color, would be noise)", () => {
+    expect(COMPUTED_STYLE_PROPS).toContain("text-decoration-line");
+    expect(COMPUTED_STYLE_PROPS).not.toContain("text-decoration");
+  });
+
+  it("pins coverage of the issue-named properties already captured before this change", () => {
+    const alreadyCaptured = [
+      "text-align",
+      "border-radius",
+      "background-image",
+      "position",
+    ];
+    for (const prop of alreadyCaptured) {
+      expect(COMPUTED_STYLE_PROPS).toContain(prop);
+    }
+  });
+
+  it("pins coverage of the issue-named properties newly captured by this change", () => {
+    expect(COMPUTED_STYLE_PROPS).toContain("z-index");
+    expect(COMPUTED_STYLE_PROPS).toContain("max-width");
   });
 });
 

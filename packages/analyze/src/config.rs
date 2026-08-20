@@ -80,6 +80,12 @@ pub const ANCESTOR_MIN_SIMILARITY: f64 = 0.6;
 /// Diff property list: curated set MINUS the `background` shorthand (M4.md §3.1).
 /// The `background` shorthand is excluded to avoid double-reporting with
 /// `background-color` and `background-image`.
+///
+/// 32 properties total (33 captured minus `background`). Issue #4 / R4b added
+/// `text-decoration-line` (NOT the `text-decoration` shorthand, which embeds
+/// color and would be noise), `z-index`, `max-width`, `pointer-events` — same
+/// fixed slice-order position as the newcomers in
+/// `packages/capture/src/extract/page-model.ts` / `computed-style.ts`.
 pub const STYLE_DIFF_PROPERTIES: &[&str] = &[
     "color",
     "background-color",
@@ -109,6 +115,10 @@ pub const STYLE_DIFF_PROPERTIES: &[&str] = &[
     "align-items",
     "gap",
     "grid-template-columns",
+    "text-decoration-line",
+    "z-index",
+    "max-width",
+    "pointer-events",
 ];
 
 // ---------------------------------------------------------------------------

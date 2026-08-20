@@ -4031,4 +4031,284 @@ mod tests {
             "v05 regression: dup-label with changed computed style MUST emit style_changed; got 0 issues"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // U4: extended computed-style coverage (issue #4 / R4b)
+    //
+    // text-decoration-line, z-index, max-width, pointer-events joined
+    // STYLE_DIFF_PROPERTIES. These are keyword/numeric properties compared
+    // via plain normalized-value equality (line 559) — no new
+    // canonicalize_for_compare() rule is needed; the default arm already
+    // returns the value unchanged, same as other un-canonicalized keyword
+    // properties (display, position, opacity, ...). max-width lengths ride
+    // the existing generic C2 numeric-epsilon path.
+    // -----------------------------------------------------------------------
+
+    /// Happy path: text-decoration-line underline → none emits style_changed
+    /// with property-level from/to in evidence.
+    #[test]
+    fn test_u4_text_decoration_line_underline_to_none_emits_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("text-decoration-line", "underline")]);
+        let new_cs = styles(&[("text-decoration-line", "none")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issue = issues
+            .iter()
+            .find(|i| {
+                i.issue_type == IssueType::StyleChanged
+                    && i.evidence
+                        .get("old")
+                        .and_then(|o| o.get("text-decoration-line"))
+                        .is_some()
+            })
+            .expect("text-decoration-line underline vs none must emit style_changed");
+
+        assert_eq!(
+            issue
+                .evidence
+                .get("old")
+                .and_then(|o| o.get("text-decoration-line"))
+                .and_then(|v| v.as_str()),
+            Some("underline")
+        );
+        assert_eq!(
+            issue
+                .evidence
+                .get("new")
+                .and_then(|o| o.get("text-decoration-line"))
+                .and_then(|v| v.as_str()),
+            Some("none")
+        );
+    }
+
+    /// Edge case: text-decoration shorthand differing only in embedded color while
+    /// -line matches must not be captured/diffed at all — the shorthand is not in
+    /// STYLE_DIFF_PROPERTIES, so it never reaches diff_styles regardless of value.
+    #[test]
+    fn test_u4_text_decoration_shorthand_not_in_diff_property_list() {
+        assert!(
+            !STYLE_DIFF_PROPERTIES.contains(&"text-decoration"),
+            "the `text-decoration` shorthand embeds color and must stay out of the diff \
+             property list — only `text-decoration-line` is captured/diffed"
+        );
+        assert!(STYLE_DIFF_PROPERTIES.contains(&"text-decoration-line"));
+    }
+
+    /// Edge case: z-index auto vs auto → no issue.
+    #[test]
+    fn test_u4_z_index_auto_vs_auto_no_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("z-index", "auto")]);
+        let new_cs = styles(&[("z-index", "auto")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "z-index auto vs auto must not emit an issue; got {:?}",
+            issues
+        );
+    }
+
+    /// Edge case: max-width none vs none (a differently-derived `none`, e.g. from a
+    /// different declaration path) → no issue.
+    #[test]
+    fn test_u4_max_width_none_vs_none_no_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("max-width", "none")]);
+        let new_cs = styles(&[("max-width", "none")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "max-width none vs none must not emit an issue; got {:?}",
+            issues
+        );
+    }
+
+    /// Edge case: max-width 960px vs 960.05px → no issue (C2 sub-pixel numeric
+    /// epsilon, already generic — verifies max-width rides it without any
+    /// property-specific reimplementation).
+    #[test]
+    fn test_u4_max_width_subpixel_epsilon_no_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("max-width", "960px")]);
+        let new_cs = styles(&[("max-width", "960.05px")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "max-width 960px vs 960.05px must not emit an issue under C2 epsilon; got {:?}",
+            issues
+        );
+    }
+
+    /// Edge case: max-width 960px vs 962px (a real, non-epsilon change) → issue IS
+    /// emitted — guards against the epsilon path silently swallowing real diffs.
+    #[test]
+    fn test_u4_max_width_real_change_emits_issue() {
+        let old_node = make_node("o1", Some("Text"), None);
+        let new_node = make_node("n1", Some("Text"), None);
+
+        let old_cs = styles(&[("max-width", "960px")]);
+        let new_cs = styles(&[("max-width", "962px")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("o1".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("n1".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_node], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_node], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.issue_type == IssueType::StyleChanged),
+            "max-width 960px vs 962px must emit a style_changed issue"
+        );
+    }
+
+    /// Happy path: pointer-events auto → none on an interactive node emits
+    /// style_changed with property-level from/to.
+    #[test]
+    fn test_u4_pointer_events_auto_to_none_on_interactive_node_emits_issue() {
+        let old_link = make_link_node("old-link", Some("Get a Demo"), [100, 200, 200, 50], 0);
+        let new_link = make_link_node("new-link", Some("Get a Demo"), [100, 200, 200, 50], 0);
+
+        let old_cs = styles(&[("pointer-events", "auto")]);
+        let new_cs = styles(&[("pointer-events", "none")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("old-link".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("new-link".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_link], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_link], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        let issue = issues
+            .iter()
+            .find(|i| {
+                i.issue_type == IssueType::StyleChanged
+                    && i.evidence
+                        .get("old")
+                        .and_then(|o| o.get("pointer-events"))
+                        .is_some()
+            })
+            .expect("pointer-events auto vs none on an interactive node must emit style_changed");
+
+        assert_eq!(
+            issue
+                .evidence
+                .get("old")
+                .and_then(|o| o.get("pointer-events"))
+                .and_then(|v| v.as_str()),
+            Some("auto")
+        );
+        assert_eq!(
+            issue
+                .evidence
+                .get("new")
+                .and_then(|o| o.get("pointer-events"))
+                .and_then(|v| v.as_str()),
+            Some("none")
+        );
+        assert!(issue.remediation.is_some());
+    }
+
+    /// Edge case: pointer-events auto vs auto → no issue.
+    #[test]
+    fn test_u4_pointer_events_auto_vs_auto_no_issue() {
+        let old_link = make_link_node("old-link", Some("Get a Demo"), [100, 200, 200, 50], 0);
+        let new_link = make_link_node("new-link", Some("Get a Demo"), [100, 200, 200, 50], 0);
+
+        let old_cs = styles(&[("pointer-events", "auto")]);
+        let new_cs = styles(&[("pointer-events", "auto")]);
+
+        let mut old_styles_map = BTreeMap::new();
+        old_styles_map.insert("old-link".to_string(), old_cs);
+        let mut new_styles_map = BTreeMap::new();
+        new_styles_map.insert("new-link".to_string(), new_cs);
+
+        let old_b = make_bundle("http://old.com/", vec![old_link], old_styles_map);
+        let new_b = make_bundle("http://new.com/", vec![new_link], new_styles_map);
+        let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
+
+        let issues = style_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false);
+        assert!(
+            issues.is_empty(),
+            "pointer-events auto vs auto must not emit an issue; got {:?}",
+            issues
+        );
+    }
+
+    /// Coverage pin: STYLE_DIFF_PROPERTIES carries the four newcomers plus the
+    /// issue-named properties already captured before this change.
+    #[test]
+    fn test_u4_style_diff_properties_coverage_pin() {
+        for prop in [
+            "text-decoration-line",
+            "z-index",
+            "max-width",
+            "pointer-events",
+            "text-align",
+            "border-radius",
+            "background-image",
+            "position",
+        ] {
+            assert!(
+                STYLE_DIFF_PROPERTIES.contains(&prop),
+                "STYLE_DIFF_PROPERTIES must contain {prop}"
+            );
+        }
+    }
 }
