@@ -34,6 +34,8 @@ export interface RawSemanticNode {
   naturalHeight: number | null;
   loaded: boolean | null;
   headingLevel: number | null;
+  /** Port-parity U6: true when the element carries an onclick attribute. Serialized only when true. */
+  hasOnclick?: true;
 }
 
 /** Descriptor for a true ancestor element (not itself a SemanticNode). */
@@ -570,6 +572,12 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
             }
           }
 
+          // Port-parity U6: eligibility flag for the hit-test probe. Serialize
+          // only when true (never emit hasOnclick: false).
+          const hasOnclickVal: true | undefined = el.hasAttribute("onclick")
+            ? true
+            : undefined;
+
           // Heading tracking (update BEFORE building anchors so heading nodes
           // self-anchor — D14 point 3).
           if (kind === "heading") {
@@ -622,6 +630,7 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
             naturalHeight: naturalHeightVal,
             loaded: loadedVal,
             headingLevel: headingLevelVal,
+            hasOnclick: hasOnclickVal,
           });
 
           seqIndex++;

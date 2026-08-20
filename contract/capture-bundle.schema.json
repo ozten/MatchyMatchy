@@ -1082,6 +1082,12 @@
           ],
           "minimum": 1,
           "maximum": 6
+        },
+        "hasOnclick": {
+          "title": "Has onclick attribute",
+          "description": "Port-parity U6: true when the element carries an onclick attribute. Optional; absent (never false) when the element has no onclick attribute. One of the two probe-eligibility signals for the hit-test probe (the other being kind in link|button|field|form).",
+          "type": "boolean",
+          "const": true
         }
       }
     },

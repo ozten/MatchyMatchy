@@ -549,6 +549,13 @@ pub struct SemanticNode {
     /// Headings: level 1–6 parsed from tag name. M3 §2.
     #[serde(default)]
     pub heading_level: Option<u8>,
+    /// Port-parity U6/1.1: true when the element carries an onclick attribute.
+    /// Absent (never false/None-serialized) when the element has no onclick
+    /// attribute, or on pre-1.1 bundles. One of the two probe-eligibility
+    /// signals for the hit-test probe (the other being kind in
+    /// link|button|field|form).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub has_onclick: Option<bool>,
 }
 
 impl SemanticNode {

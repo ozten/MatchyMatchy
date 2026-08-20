@@ -867,6 +867,7 @@ mod tests {
             natural_height: None,
             loaded: None,
             heading_level: if kind == "heading" { Some(2) } else { None },
+            has_onclick: None,
         }
     }
 

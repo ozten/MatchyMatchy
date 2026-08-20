@@ -141,6 +141,8 @@ export const SemanticNodeSchema = z.object({
   naturalHeight: z.number().int().nonnegative().nullable(),
   loaded: z.boolean().nullable(),
   headingLevel: z.number().int().min(1).max(6).nullable(),
+  /** Port-parity U6: true when the element carries an onclick attribute. Absent (never false) otherwise. */
+  hasOnclick: z.literal(true).optional(),
 });
 export type SemanticNode = z.infer<typeof SemanticNodeSchema>;
 

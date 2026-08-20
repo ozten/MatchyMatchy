@@ -485,6 +485,7 @@ mod tests {
             natural_height: None,
             loaded: None,
             heading_level: None,
+            has_onclick: None,
         }
     }
 
