@@ -16,7 +16,7 @@ use crate::contract::{
 use crate::egress::{check_probe_url, EgressDecision};
 use crate::issue::compute_issue_id;
 use crate::locale::detect_locale_in_path;
-use crate::scoring::ParityProfile;
+use crate::scoring::SeverityResolver;
 
 /// Output of `hygiene_issues`.
 pub struct HygieneOutcome {
@@ -30,7 +30,7 @@ pub fn hygiene_issues(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
 ) -> HygieneOutcome {
     let new_lang = new.page.lang.clone();
     let mut issues: Vec<Issue> = Vec::new();
@@ -110,7 +110,7 @@ fn check_status_parity(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let old_status = old.page.status_code;
@@ -228,7 +228,7 @@ fn check_trailing_slash_page(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let policy = DEFAULT_TRAILING_SLASH_POLICY;
@@ -247,7 +247,7 @@ fn build_trailing_slash_issue(
     node: Option<&SemanticNode>,
     policy: TrailingSlashPolicy,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let parsed = Url::parse(url_str).ok()?;
@@ -359,7 +359,7 @@ fn build_trailing_slash_issue(
 fn check_redirect_chain_page(
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let chain = &new.page.redirect_chain;
@@ -406,7 +406,7 @@ fn build_redirect_chain_issue(
     _node: Option<&SemanticNode>,
     anchors: Anchors,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let requested_path = url_path_query(requested_url).unwrap_or_else(|| "/".to_string());
@@ -499,7 +499,7 @@ fn check_protocol_downgrade_page(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let new_scheme = url_scheme(&new.page.final_url)?;
@@ -592,7 +592,7 @@ fn check_per_link_protocol_downgrade(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Vec<Issue> {
     // Build host-stripped → scheme map for old-page links.
@@ -750,7 +750,7 @@ fn check_canonical(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Option<Issue> {
     let new_canonical_raw = new.page.canonical.as_deref()?;
@@ -866,7 +866,7 @@ fn normalize_url_for_compare(url: &Url, policy: TrailingSlashPolicy) -> String {
 fn check_locale_path(
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Vec<Issue> {
     let new_final = &new.page.final_url;
@@ -1079,7 +1079,7 @@ fn check_per_link_trailing_slash(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Vec<Issue> {
     let policy = DEFAULT_TRAILING_SLASH_POLICY;
@@ -1164,7 +1164,7 @@ fn check_per_link_trailing_slash(
 fn check_per_link_redirect_chains(
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Vec<Issue> {
     let page_final_url = &new.page.final_url;
@@ -1327,7 +1327,7 @@ mod tests {
         A11yInfo, CaptureDeterminism, Environment, IssueSeverity, LinkProbe, NetworkInfo,
         PageModel, Screenshots, SemanticNode, StepStatus, ViewportConfig,
     };
-    use crate::scoring::ParityProfile;
+    use crate::scoring::{ParityProfile, SeverityResolver};
 
     // -------------------------------------------------------------------------
     // Test helper: build a minimal CaptureBundle
@@ -1425,8 +1425,8 @@ mod tests {
         }
     }
 
-    fn profile() -> ParityProfile {
-        ParityProfile::ContentStructure
+    fn profile() -> SeverityResolver {
+        SeverityResolver::from_profile(ParityProfile::ContentStructure)
     }
 
     // -------------------------------------------------------------------------
@@ -1651,11 +1651,11 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![], 200);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![], 404);
 
-        let p1 = ParityProfile::ContentStructure;
+        let p1 = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let r1 = hygiene_issues(&old_b, &new_b, "desktop", &p1);
         assert_eq!(r1.issues[0].severity, IssueSeverity::Critical);
 
-        let p2 = ParityProfile::StrictVisual;
+        let p2 = SeverityResolver::from_profile(ParityProfile::StrictVisual);
         let r2 = hygiene_issues(&old_b, &new_b, "desktop", &p2);
         assert_eq!(r2.issues[0].severity, IssueSeverity::Critical);
     }

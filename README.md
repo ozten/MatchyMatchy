@@ -147,10 +147,49 @@ Useful flags:
 
 A config file mirrors all flags and adds tuning for matching thresholds, stabilization, visual thresholds, redaction, and egress.
 
+### Severity mapping
+
+`--severity-map <path>` points at a JSON file that overrides how issues are scored, on top of the built-in defaults:
+
+```json
+{
+  "types": { "pseudo_element_missing": "error" },
+  "properties": { "letter-spacing": "info", "line-height": "info" }
+}
+```
+
+- `types` keys are wire issue-type names (the same strings that appear in `issues[].type`, e.g. `style_changed`, `missing_link`).
+- `properties` keys are CSS property names, and apply to property-carrying style issues (`style_changed` and the gradient types) on any style channel — keyed on the issue's own `remediation.property`, not its type.
+- Values are one of `info` / `warning` / `error` / `critical`.
+- An unrecognized type or property key, or a malformed file, is a hard error: `matchy` exits `2` and names the bad key on stderr.
+
+**Resolution order**, most general to most specific:
+
+1. **Profile category default** — the `--profile`'s category → severity table (e.g. `style` is `warning` under `content-structure`, `error` under `strict-visual`), including four fixed overrides regardless of profile: `accessibility_improved` → info, `console_error` → warning, `load_error` / `status_code_mismatch` → critical, `missing_form` → critical.
+2. **Built-in overrides** — shipped opinionated defaults that fire before any user map: `clickable_area_regressed` is always `error` (never silently demoted to info by the visual category), and `letter-spacing` / `line-height` style diffs are demoted to `info` (these two properties dominate the flood of low-signal, sub-pixel/leading style noise a real port produces).
+3. **Your `--severity-map`** — overrides both of the above. Within both layer 2 and layer 3, a `properties` match beats a `types` match for the same issue (more specific wins).
+4. **Deny-list (always wins)** — `load_error`, `status_code_mismatch`, and `missing_form` can never be demoted below `critical`, even by your map. An attempted demotion is silently *ignored* (never applied) and reported as a `severity_map_denied` warning in `warnings[]`, naming the type and the attempted severity.
+
+The resolved overrides your map actually contributed (denied entries excluded) are echoed back on the result as `severityMap`, so two runs compared with different maps are never silently incomparable:
+
+```jsonc
+"severityMap": {
+  "source": "file",
+  "overrides": {
+    "types": { "pseudo_element_missing": "error" },
+    "properties": { "letter-spacing": "info", "line-height": "info" }
+  }
+}
+```
+
+`severityMap` is `null` when `--severity-map` isn't passed.
+
+Info-severity issues are excluded from that category's `scores.*` value (see [The DiffResult contract](#the-diffresult-contract)), so demoting a noisy property or type with `--severity-map` legitimately raises the corresponding score — that's the intended lever for tuning signal-to-noise without touching the underlying detectors.
+
 ### Other commands
 
 - **`matchy doctor`** — verify Node.js, Playwright, and Chromium are present and print the exact fix for anything missing.
-- **`matchy analyze --old-bundle <path> --new-bundle <path> --out <dir>`** — re-run analysis offline from two previously-saved `CaptureBundle` JSON files, with no browser, network, or Playwright. Produces a byte-deterministic `DiffResult`. Honors the global `--profile`, `--baseline`, `--scope`, and `--fail-on` flags and the same `0`/`1`/`2` exit codes as a full run (`--viewport` is irrelevant — the bundle carries its own).
+- **`matchy analyze --old-bundle <path> --new-bundle <path> --out <dir>`** — re-run analysis offline from two previously-saved `CaptureBundle` JSON files, with no browser, network, or Playwright. Produces a byte-deterministic `DiffResult`. Honors the global `--profile`, `--baseline`, `--severity-map`, `--scope`, and `--fail-on` flags and the same `0`/`1`/`2` exit codes as a full run (`--viewport` is irrelevant — the bundle carries its own).
 - **`matchy explain --old-bundle <path> --new-bundle <path> --anchor "text=…"`** — read-only triage probe. Locates one element across the two bundles — by `--anchor "<key>=<value>"` (key ∈ `text`/`role`/`href`/`nearestHeading`), `--node <id>`, or `--selector "<css>"` — and prints its per-side computed-style + bbox values, diff-only by default (or restricted with `--props color,gap,…`). Use it to fact-check why an issue was or wasn't flagged. Hermetic: no browser or network.
 
 The full CLI reference (flags, exit codes, screenshot resolution) lives in [`docs/prds/page-pair-diff-spec.md`](docs/prds/page-pair-diff-spec.md) §14.

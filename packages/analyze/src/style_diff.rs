@@ -19,7 +19,7 @@ use crate::contract::{
 };
 use crate::issue::compute_issue_id;
 use crate::matching::{norm_href, MatchBand, MatchOutcome};
-use crate::scoring::{compute_confidence, ParityProfile};
+use crate::scoring::{compute_confidence, SeverityResolver};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -31,7 +31,7 @@ pub fn style_issues(
     new_bundle: &CaptureBundle,
     match_outcome: &MatchOutcome,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     env_mismatch: bool,
 ) -> Vec<Issue> {
     let mut issues: Vec<Issue> = Vec::new();
@@ -157,7 +157,7 @@ fn ancestor_channel_issues(
     old_node_ids: &std::collections::BTreeSet<String>,
     new_node_ids: &std::collections::BTreeSet<String>,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     env_mismatch: bool,
     old_page_url: &str,
     new_page_url: &str,
@@ -531,7 +531,7 @@ fn diff_styles(
     _confidence: f64,
     viewport: &str,
     locale: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     env_mismatch: bool,
     old_det: &crate::contract::CaptureDeterminism,
     new_det: &crate::contract::CaptureDeterminism,
@@ -610,7 +610,11 @@ fn diff_styles(
                 let conf = compute_confidence(base, env_mismatch, old_det, new_det);
                 let id =
                     compute_issue_id(&IssueType::StyleChanged, viewport, old_anchors, Some(prop));
-                let sev = profile.severity_for(&IssueType::StyleChanged, &IssueCategory::Style);
+                let sev = profile.severity_for_property(
+                    &IssueType::StyleChanged,
+                    &IssueCategory::Style,
+                    prop,
+                );
                 let evidence = build_prop_evidence(prop, old_v, new_v, match_evidence, None);
                 let remediation = build_remediation(prop, old_v, new_v, old_anchors);
                 let message = build_message(prop, old_v, new_v, old_anchors);
@@ -643,7 +647,7 @@ fn diff_styles(
             let base = base_confidence::GRADIENT;
             let conf = compute_confidence(base, env_mismatch, old_det, new_det);
             let id = compute_issue_id(&issue_type, viewport, old_anchors, Some(prop));
-            let sev = profile.severity_for(&issue_type, &IssueCategory::Style);
+            let sev = profile.severity_for_property(&issue_type, &IssueCategory::Style, prop);
 
             let grad_evidence = serde_json::json!({
                 "old": gradients_to_json(&old_grads),
@@ -681,7 +685,11 @@ fn diff_styles(
             let base = base_confidence::STYLE_CHANGED;
             let conf = compute_confidence(base, env_mismatch, old_det, new_det);
             let id = compute_issue_id(&IssueType::StyleChanged, viewport, old_anchors, Some(prop));
-            let sev = profile.severity_for(&IssueType::StyleChanged, &IssueCategory::Style);
+            let sev = profile.severity_for_property(
+                &IssueType::StyleChanged,
+                &IssueCategory::Style,
+                prop,
+            );
 
             let evidence = build_prop_evidence(prop, old_v, new_v, match_evidence, None);
             let remediation = build_remediation(prop, old_v, new_v, old_anchors);
@@ -1804,7 +1812,7 @@ mod tests {
         PageModel, Screenshots, SemanticNode, StepStatus, StyleCandidates, ViewportConfig,
     };
     use crate::matching::{MatchBand, MatchOutcome, MatchStage, MatchedPair};
-    use crate::scoring::ParityProfile;
+    use crate::scoring::{ParityProfile, SeverityResolver};
     use std::collections::BTreeMap;
 
     // -----------------------------------------------------------------------
@@ -1958,8 +1966,8 @@ mod tests {
         }
     }
 
-    fn profile() -> ParityProfile {
-        ParityProfile::ContentStructure
+    fn profile() -> SeverityResolver {
+        SeverityResolver::from_profile(ParityProfile::ContentStructure)
     }
 
     fn styles(props: &[(&str, &str)]) -> BTreeMap<String, String> {

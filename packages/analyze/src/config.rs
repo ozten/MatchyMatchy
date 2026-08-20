@@ -1,6 +1,8 @@
 //! Constants for the analyze layer (M1.md §5.6).
 //! A config-file layer is deferred; these are the defaults.
 
+use crate::contract::IssueSeverity;
+
 /// Pixel-level change threshold for YIQ perceptual delta (0–1).
 /// Delta > pixelThreshold => pixel is "changed".
 pub const PIXEL_THRESHOLD: f64 = 0.1;
@@ -161,6 +163,63 @@ pub const TIEBREAK_SIZE: f64 = 0.3;
 
 /// Tiebreak sub-weight: nearby context (nearestHeading + landmark). M3.md §3.5.
 pub const TIEBREAK_NEARBY: f64 = 0.2;
+
+// ---------------------------------------------------------------------------
+// Severity mapping: built-in overrides (port-parity U3, design brief §"Severity
+// resolution design").
+//
+// Resolution order (most-general first), implemented by `scoring::SeverityResolver`:
+//   1. `ParityProfile::severity_for` category default (incl. its 4 pre-existing
+//      hard per-type overrides: accessibility_improved, console_error,
+//      load_error/status_code_mismatch, missing_form — those stay embedded
+//      there, unchanged).
+//   2. The two tables below (property beats type within this layer).
+//   3. An optional user `--severity-map` file (property beats type within this
+//      layer; overrides both 1 and 2).
+//   4. HARD_CRITICAL_TYPES deny-list, enforced at `SeverityResolver`
+//      construction (a user-map demotion below Critical is stripped before
+//      the resolver is built, never reaches resolution).
+// ---------------------------------------------------------------------------
+
+/// Built-in per-type severity overrides. Keys are `IssueType::as_str()` wire
+/// names. Applied after the profile default, before any user map entry.
+///
+/// `clickable_area_regressed` carries `category: Visual` (spec §9's profile
+/// table would otherwise map that to Info under content-structure) — but the
+/// detector (U7's `hit_test_diff.rs`) already gates on a hard occlusion
+/// threshold (old fraction >= 0.9 AND old-new delta > 0.1) before ever
+/// emitting the issue, so a surviving true positive must never be silently
+/// demoted to Info by the profile. Forced to Error regardless of profile.
+pub const BUILTIN_TYPE_SEVERITY: &[(&str, IssueSeverity)] =
+    &[("clickable_area_regressed", IssueSeverity::Error)];
+
+/// Built-in per-property severity overrides, applied to property-carrying
+/// style-channel issues (`style_changed` + the gradient types, on the leaf,
+/// ancestor, and future pseudo channels), keyed on the issue's CSS property
+/// (`remediation.property`). More specific than `BUILTIN_TYPE_SEVERITY`
+/// (property beats type within this layer) and than the profile default.
+///
+/// `letter-spacing` and `line-height` are cascade-tail properties that fire at
+/// high volume with low defect signal — the dominant contributors to issue
+/// #4's 2,500-issue `style_changed` flood (docs/calibration-note.md). Demoted
+/// to Info by default so a port-parity gate isn't drowned by sub-pixel
+/// kerning/leading noise; `color`, `font-size`, `text-align`, and
+/// `background-color` are deliberately NOT in this table and stay at profile
+/// severity.
+pub const BUILTIN_PROPERTY_SEVERITY: &[(&str, IssueSeverity)] = &[
+    ("letter-spacing", IssueSeverity::Info),
+    ("line-height", IssueSeverity::Info),
+];
+
+/// Hard-Critical issue types (wire names) that a user `--severity-map` can
+/// never demote below Critical (gate-integrity deny-list; port-parity U3).
+/// An attempted demotion is stripped from the accepted map at
+/// `SeverityResolver` construction and surfaced as a `severity_map_denied`
+/// run warning — never silently honored, never silently dropped without a
+/// trace. Mirrors the existing hard overrides embedded in
+/// `ParityProfile::severity_for` (layer 1), which already keep these types at
+/// Critical with no user map present at all.
+pub const HARD_CRITICAL_TYPES: &[&str] = &["load_error", "status_code_mismatch", "missing_form"];
 
 /// Minimum per-axis intrinsic dimension ratio to suppress changed_image_dimensions. M3.md §5.3.
 pub const IMAGE_DIM_RATIO_FLOOR: f64 = 0.9;
@@ -328,5 +387,36 @@ mod tests {
         assert_eq!(ImageDimensionsMode::parse("unknown"), None);
         assert_eq!(ImageDimensionsMode::parse(""), None);
         assert_eq!(ImageDimensionsMode::parse("Strict"), None);
+    }
+
+    /// port-parity U3: the deny-list is exactly the three hard-Critical types
+    /// named in the design brief — pins it against accidental drift.
+    #[test]
+    fn test_hard_critical_types_frozen_set() {
+        assert_eq!(
+            HARD_CRITICAL_TYPES,
+            &["load_error", "status_code_mismatch", "missing_form"]
+        );
+    }
+
+    /// port-parity U3: built-in per-type override table pins `clickable_area_regressed`
+    /// -> Error and nothing else (adding entries here is a deliberate, evidence-backed
+    /// change, not an accident).
+    #[test]
+    fn test_builtin_type_severity_frozen() {
+        assert_eq!(BUILTIN_TYPE_SEVERITY.len(), 1);
+        assert_eq!(BUILTIN_TYPE_SEVERITY[0].0, "clickable_area_regressed");
+        assert_eq!(BUILTIN_TYPE_SEVERITY[0].1, IssueSeverity::Error);
+    }
+
+    /// port-parity U3: built-in per-property table pins the two cascade-tail
+    /// demotions and nothing else.
+    #[test]
+    fn test_builtin_property_severity_frozen() {
+        assert_eq!(BUILTIN_PROPERTY_SEVERITY.len(), 2);
+        let map: std::collections::BTreeMap<&str, IssueSeverity> =
+            BUILTIN_PROPERTY_SEVERITY.iter().cloned().collect();
+        assert_eq!(map.get("letter-spacing"), Some(&IssueSeverity::Info));
+        assert_eq!(map.get("line-height"), Some(&IssueSeverity::Info));
     }
 }

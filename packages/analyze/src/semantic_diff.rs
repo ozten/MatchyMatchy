@@ -24,7 +24,7 @@ use crate::contract::{
 };
 use crate::issue::compute_issue_id;
 use crate::matching::{norm_href, MatchBand, MatchOutcome, MatchStage, MissRecord};
-use crate::scoring::{compute_confidence, ParityProfile};
+use crate::scoring::{compute_confidence, SeverityResolver};
 
 // ---------------------------------------------------------------------------
 // C1: dup-label id set (M6 calibration, emission-side suppression only)
@@ -112,7 +112,7 @@ pub fn semantic_issues(
     new: &CaptureBundle,
     outcome: &MatchOutcome,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     env_mismatch: bool,
     image_dims_mode: ImageDimensionsMode,
 ) -> Vec<Issue> {
@@ -236,7 +236,7 @@ fn page_level_checks(
     old: &CaptureBundle,
     new: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     new_lang: &Option<String>,
 ) -> Vec<Issue> {
     let mut issues = Vec::new();
@@ -474,7 +474,7 @@ fn pair_attribute_issues(
     confidence: f64,
     viewport: &str,
     new_lang: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     old_page_url: &str,
     new_page_url: &str,
     old_det: &crate::contract::CaptureDeterminism,
@@ -564,7 +564,7 @@ fn heading_pair_issues(
     confidence: f64,
     viewport: &str,
     new_lang: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     anchors: &Anchors,
     issues: &mut Vec<Issue>,
 ) {
@@ -664,7 +664,7 @@ fn text_pair_issues(
     confidence: f64,
     viewport: &str,
     new_lang: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     anchors: &Anchors,
     issues: &mut Vec<Issue>,
 ) {
@@ -713,7 +713,7 @@ fn link_button_pair_issues(
     confidence: f64,
     viewport: &str,
     new_lang: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     old_page_url: &str,
     new_page_url: &str,
     anchors: &Anchors,
@@ -839,7 +839,7 @@ fn image_pair_issues(
     confidence: f64,
     viewport: &str,
     new_lang: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     old_det: &crate::contract::CaptureDeterminism,
     new_det: &crate::contract::CaptureDeterminism,
     env_mismatch: bool,
@@ -1219,7 +1219,7 @@ fn missing_node_issue(
     confidence: f64,
     viewport: &str,
     new_lang: &Option<String>,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
 ) -> Option<Issue> {
     let kind = old_node.kind.as_str();
 
@@ -1683,7 +1683,7 @@ mod tests {
     use crate::matching::{
         match_nodes, MatchBand, MatchOutcome, MatchStage, MatchedPair, MissRecord, PageCtx,
     };
-    use crate::scoring::ParityProfile;
+    use crate::scoring::{ParityProfile, SeverityResolver};
     use std::collections::BTreeMap;
 
     // -----------------------------------------------------------------------
@@ -1819,8 +1819,8 @@ mod tests {
         }
     }
 
-    fn profile() -> ParityProfile {
-        ParityProfile::ContentStructure
+    fn profile() -> SeverityResolver {
+        SeverityResolver::from_profile(ParityProfile::ContentStructure)
     }
 
     fn make_outcome_from_pair(

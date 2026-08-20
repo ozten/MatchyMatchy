@@ -1032,6 +1032,63 @@ impl IssueType {
             IssueType::LocaleUnknown => "locale_unknown",
         }
     }
+
+    /// Parse from the wire (snake_case) name — the inverse of `as_str()`.
+    /// Used to validate `--severity-map` "types" keys (port-parity U3) against
+    /// the closed IssueType vocabulary. Returns `None` on an unrecognised name.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "visual_region_changed" => Some(IssueType::VisualRegionChanged),
+            "page_height_changed" => Some(IssueType::PageHeightChanged),
+            "missing_title" => Some(IssueType::MissingTitle),
+            "changed_title" => Some(IssueType::ChangedTitle),
+            "missing_meta_description" => Some(IssueType::MissingMetaDescription),
+            "changed_meta_description" => Some(IssueType::ChangedMetaDescription),
+            "missing_h1" => Some(IssueType::MissingH1),
+            "changed_h1" => Some(IssueType::ChangedH1),
+            "heading_structure_changed" => Some(IssueType::HeadingStructureChanged),
+            "missing_text" => Some(IssueType::MissingText),
+            "changed_text" => Some(IssueType::ChangedText),
+            "duplicate_text" => Some(IssueType::DuplicateText),
+            "missing_link" => Some(IssueType::MissingLink),
+            "changed_link_target" => Some(IssueType::ChangedLinkTarget),
+            "broken_link" => Some(IssueType::BrokenLink),
+            "changed_link_text" => Some(IssueType::ChangedLinkText),
+            "missing_image" => Some(IssueType::MissingImage),
+            "broken_image" => Some(IssueType::BrokenImage),
+            "changed_alt_text" => Some(IssueType::ChangedAltText),
+            "missing_alt_text" => Some(IssueType::MissingAltText),
+            "changed_image_dimensions" => Some(IssueType::ChangedImageDimensions),
+            "missing_form" => Some(IssueType::MissingForm),
+            "changed_form" => Some(IssueType::ChangedForm),
+            "missing_form_field" => Some(IssueType::MissingFormField),
+            "changed_required_field" => Some(IssueType::ChangedRequiredField),
+            "missing_submit" => Some(IssueType::MissingSubmit),
+            "changed_cta" => Some(IssueType::ChangedCta),
+            "missing_button" => Some(IssueType::MissingButton),
+            "component_reordered" => Some(IssueType::ComponentReordered),
+            "component_swapped" => Some(IssueType::ComponentSwapped),
+            "style_changed" => Some(IssueType::StyleChanged),
+            "background_gradient_lost" => Some(IssueType::BackgroundGradientLost),
+            "background_gradient_changed" => Some(IssueType::BackgroundGradientChanged),
+            "clickable_area_regressed" => Some(IssueType::ClickableAreaRegressed),
+            "pseudo_element_missing" => Some(IssueType::PseudoElementMissing),
+            "accessibility_regression" => Some(IssueType::AccessibilityRegression),
+            "accessibility_improved" => Some(IssueType::AccessibilityImproved),
+            "status_code_mismatch" => Some(IssueType::StatusCodeMismatch),
+            "network_error" => Some(IssueType::NetworkError),
+            "console_error" => Some(IssueType::ConsoleError),
+            "load_error" => Some(IssueType::LoadError),
+            "url_trailing_slash" => Some(IssueType::UrlTrailingSlash),
+            "url_redirect_chain" => Some(IssueType::UrlRedirectChain),
+            "url_protocol_downgrade" => Some(IssueType::UrlProtocolDowngrade),
+            "canonical_mismatch" => Some(IssueType::CanonicalMismatch),
+            "locale_case_invalid" => Some(IssueType::LocaleCaseInvalid),
+            "locale_separator_invalid" => Some(IssueType::LocaleSeparatorInvalid),
+            "locale_unknown" => Some(IssueType::LocaleUnknown),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1082,6 +1139,19 @@ impl IssueSeverity {
             IssueSeverity::Warning => 2.0,
             IssueSeverity::Error => 4.0,
             IssueSeverity::Critical => 8.0,
+        }
+    }
+
+    /// Parse from the wire (lowercase) name — the inverse of `as_str()`.
+    /// Used to validate `--severity-map` values (port-parity U3). Returns
+    /// `None` on an unrecognised name.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "info" => Some(IssueSeverity::Info),
+            "warning" => Some(IssueSeverity::Warning),
+            "error" => Some(IssueSeverity::Error),
+            "critical" => Some(IssueSeverity::Critical),
+            _ => None,
         }
     }
 }
@@ -1279,6 +1349,87 @@ impl Default for StabilizationConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// port-parity U3: `IssueType::parse` round-trips with `as_str()` for every
+    /// variant — a `--severity-map` "types" key validates iff it's one of these.
+    #[test]
+    fn test_issue_type_parse_roundtrips_all_variants() {
+        let all = [
+            IssueType::VisualRegionChanged,
+            IssueType::PageHeightChanged,
+            IssueType::MissingTitle,
+            IssueType::ChangedTitle,
+            IssueType::MissingMetaDescription,
+            IssueType::ChangedMetaDescription,
+            IssueType::MissingH1,
+            IssueType::ChangedH1,
+            IssueType::HeadingStructureChanged,
+            IssueType::MissingText,
+            IssueType::ChangedText,
+            IssueType::DuplicateText,
+            IssueType::MissingLink,
+            IssueType::ChangedLinkTarget,
+            IssueType::BrokenLink,
+            IssueType::ChangedLinkText,
+            IssueType::MissingImage,
+            IssueType::BrokenImage,
+            IssueType::ChangedAltText,
+            IssueType::MissingAltText,
+            IssueType::ChangedImageDimensions,
+            IssueType::MissingForm,
+            IssueType::ChangedForm,
+            IssueType::MissingFormField,
+            IssueType::ChangedRequiredField,
+            IssueType::MissingSubmit,
+            IssueType::ChangedCta,
+            IssueType::MissingButton,
+            IssueType::ComponentReordered,
+            IssueType::ComponentSwapped,
+            IssueType::StyleChanged,
+            IssueType::BackgroundGradientLost,
+            IssueType::BackgroundGradientChanged,
+            IssueType::ClickableAreaRegressed,
+            IssueType::PseudoElementMissing,
+            IssueType::AccessibilityRegression,
+            IssueType::AccessibilityImproved,
+            IssueType::StatusCodeMismatch,
+            IssueType::NetworkError,
+            IssueType::ConsoleError,
+            IssueType::LoadError,
+            IssueType::UrlTrailingSlash,
+            IssueType::UrlRedirectChain,
+            IssueType::UrlProtocolDowngrade,
+            IssueType::CanonicalMismatch,
+            IssueType::LocaleCaseInvalid,
+            IssueType::LocaleSeparatorInvalid,
+            IssueType::LocaleUnknown,
+        ];
+        for variant in all {
+            let wire = variant.as_str();
+            assert_eq!(
+                IssueType::parse(wire),
+                Some(variant.clone()),
+                "IssueType::parse('{}') must round-trip to {:?}",
+                wire,
+                variant
+            );
+        }
+        assert_eq!(IssueType::parse("not_a_real_type"), None);
+    }
+
+    /// port-parity U3: `IssueSeverity::parse` round-trips with `as_str()`.
+    #[test]
+    fn test_issue_severity_parse_roundtrip() {
+        for sev in [
+            IssueSeverity::Info,
+            IssueSeverity::Warning,
+            IssueSeverity::Error,
+            IssueSeverity::Critical,
+        ] {
+            assert_eq!(IssueSeverity::parse(sev.as_str()), Some(sev));
+        }
+        assert_eq!(IssueSeverity::parse("severe"), None);
+    }
 
     /// Build a minimal CaptureDeterminism for use in test fixtures.
     fn make_det() -> CaptureDeterminism {

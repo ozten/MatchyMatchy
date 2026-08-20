@@ -9,7 +9,7 @@ use chrono::Utc;
 use crate::contract::{
     AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult,
     IntegrityInventory, Issue, IssueCategory, IssueSeverity, IssueType, LandmarkScores, OutOfScope,
-    RunWarning, Scores, Status, StepStatus, Suppressed, ViewportResult,
+    RunWarning, Scores, SeverityMapEcho, Status, StepStatus, Suppressed, ViewportResult,
 };
 use crate::scoring::{compute_status, count_fixable_now, fix_value, ParityProfile};
 
@@ -25,15 +25,10 @@ pub struct ViewportAnalysis {
 }
 
 /// Scope options passed to assemble_diff_result.
+#[derive(Default)]
 pub struct ScopeOptions {
     /// Landmark roles to include. Empty = no scoping (include everything).
     pub scope: Vec<String>,
-}
-
-impl Default for ScopeOptions {
-    fn default() -> Self {
-        ScopeOptions { scope: vec![] }
-    }
 }
 
 /// Assemble a DiffResult from per-viewport analyses.
@@ -48,6 +43,7 @@ impl Default for ScopeOptions {
 /// - byType uses BTreeMap.
 /// - Multi-viewport: scores = min per category; determinism = worst per step.
 /// - No HashMap or serde_json::Map iteration for ordering anywhere.
+#[allow(clippy::too_many_arguments)]
 pub fn assemble_diff_result(
     run_id: &str,
     old_url: &str,
@@ -57,6 +53,10 @@ pub fn assemble_diff_result(
     baseline: &crate::baseline::Baseline,
     scope_opts: &ScopeOptions,
     extra_warnings: Vec<RunWarning>,
+    // Port-parity U3: resolved `--severity-map` echo, or `None` when the flag
+    // wasn't supplied. Populated by the caller (mirrors how `baseline` /
+    // `profile` are already caller-resolved before assembly).
+    severity_map: Option<SeverityMapEcho>,
 ) -> DiffResult {
     // ------------------------------------------------------------------
     // 1. Merge issues from all viewports.
@@ -381,8 +381,7 @@ pub fn assemble_diff_result(
         old_url: old_url.to_string(),
         new_url: new_url.to_string(),
         parity_profile: profile.as_str().to_string(),
-        // Port-parity U3: severity-map echo. Always None until --severity-map lands.
-        severity_map: None,
+        severity_map,
         status: overall_status,
         agent_summary: AgentSummary {
             fixable_now,
@@ -929,6 +928,7 @@ mod tests {
             &Baseline::default(),
             &scope_opts,
             vec![],
+            None,
         );
         assert_eq!(
             result.out_of_scope.count, 1,
@@ -982,6 +982,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
         assert_eq!(result.out_of_scope.count, 0);
         assert!(result.out_of_scope.ids.is_empty());
@@ -1043,6 +1044,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
         let by_lm = &result.scores.by_landmark;
         // "main" must appear
@@ -1099,6 +1101,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
         let by_lm = &result.scores.by_landmark;
         let aside = by_lm
@@ -1330,6 +1333,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             extra,
+            None,
         );
         // Both extra warnings must be appended after any generated warnings, and in
         // the relative order they were passed in: volatile_capture then
@@ -1469,6 +1473,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         // Exactly one region: contentinfo
@@ -1573,6 +1578,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert!(
@@ -1629,6 +1635,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert!(result.regions.is_empty(), "main must not saturate");
@@ -1699,6 +1706,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert_eq!(result.regions.len(), 1, "contentinfo must saturate");
@@ -1783,6 +1791,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert_eq!(result.regions.len(), 1, "contentinfo must saturate");
@@ -1848,6 +1857,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert_eq!(result.regions.len(), 1, "exactly one region");

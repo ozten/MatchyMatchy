@@ -99,7 +99,11 @@ pub struct ViewportAnalysisParams<'a> {
     pub diff_img_path: &'a std::path::Path,
     pub issues_dir: &'a std::path::Path,
     pub viewport_name: &'a str,
-    pub profile: &'a scoring::ParityProfile,
+    /// Port-parity U3: the resolved severity policy for this run (profile +
+    /// built-ins + optional `--severity-map`), threaded the same way the bare
+    /// `ParityProfile` used to be — every differ that used to call
+    /// `profile.severity_for(...)` now calls through this resolver instead.
+    pub profile: &'a scoring::SeverityResolver,
     pub image_dims_mode: config::ImageDimensionsMode,
 }
 
@@ -958,7 +962,7 @@ mod tests {
             StepStatus, StyleCandidates, ViewportConfig,
         };
         use crate::matching::{match_nodes, PageCtx};
-        use crate::scoring::ParityProfile;
+        use crate::scoring::{ParityProfile, SeverityResolver};
         use std::collections::BTreeMap;
 
         let make_det = || CaptureDeterminism {
@@ -1074,7 +1078,7 @@ mod tests {
             &new_bundle,
             &outcome,
             "desktop",
-            &ParityProfile::ContentStructure,
+            &SeverityResolver::from_profile(ParityProfile::ContentStructure),
             false,
             crate::config::ImageDimensionsMode::Strict,
         );
