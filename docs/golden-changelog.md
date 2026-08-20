@@ -924,3 +924,83 @@ expectation/golden deltas, not a full implementation review of regions.rs/assemb
 separate code review of the U1–U6 implementation should occur before merge (outside golden-audit
 scope) — addressed by the ce-work code-review pass.
 ```
+
+---
+
+## PENDING golden-auditor verdict — re-record lands in U14: Issue-id derivation fix (U2, port-parity plan R4c)
+
+**Status: DRAFT.** This entry records a *derivation* change (`packages/analyze/src/issue.rs`), not
+yet a golden re-record — every recorded `.diffresult.json` under `testbed/goldens/` still reflects
+the *old* hash and is now expected to diverge (every issue id changes at least once). The batched,
+audited re-record — including the mechanical id-migration pre-pass described in the port-parity
+plan's U14 — happens there, with its own `golden-auditor` verdict pasted in. No golden files or
+`expected-issues.json` files were touched by this change.
+
+**What changed.** `compute_issue_id`'s canonical hash input list dropped `anchors.ordinalInLandmark`
+unconditionally, and made `anchors.nearestHeading` conditional: it now contributes to the hash only
+when `text`, `href`, `alt`, and `ariaLabel` are *all* absent/empty for that issue (the bare-
+decorative-element case, where nothing else is left to identify it). Whenever any of those four
+anchors is present, `nearestHeading` contributes nothing, even if its value changes between
+captures. `resolve_id_collisions`'s suffix assignment (`-2`, `-3`, …) switched from a bbox-pixel
+sort to document order: `seqIndexOld` ascending (`None` last), then `seqIndexNew` ascending (`None`
+last), then the pre-existing insertion-stable tie-break. The styleProperty hash slot is otherwise
+unchanged; it will also carry which-pseudo values (`"::before"`, `"::before.background-color"`) once
+U10 lands, sharing the same slot.
+
+**Why the old derivation was wrong.** `docs/bugs/p0-02-issue-ids-unstable-across-runs.md` documents
+that issue-id instability has now failed *twice* against the same root cause (fixing one volatile
+hash input while another survives): first tracking query parameters in hrefs (fixed by
+`id_stable_url`), then `ordinalInLandmark` and `nearestHeading`. The `p01` real-pair regression
+memory note records the empirical cost: only **2 of 129** issue ids survived a genuine re-capture of
+a diverged live-page pair while both fields were hashed unconditionally. Both are capture-volatile
+for structural reasons, not incidental bugs: `ordinalInLandmark` shifts whenever an unrelated sibling
+is inserted or removed near a surviving defect (independent of whether the defect itself changed),
+and `nearestHeading` is computed from "first visible heading," which itself shifts with load/
+visibility state between re-captures of the same live page. Keeping either in the hash defeats the
+`--baseline` accept-list's entire premise (spec §7.4): a defect that hasn't changed must keep its id
+so the fix→re-run loop and baseline ledgers work. The bbox-pixel collision-suffix sort had the same
+disease one level down — bbox jitters with viewport reflow and ad-tech noise independent of document
+position, so which content-identical twin got which suffix was itself unstable.
+
+**Spec justification.** `docs/prds/page-pair-diff-spec.md` §7.1 ("Issue identity") amended in the
+same commit: the hash-input list now excludes `ordinalInLandmark` unconditionally and states the
+`nearestHeading` conditional-inclusion rule explicitly, documents the which-pseudo-shares-the-
+styleProperty-slot decision (for U10, landed ahead of need per the port-parity plan's contract-first
+batching), and adds a new "Collision suffixing (document order, not bbox)" subsection recording the
+document-order tie-break and the residual limitation (adding/removing a *content-identical twin*
+still shifts only that twin's suffix position — collision suffixes are not a substitute for identity
+when a defect type genuinely has no distinguishing anchors). The §15 invariant checklist line
+restating the §7.1 inputs was updated to match.
+
+**Test evidence (test-first, per the port-parity plan's U2 execution note).** New/rewritten unit
+tests were written in `packages/analyze/src/issue.rs` and confirmed **failing** against the
+unmodified derivation before implementation, then confirmed passing after:
+- `test_ordinal_in_landmark_never_affects_id` — ordinal shift (simulated sibling removal) survives.
+- `test_nearest_heading_excluded_when_strong_anchor_present` — heading rewrite survives when `text`
+  is present.
+- `test_nearest_heading_is_last_resort_disambiguator_when_bare` (converse) — heading rewrite *does*
+  change the id when text/href/alt/ariaLabel are all absent.
+- `test_identical_twins_suffix_by_document_order_stable_under_bbox_jitter` — three content-identical
+  twins get three distinct, `seqIndexOld`-ordered suffixes, stable across two independently
+  bbox-jittered re-derivations.
+- `test_removing_middle_twin_keeps_first_twins_id_unchanged` — the residual limitation, demonstrated.
+- `test_collision_suffix_ignores_bbox_uses_document_order` (rewrite of the pre-existing
+  `test_collision_suffix_determinism`, which hard-coded bbox-sort-order expectations the new design
+  deliberately invalidates) — bbox no longer determines suffix order.
+- `test_pseudo_style_property_slot_distinguishes_which_pseudo` — `::before`/`::after`/
+  `::before.background-image` remain three distinct ids through the shared slot.
+All pre-existing `issue.rs` id tests (tracking-param stability, format, anchor strength, etc.) still
+pass unmodified. Full workspace: `cargo test` — 526 tests pass (488 lib + 6 + 6 + 7 + 8 + 11 across
+the integration suites), 0 failed.
+
+**Known downstream effect (expected, not a defect).** Every issue id in every committed golden and
+every Tier-3 pair's frozen expectation now hashes differently at least once (any issue whose anchors
+include `ordinalInLandmark` alone, or `nearestHeading` alongside a present `text`/`href`/`alt`/
+`ariaLabel`, gets a new id; collision-suffix assignment for any group that previously relied on bbox
+order may also reorder). This is the sanctioned "one-time break to committed ledgers/goldens" the
+port-parity plan calls out (user-approved; `baseline_stale_ids` fires loudly for now-stale ledger
+entries rather than silently dropping them). `make verify` is expected to fail until U14's audited
+re-record; it was intentionally **not run** for this change per the U2 brief.
+
+**golden-auditor verdict:** _not yet requested — this is a derivation-only change; the audit is
+deferred to U14 where the actual re-recorded goldens exist to audit against._

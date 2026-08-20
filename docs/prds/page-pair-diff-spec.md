@@ -448,11 +448,49 @@ This is the product. Optimize it for an agent that will fix the issues.
 ```
 hash( type
     + viewport
-    + anchors{ text, role, href, alt, ariaLabel, nearestHeading, landmark, ordinalInLandmark }
-    + styleProperty )            // the CSS property name, style-category issues only
+    + anchors{ text, role, href, alt, ariaLabel, landmark }
+    + nearestHeading             // ONLY when text, href, alt, AND ariaLabel are all
+                                  // absent/empty for this issue — see below
+    + styleProperty )            // the CSS property name (style-category issues), or the
+                                  // which-pseudo slot ("::before" / "::before.<property>")
+                                  // for pseudo-element issues — same hash slot, shared
 ```
 
-Explicitly **excluded** from the hash: bboxes, CSS selectors, match scores, artifact paths, timestamps, and any other field that jitters between re-captures of a live page. This is what makes the migration loop work: fix `issue_004`, re-run against the live pages, and `issue_004` is verifiably gone while every still-unfixed issue keeps its ID. The `--baseline` accept-list (7.4) depends on this property.
+Explicitly **excluded** from the hash: bboxes, CSS selectors, match scores, artifact paths,
+timestamps, `ordinalInLandmark`, and any other field that jitters between re-captures of a
+live page.
+
+`ordinalInLandmark` is **unconditionally** excluded: it shifts whenever an unrelated
+sibling is inserted or removed near a surviving defect, so it never contributes to the
+hash, in any issue type.
+
+`nearestHeading` is **conditionally** excluded: on live pages it is computed from "first
+visible heading," which itself shifts with load/visibility state between re-captures — a
+second, independently documented capture-volatility source (only 2 of 129 issue ids
+survived a real re-capture on the `p01` regression pair while both `ordinalInLandmark`
+and `nearestHeading` were hashed unconditionally). It is identity-grade — included in the
+hash — **only** when `text`, `href`, `alt`, and `ariaLabel` are all absent/empty for that
+issue: a bare decorative element (no text, no link, no alt, no aria-label) has no other
+identity signal, so without `nearestHeading` its hash would collapse to near-empty and
+every such element would collide. Whenever any of those four anchors is present,
+`nearestHeading` contributes **nothing** to the hash even if it changes between captures.
+
+This is what makes the migration loop work: fix `issue_004`, re-run against the live
+pages, and `issue_004` is verifiably gone while every still-unfixed issue keeps its ID.
+The `--baseline` accept-list (7.4) depends on this property.
+
+**Collision suffixing (document order, not bbox).** Issues whose inputs above hash
+identically (content-identical repeats — e.g. three visually indistinguishable "Read
+more" links) collide deliberately. The first keeps the base id; the rest are suffixed
+`-2`, `-3`, … in **document order** within the colliding set: `seqIndexOld` ascending
+(`None` sorts last), then `seqIndexNew` ascending (`None` sorts last), then an
+insertion-stable tie-break. Bbox pixels are never used — they jitter between re-captures
+(viewport reflow, ad-block noise) independently of whether the defect still exists in the
+same document position. **Residual limitation:** inserting or removing an unrelated
+sibling no longer shifts any collision suffix, but adding or removing one of the
+colliding twins themselves still shifts only that twin's position in the suffix
+ordering — collision suffixes are not a substitute for identity when a defect type
+genuinely has no distinguishing anchors.
 
 ### 7.2 Issue ordering (fix value)
 `issues` array is sorted by descending **fix value** = `severityWeight × confidence × localityBonus`, where `localityBonus` is the numeric anchor-strength value from Section 5 (**high = 1.0, medium = 0.7, low = 0.4**) — strong/greppable anchors are cheap to find in source, so they sort above diffuse visual regions with weak anchors. The HTML report may re-sort; the JSON order is the agent's recommended work queue.
@@ -767,7 +805,7 @@ Mirrors flags and adds `matching` (`identityFloor`, `tieMargin`, `matchFloor`, `
 
 - [ ] `DiffResult` validates against `/contract/diff-result.schema.json`; serialized Rust and TS output are both validated against the schema in CI over shared fixtures; a mismatch fails the build.
 - [ ] Every issue has a `locator` with an agent-facing **anchor set**, and where actionable a structured `remediation` with grep targets. The tool never names a source component.
-- [ ] Issue IDs are content-addressed over the **stable subset** defined in §7.1 (type + viewport + anchors + style property) — never over bboxes, selectors, scores, or paths — so they survive re-captures and the same defect keeps the same ID across the fix→re-run loop.
+- [ ] Issue IDs are content-addressed over the **stable subset** defined in §7.1 (type + viewport + anchors{text, role, href, alt, ariaLabel, landmark} + nearestHeading *only* when text/href/alt/ariaLabel are all absent + style property / which-pseudo slot) — never over bboxes, selectors, scores, paths, or `ordinalInLandmark` — so they survive re-captures and the same defect keeps the same ID across the fix→re-run loop. Collision suffixes (for content-identical repeats) are assigned by document order (`seqIndex`), never bbox.
 - [ ] **Analysis is byte-deterministic:** no map-iteration-order dependence, total-ordered tie-breaks, fixed-order float reductions; identical bundles → identical `DiffResult` (modulo timestamps). Verified by the byte-exact analysis golden suite (§13.3).
 - [ ] Matching is **identity-first** with confidence bands (`identityFloor`, `matchFloor`/`noMatchCeil`), not a single hard cutoff; position never vetoes a strong identity match; per-signal sub-scores and deciding stage are written to `evidence.match`.
 - [ ] Capture determinism is **machine-scoped** (no Docker): environment fingerprint recorded in every bundle; pixel baselines never compared across mismatched fingerprints; uncontrollable page nondeterminism is masked or flagged low-confidence, never silently varied.
