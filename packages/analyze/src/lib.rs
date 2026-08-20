@@ -128,7 +128,11 @@ pub(crate) fn old_landmark_node_counts(
 /// Returns (issues, scores, old_landmark_node_counts) for a single viewport.
 pub fn analyze_viewport(
     params: &ViewportAnalysisParams<'_>,
-) -> anyhow::Result<(Vec<contract::Issue>, contract::Scores, std::collections::BTreeMap<String, u32>)> {
+) -> anyhow::Result<(
+    Vec<contract::Issue>,
+    contract::Scores,
+    std::collections::BTreeMap<String, u32>,
+)> {
     let ViewportAnalysisParams {
         old_bundle,
         new_bundle,
@@ -637,9 +641,7 @@ mod tests {
     /// U2 edge: a landmark with zero nodes does not appear as a key (no zero entries).
     #[test]
     fn test_old_landmark_node_counts_no_zero_entries() {
-        let nodes = vec![
-            make_node_with_landmark("n1", Some("main")),
-        ];
+        let nodes = vec![make_node_with_landmark("n1", Some("main"))];
         let counts = old_landmark_node_counts(&nodes);
         // contentinfo was never seen, so it must not appear
         assert!(!counts.contains_key("contentinfo"));
@@ -968,6 +970,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -1014,6 +1021,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         };
 
         // Old: link + nested dup-label text node (text bbox inside link bbox)
@@ -1221,6 +1231,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -1275,6 +1290,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 

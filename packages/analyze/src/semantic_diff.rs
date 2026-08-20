@@ -14,11 +14,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use url::Url;
 
+use crate::config::ImageDimensionsMode;
 use crate::config::{
     base_confidence, ASPECT_RATIO_TOLERANCE, CHROME_PENALTY, DUP_LABEL_BBOX_TOLERANCE_PX,
     IMAGE_DIM_RATIO_FLOOR, UNCERTAIN_MULTIPLIER,
 };
-use crate::config::ImageDimensionsMode;
 use crate::contract::{
     Anchors, CaptureBundle, Issue, IssueCategory, IssueSeverity, IssueType, Locator, SemanticNode,
 };
@@ -1138,22 +1138,25 @@ fn image_pair_issues(
                             // bbox[2] is the rendered CSS width. Skip when bbox is missing or
                             // zero (treat as covering).
                             let rendered_w = new_node.bbox[2];
-                            let is_undersized =
-                                rendered_w > 0 && (nw as i32) < rendered_w;
+                            let is_undersized = rendered_w > 0 && (nw as i32) < rendered_w;
 
                             let (final_severity, verdict, rendered_w_evidence) = if is_undersized {
                                 let severity = profile.severity_for(
                                     &IssueType::ChangedImageDimensions,
                                     &IssueCategory::Content,
                                 );
-                                (
-                                    severity,
-                                    "undersized",
-                                    Some(rendered_w),
-                                )
+                                (severity, "undersized", Some(rendered_w))
                             } else {
                                 // Step 4: aspect-preserving downscale that covers the box → Info.
-                                (IssueSeverity::Info, "intentional_downscale", if rendered_w > 0 { Some(rendered_w) } else { None })
+                                (
+                                    IssueSeverity::Info,
+                                    "intentional_downscale",
+                                    if rendered_w > 0 {
+                                        Some(rendered_w)
+                                    } else {
+                                        None
+                                    },
+                                )
                             };
 
                             let id = compute_issue_id(
@@ -1697,6 +1700,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -1758,6 +1766,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: Default::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 
@@ -1878,7 +1889,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let h1_issues: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::ChangedH1)
@@ -1925,7 +1944,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             issues
                 .iter()
@@ -1977,7 +2004,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             issues
                 .iter()
@@ -2025,7 +2060,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedText));
@@ -2070,7 +2113,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedLinkTarget));
@@ -2120,7 +2171,15 @@ mod tests {
             vec![new_node.clone()],
         );
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             !issues
                 .iter()
@@ -2168,7 +2227,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedLinkText));
@@ -2214,7 +2281,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         // broken_image fires
         assert!(
             issues
@@ -2282,7 +2357,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedAltText));
@@ -2327,7 +2410,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             !issues
                 .iter()
@@ -2381,7 +2472,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingAltText));
@@ -2426,7 +2525,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedImageDimensions));
@@ -2446,7 +2553,15 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingTitle));
@@ -2463,7 +2578,15 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::ChangedTitle));
@@ -2479,7 +2602,15 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingMetaDescription));
@@ -2511,7 +2642,15 @@ mod tests {
             missing_old: vec![],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             issues.iter().any(|i| i.issue_type == IssueType::MissingH1),
             "missing_h1 should fire"
@@ -2557,7 +2696,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_h1.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_h1.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             !issues.iter().any(|i| i.issue_type == IssueType::MissingH1),
             "missing_h1 must NOT fire when both pages have h1"
@@ -2598,7 +2745,15 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             issues
                 .iter()
@@ -2636,7 +2791,15 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(
             issues
                 .iter()
@@ -2674,7 +2837,15 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         assert!(issues
             .iter()
             .any(|i| i.issue_type == IssueType::MissingButton));
@@ -2709,7 +2880,15 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let form_issue: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::MissingForm)
@@ -2765,7 +2944,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -2819,7 +3006,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -2876,7 +3071,15 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node.clone()]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -2918,7 +3121,15 @@ mod tests {
             }],
             added_new: vec![],
         };
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::MissingLink)
@@ -3000,7 +3211,15 @@ mod tests {
             new_final_url: "http://new.com/".to_string(),
         };
         let outcome = match_nodes(&old_b.page.nodes, &new_b.page.nodes, &ctx, 4000, 4000);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let broken: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::BrokenLink)
@@ -3074,7 +3293,15 @@ mod tests {
             new_final_url: "http://new.com/".to_string(),
         };
         let outcome = match_nodes(&old_b.page.nodes, &new_b.page.nodes, &ctx, 4000, 4000);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let broken: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::BrokenLink)
@@ -3146,7 +3373,15 @@ mod tests {
             new_final_url: "http://localhost:3011/".to_string(),
         };
         let outcome = match_nodes(&old_b.page.nodes, &new_b.page.nodes, &ctx, 4000, 4000);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let broken: Vec<_> = issues
             .iter()
             .filter(|i| i.issue_type == IssueType::BrokenLink)
@@ -3202,7 +3437,15 @@ mod tests {
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node.clone()]);
         let outcome =
             make_outcome_from_pair(0, 0, MatchStage::Assignment, MatchBand::Uncertain, 0.55);
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         let issue = issues
             .iter()
             .find(|i| i.issue_type == IssueType::ChangedText)
@@ -3347,7 +3590,15 @@ mod tests {
             "old-text must be missing_old in unfiltered match"
         );
 
-        let issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
 
         let missing_text: Vec<_> = issues
             .iter()
@@ -3410,20 +3661,30 @@ mod tests {
         let old_b = make_bundle("http://old.com/", "http://old.com/", vec![old_node]);
         let new_b = make_bundle("http://new.com/", "http://new.com/", vec![new_node]);
         let outcome = make_outcome_from_pair(0, 0, MatchStage::Identity, MatchBand::Matched, 1.0);
-        let mut issues = semantic_issues(&old_b, &new_b, &outcome, "desktop", &profile(), false, ImageDimensionsMode::Strict);
+        let mut issues = semantic_issues(
+            &old_b,
+            &new_b,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+            ImageDimensionsMode::Strict,
+        );
         crate::issue::resolve_id_collisions(&mut issues);
 
         let result = DiffResult {
-            schema_version: "1.2".to_string(),
+            schema_version: "1.3".to_string(),
             tool_version: "0.1.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "http://old.com/".to_string(),
             new_url: "http://new.com/".to_string(),
             parity_profile: "content-structure".to_string(),
+            severity_map: None,
             status: crate::contract::Status::Fail,
             agent_summary: AgentSummary {
                 fixable_now: 0,
                 by_type: BTreeMap::new(),
+                by_severity: BTreeMap::new(),
                 cluster_count: 0,
                 region_count: 0,
                 top_fixes: vec![],
@@ -3488,12 +3749,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     /// Helper: make a minimal image SemanticNode with given natural dimensions and rendered bbox.
-    fn make_img_node(
-        id: &str,
-        nw: u32,
-        nh: u32,
-        rendered_w: i32,
-    ) -> SemanticNode {
+    fn make_img_node(id: &str, nw: u32, nh: u32, rendered_w: i32) -> SemanticNode {
         make_node(
             id,
             "image",
@@ -3516,8 +3772,12 @@ mod tests {
     /// Run semantic_issues with the given mode for a single matched image pair and return the
     /// changed_image_dimensions issue(s), if any.
     fn run_img_dim_issues(
-        old_nw: u32, old_nh: u32, old_rw: i32,
-        new_nw: u32, new_nh: u32, new_rw: i32,
+        old_nw: u32,
+        old_nh: u32,
+        old_rw: i32,
+        new_nw: u32,
+        new_nh: u32,
+        new_rw: i32,
         mode: ImageDimensionsMode,
     ) -> Vec<crate::contract::Issue> {
         let old_node = make_img_node("o1", old_nw, old_nh, old_rw);
@@ -3538,7 +3798,8 @@ mod tests {
     fn test_wpi_strict_aspect_preserving_downscale_still_errors() {
         // 1600x1067 → 800x533 (approx. same ratio): strict_fires = true (w_ratio=0.5 < 0.9)
         // Strict mode must still emit it.
-        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 533, 600, ImageDimensionsMode::Strict);
+        let dim_issues =
+            run_img_dim_issues(1600, 1067, 1440, 800, 533, 600, ImageDimensionsMode::Strict);
         assert_eq!(
             dim_issues.len(),
             1,
@@ -3560,7 +3821,15 @@ mod tests {
     /// nw(800) >= rendered_w(600): aspect-preserving downscale → Info severity, intentional_downscale.
     #[test]
     fn test_wpi_responsive_intentional_downscale_info() {
-        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 534, 600, ImageDimensionsMode::Responsive);
+        let dim_issues = run_img_dim_issues(
+            1600,
+            1067,
+            1440,
+            800,
+            534,
+            600,
+            ImageDimensionsMode::Responsive,
+        );
         assert_eq!(
             dim_issues.len(),
             1,
@@ -3572,7 +3841,10 @@ mod tests {
             crate::contract::IssueSeverity::Info,
             "responsive intentional_downscale: severity must be Info"
         );
-        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        let resp = issue
+            .evidence
+            .get("responsive")
+            .expect("responsive evidence must exist");
         assert_eq!(
             resp.get("verdict").and_then(|v| v.as_str()),
             Some("intentional_downscale"),
@@ -3589,7 +3861,15 @@ mod tests {
     /// new is larger → upscale → Error severity, verdict "upscale".
     #[test]
     fn test_wpi_responsive_upscale_errors() {
-        let dim_issues = run_img_dim_issues(800, 534, 800, 1600, 1067, 1000, ImageDimensionsMode::Responsive);
+        let dim_issues = run_img_dim_issues(
+            800,
+            534,
+            800,
+            1600,
+            1067,
+            1000,
+            ImageDimensionsMode::Responsive,
+        );
         assert_eq!(
             dim_issues.len(),
             1,
@@ -3601,7 +3881,10 @@ mod tests {
             crate::contract::IssueSeverity::Error,
             "responsive upscale: severity must be Error"
         );
-        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        let resp = issue
+            .evidence
+            .get("responsive")
+            .expect("responsive evidence must exist");
         assert_eq!(
             resp.get("verdict").and_then(|v| v.as_str()),
             Some("upscale"),
@@ -3614,7 +3897,15 @@ mod tests {
     /// |1.4994 - 1.3333| / 1.4994 ≈ 0.111 >> 0.02 → aspect_changed, Error severity.
     #[test]
     fn test_wpi_responsive_aspect_changed_errors() {
-        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 1200, 900, 800, ImageDimensionsMode::Responsive);
+        let dim_issues = run_img_dim_issues(
+            1600,
+            1067,
+            1440,
+            1200,
+            900,
+            800,
+            ImageDimensionsMode::Responsive,
+        );
         assert_eq!(
             dim_issues.len(),
             1,
@@ -3626,7 +3917,10 @@ mod tests {
             crate::contract::IssueSeverity::Error,
             "responsive aspect_changed: severity must be Error"
         );
-        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        let resp = issue
+            .evidence
+            .get("responsive")
+            .expect("responsive evidence must exist");
         assert_eq!(
             resp.get("verdict").and_then(|v| v.as_str()),
             Some("aspect_changed"),
@@ -3638,7 +3932,15 @@ mod tests {
     /// nw(800) < rendered_w(900) → undersized, Error severity, renderedWidth 900.
     #[test]
     fn test_wpi_responsive_undersized_errors() {
-        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 534, 900, ImageDimensionsMode::Responsive);
+        let dim_issues = run_img_dim_issues(
+            1600,
+            1067,
+            1440,
+            800,
+            534,
+            900,
+            ImageDimensionsMode::Responsive,
+        );
         assert_eq!(
             dim_issues.len(),
             1,
@@ -3650,7 +3952,10 @@ mod tests {
             crate::contract::IssueSeverity::Error,
             "responsive undersized: severity must be Error"
         );
-        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        let resp = issue
+            .evidence
+            .get("responsive")
+            .expect("responsive evidence must exist");
         assert_eq!(
             resp.get("verdict").and_then(|v| v.as_str()),
             Some("undersized"),
@@ -3667,7 +3972,15 @@ mod tests {
     #[test]
     fn test_wpi_responsive_bbox_zero_intentional_downscale() {
         // rendered_w = 0 → skip undersized check, land on intentional_downscale
-        let dim_issues = run_img_dim_issues(1600, 1067, 1440, 800, 534, 0, ImageDimensionsMode::Responsive);
+        let dim_issues = run_img_dim_issues(
+            1600,
+            1067,
+            1440,
+            800,
+            534,
+            0,
+            ImageDimensionsMode::Responsive,
+        );
         assert_eq!(
             dim_issues.len(),
             1,
@@ -3679,7 +3992,10 @@ mod tests {
             crate::contract::IssueSeverity::Info,
             "responsive bbox=0: severity must be Info (intentional_downscale)"
         );
-        let resp = issue.evidence.get("responsive").expect("responsive evidence must exist");
+        let resp = issue
+            .evidence
+            .get("responsive")
+            .expect("responsive evidence must exist");
         assert_eq!(
             resp.get("verdict").and_then(|v| v.as_str()),
             Some("intentional_downscale"),
@@ -3687,7 +4003,9 @@ mod tests {
         );
         // renderedWidth should be null when rendered_w is 0 (treated as missing)
         assert!(
-            resp.get("renderedWidth").map(|v| v.is_null()).unwrap_or(false),
+            resp.get("renderedWidth")
+                .map(|v| v.is_null())
+                .unwrap_or(false),
             "renderedWidth must be null when bbox width is 0"
         );
     }

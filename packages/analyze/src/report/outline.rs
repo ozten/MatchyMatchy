@@ -38,7 +38,10 @@ fn worst_sev<'a>(a: &'a IssueSeverity, b: &'a IssueSeverity) -> &'a IssueSeverit
 /// embedded single-quotes escaped as '\'' (POSIX). Single-quoting (not double)
 /// so $, backtick, (), etc. stay inert.
 fn shell_quote(s: &str) -> String {
-    if !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/')) {
+    if !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/'))
+    {
         s.to_string()
     } else {
         format!("'{}'", s.replace('\'', "'\\''"))
@@ -52,10 +55,19 @@ fn shell_quote(s: &str) -> String {
 /// A stable, ordinal-independent drill handle for one collapsible branch (R5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BranchHandle {
-    Region { landmark: String },
-    Section { landmark: String, heading: Option<String> },
-    Cluster { id: String },
-    Issue { id: String },
+    Region {
+        landmark: String,
+    },
+    Section {
+        landmark: String,
+        heading: Option<String>,
+    },
+    Cluster {
+        id: String,
+    },
+    Issue {
+        id: String,
+    },
 }
 
 impl BranchHandle {
@@ -118,21 +130,21 @@ impl DisclosureOptions {
 
 /// One region branch in the compact view (always collapsed — high watermark).
 pub struct RegionBranch {
-    pub handle: BranchHandle,   // Region{landmark}
+    pub handle: BranchHandle, // Region{landmark}
     pub landmark: String,
     pub severity: IssueSeverity,
-    pub count: usize,           // member_issue_ids.len()
+    pub count: usize, // member_issue_ids.len()
     pub saturation: f64,
 }
 
 /// One section branch (group of non-claimed, non-uncertain, non-critical issues).
 pub struct SectionBranch {
-    pub handle: BranchHandle,       // Section{landmark, heading}
-    pub key: (String, String),      // display key
-    pub severity: IssueSeverity,    // worst in section
+    pub handle: BranchHandle,    // Section{landmark, heading}
+    pub key: (String, String),   // display key
+    pub severity: IssueSeverity, // worst in section
     pub count: usize,
-    pub fix_value: f64,             // max member fix_value (ordering key)
-    pub collapsed: bool,            // budget/band decision
+    pub fix_value: f64,  // max member fix_value (ordering key)
+    pub collapsed: bool, // budget/band decision
     /// Cached inline-rendered size (chars) used for budget accounting.
     /// Set during compute_outline; callers should treat this as internal.
     pub(crate) inline_size: usize,
@@ -144,10 +156,10 @@ pub struct SectionBranch {
 
 /// The structured compact-disclosure model — computed ONCE, rendered by many.
 pub struct OutlineModel {
-    pub critical_lead: Vec<String>,  // issue ids, always inlined (R13)
-    pub regions: Vec<RegionBranch>,  // always collapsed pointers
+    pub critical_lead: Vec<String>,   // issue ids, always inlined (R13)
+    pub regions: Vec<RegionBranch>,   // always collapsed pointers
     pub sections: Vec<SectionBranch>, // ordered; each carries its collapsed flag
-    pub clean_pass: bool,            // no regions, no critical lead, no sections
+    pub clean_pass: bool,             // no regions, no critical lead, no sections
 }
 
 // ---------------------------------------------------------------------------
@@ -246,7 +258,10 @@ pub fn compute_outline(result: &DiffResult, opts: &DisclosureOptions) -> Outline
     let critical_lead: Vec<String> = result
         .issues
         .iter()
-        .filter(|i| !crate::report::is_uncertain_pairing(&i.evidence) && i.severity == IssueSeverity::Critical)
+        .filter(|i| {
+            !crate::report::is_uncertain_pairing(&i.evidence)
+                && i.severity == IssueSeverity::Critical
+        })
         .map(|i| i.id.clone())
         .collect();
     let critical_set: std::collections::BTreeSet<&str> =
@@ -503,7 +518,10 @@ pub fn section_issues<'a>(result: &'a DiffResult, key: &(String, String)) -> Vec
     let critical_lead_set: std::collections::BTreeSet<String> = result
         .issues
         .iter()
-        .filter(|i| !crate::report::is_uncertain_pairing(&i.evidence) && i.severity == IssueSeverity::Critical)
+        .filter(|i| {
+            !crate::report::is_uncertain_pairing(&i.evidence)
+                && i.severity == IssueSeverity::Critical
+        })
         .map(|i| i.id.clone())
         .collect();
 
@@ -548,7 +566,10 @@ pub fn resolve_handle<'a>(result: &'a DiffResult, handle: &BranchHandle) -> Vec<
                 .filter(|i| member_ids.contains(i.id.as_str()))
                 .collect()
         }
-        BranchHandle::Section { landmark, heading: Some(h) } => {
+        BranchHandle::Section {
+            landmark,
+            heading: Some(h),
+        } => {
             let target_key = (landmark.clone(), h.clone());
             result
                 .issues
@@ -556,18 +577,16 @@ pub fn resolve_handle<'a>(result: &'a DiffResult, handle: &BranchHandle) -> Vec<
                 .filter(|i| section_key_of(i) == target_key)
                 .collect()
         }
-        BranchHandle::Section { landmark, heading: None } => {
+        BranchHandle::Section {
+            landmark,
+            heading: None,
+        } => {
             // Whole-landmark superset: all issues whose display landmark == landmark.
             result
                 .issues
                 .iter()
                 .filter(|i| {
-                    i.locator
-                        .anchors
-                        .landmark
-                        .as_deref()
-                        .unwrap_or("(page)")
-                        == landmark.as_str()
+                    i.locator.anchors.landmark.as_deref().unwrap_or("(page)") == landmark.as_str()
                 })
                 .collect()
         }
@@ -584,11 +603,7 @@ pub fn resolve_handle<'a>(result: &'a DiffResult, handle: &BranchHandle) -> Vec<
                 .filter(|i| member_ids.contains(i.id.as_str()))
                 .collect()
         }
-        BranchHandle::Issue { id } => result
-            .issues
-            .iter()
-            .filter(|i| &i.id == id)
-            .collect(),
+        BranchHandle::Issue { id } => result.issues.iter().filter(|i| &i.id == id).collect(),
     }
 }
 
@@ -614,10 +629,16 @@ pub fn render_branch_detail(handle: &BranchHandle, issues: &[&Issue]) -> String 
     // --- handle description ---
     let handle_desc = match handle {
         BranchHandle::Region { landmark } => format!("region {}", landmark),
-        BranchHandle::Section { landmark, heading: Some(h) } => {
+        BranchHandle::Section {
+            landmark,
+            heading: Some(h),
+        } => {
             format!("section {} \u{203a} {}", landmark, h)
         }
-        BranchHandle::Section { landmark, heading: None } => {
+        BranchHandle::Section {
+            landmark,
+            heading: None,
+        } => {
             format!("section {} (whole landmark)", landmark)
         }
         BranchHandle::Cluster { id } => format!("cluster {}", id),
@@ -628,10 +649,7 @@ pub fn render_branch_detail(handle: &BranchHandle, issues: &[&Issue]) -> String 
     out.push_str(&format!("matchy show \u{2014} {}\n", handle_desc));
 
     let n = issues.len();
-    out.push_str(&format!(
-        "{} issue(s) in this branch:\n",
-        n
-    ));
+    out.push_str(&format!("{} issue(s) in this branch:\n", n));
 
     for issue in issues {
         out.push('\n');
@@ -663,9 +681,7 @@ pub fn render_branch_detail(handle: &BranchHandle, issues: &[&Issue]) -> String 
         out.push_str(&format!("  section: {} \u{203a} {}\n", lm, hd));
 
         // message: collapse newlines to spaces, trim.
-        let msg = issue
-            .message
-            .replace(['\r', '\n'], " ");
+        let msg = issue.message.replace(['\r', '\n'], " ");
         let msg = msg.trim();
         out.push_str(&format!("  message: {}\n", msg));
 
@@ -695,10 +711,7 @@ pub fn render_branch_detail(handle: &BranchHandle, issues: &[&Issue]) -> String 
                 let mut rem_str = action.to_string();
                 // Append grep targets if non-empty.
                 if let Some(targets) = rem.get("grepTargets").and_then(|v| v.as_array()) {
-                    let ts: Vec<&str> = targets
-                        .iter()
-                        .filter_map(|v| v.as_str())
-                        .collect();
+                    let ts: Vec<&str> = targets.iter().filter_map(|v| v.as_str()).collect();
                     if !ts.is_empty() {
                         rem_str.push_str(&format!("; grep: {}", ts.join(", ")));
                     }
@@ -720,8 +733,8 @@ mod tests {
     use super::*;
     use crate::contract::{
         AgentSummary, Anchors, Artifacts, Cluster, DeterminismSummary, DiffResult, Issue,
-        IssueCategory, IssueSeverity, IssueType, Locator, OutOfScope, Region, Scores,
-        Status, Suppressed, ViewportResult,
+        IssueCategory, IssueSeverity, IssueType, Locator, OutOfScope, Region, Scores, Status,
+        Suppressed, ViewportResult,
     };
     use std::collections::BTreeMap;
 
@@ -740,6 +753,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -804,10 +822,12 @@ mod tests {
             old_url: "https://example.com/old".to_string(),
             new_url: "https://example.com/new".to_string(),
             parity_profile: "content-structure".to_string(),
+            severity_map: None,
             status: Status::Pass,
             agent_summary: AgentSummary {
                 fixable_now: 0,
                 by_type,
+                by_severity: BTreeMap::new(),
                 cluster_count: 0,
                 region_count: 0,
                 top_fixes: vec![],
@@ -1004,7 +1024,10 @@ mod tests {
         let model = compute_outline(&result, &opts);
 
         let any_collapsed = model.sections.iter().any(|s| s.collapsed);
-        assert!(any_collapsed, "at least one section must be collapsed with tiny budget");
+        assert!(
+            any_collapsed,
+            "at least one section must be collapsed with tiny budget"
+        );
 
         let rendered = render_outline(&result, &opts);
         // A collapsed pointer line must contain "drill: matchy show --section".
@@ -2016,7 +2039,8 @@ mod tests {
 
         // sections[0] must be the higher fix_value (NavLinks / broken_link).
         assert_eq!(
-            model.sections[0].key.1, "NavLinks",
+            model.sections[0].key.1,
+            "NavLinks",
             "highest fix_value section must be first in sorted order (NavLinks), got: {:?}",
             model.sections.iter().map(|s| &s.key.1).collect::<Vec<_>>()
         );
@@ -2078,7 +2102,9 @@ mod tests {
 
         // Uncertain Critical must NOT be in critical_lead.
         assert!(
-            !model.critical_lead.contains(&"issue_unc_crit_0001".to_string()),
+            !model
+                .critical_lead
+                .contains(&"issue_unc_crit_0001".to_string()),
             "uncertain Critical must not be in critical_lead"
         );
         assert!(

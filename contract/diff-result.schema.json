@@ -29,9 +29,9 @@
   "properties": {
     "schemaVersion": {
       "title": "Schema version",
-      "description": "Version of the DiffResult schema. '1.1' adds warnings, scopedTo, outOfScope, and scores.byLandmark (all required, so 1.0 documents do not validate against this schema). '1.2' adds the regions array and agentSummary.regionCount (both required, so 1.1 documents do not validate against this schema).",
+      "description": "Version of the DiffResult schema. '1.1' adds warnings, scopedTo, outOfScope, and scores.byLandmark (all required, so 1.0 documents do not validate against this schema). '1.2' adds the regions array and agentSummary.regionCount (both required, so 1.1 documents do not validate against this schema). '1.3' adds the clickable_area_regressed and pseudo_element_missing issue types, requires agentSummary.bySeverity, and adds the optional severityMap echo (bySeverity required, so 1.2 documents do not validate against this schema).",
       "type": "string",
-      "enum": ["1.2"]
+      "enum": ["1.3"]
     },
     "toolVersion": {
       "title": "Tool version",
@@ -59,6 +59,11 @@
       "type": "string",
       "enum": ["content-structure", "strict-visual"]
     },
+    "severityMap": {
+      "title": "Severity map echo",
+      "description": "Resolved per-type/per-property severity overrides in effect for this run (built-in defaults are NOT echoed, only overrides actually applied), so two runs compared with different maps are never silently incomparable. Absent when no --severity-map file was supplied and no overrides apply.",
+      "$ref": "#/$defs/SeverityMapEcho"
+    },
     "status": {
       "title": "Overall status",
       "description": "Aggregate pass/warn/fail/error status for the entire run.",
@@ -70,7 +75,7 @@
       "description": "Machine-first triage block. First in file for fast agent consumption.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["fixableNow", "byType", "clusterCount", "regionCount", "topFixes"],
+      "required": ["fixableNow", "byType", "bySeverity", "clusterCount", "regionCount", "topFixes"],
       "properties": {
         "fixableNow": {
           "title": "Fixable now count",
@@ -80,7 +85,16 @@
         },
         "byType": {
           "title": "Issues by type",
-          "description": "Count of issues per issue type, sorted by type key (BTreeMap order).",
+          "description": "Count of issues per issue type, sorted by type key (BTreeMap order). Computed over the same post-baseline, post-scope kept set as bySeverity.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "bySeverity": {
+          "title": "Issues by severity",
+          "description": "Count of kept (post-baseline, post-scope) issues per severity level, sorted by severity key (BTreeMap order). Always present, even when empty, so a gate can assert e.g. bySeverity.error is absent-or-zero without re-deriving from issues[].",
           "type": "object",
           "additionalProperties": {
             "type": "integer",
@@ -342,6 +356,46 @@
         }
       }
     },
+    "SeverityMapEcho": {
+      "title": "SeverityMapEcho",
+      "description": "Resolved non-default severity overrides in effect for this run (U3). Echoed so two runs compared with different maps are never silently incomparable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "overrides"],
+      "properties": {
+        "source": {
+          "title": "Source",
+          "description": "Where the overrides came from. Currently always 'file' (--severity-map); reserved for future sources.",
+          "type": "string",
+          "enum": ["file"]
+        },
+        "overrides": {
+          "title": "Overrides",
+          "description": "The resolved, applied overrides (built-in defaults are not echoed — only overrides actually applied by the map file).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["types", "properties"],
+          "properties": {
+            "types": {
+              "title": "Per-type overrides",
+              "description": "Map of issue type key to overridden severity.",
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/IssueSeverity"
+              }
+            },
+            "properties": {
+              "title": "Per-property overrides",
+              "description": "Map of CSS property name to overridden severity.",
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/IssueSeverity"
+              }
+            }
+          }
+        }
+      }
+    },
     "RunWarning": {
       "title": "Run warning",
       "description": "A run-level warning surfacing capture-integrity degradation or baseline staleness.",
@@ -405,6 +459,8 @@
         "style_changed",
         "background_gradient_lost",
         "background_gradient_changed",
+        "clickable_area_regressed",
+        "pseudo_element_missing",
         "accessibility_regression",
         "accessibility_improved",
         "status_code_mismatch",
@@ -797,6 +853,34 @@
           "description": "Status of the final settle wait.",
           "type": "string",
           "enum": ["ran", "failed", "skipped"]
+        },
+        "settle": {
+          "title": "Settle pass",
+          "description": "Status of the evolved settle stage (viewport-height scroll steps + quiescence wait). Optional; absent on pre-1.1 bundles and when the settle stage did not run.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "hitTestProbe": {
+          "title": "Hit-test probe",
+          "description": "Status of the per-node clickable-area hit-test probe. Optional; absent on pre-1.1 bundles and when the probe did not run.",
+          "type": "string",
+          "enum": ["ran", "failed", "skipped"]
+        },
+        "quiescence": {
+          "title": "Quiescence",
+          "description": "Outcome of the settle stage's MutationObserver quiescence wait. 'notRun' when the settle stage did not reach the quiescence phase. Optional; absent on pre-1.1 bundles.",
+          "type": "string",
+          "enum": ["reached", "timeout", "notRun"]
+        },
+        "settleScrollIneffective": {
+          "title": "Settle scroll ineffective",
+          "description": "True when the settle stage's scroll steps never moved scrollY. Optional; absent when not evaluated.",
+          "type": "boolean"
+        },
+        "settleGrowthCapped": {
+          "title": "Settle growth capped",
+          "description": "True when the settle stage's page-growth cap was hit during scroll-through. Optional; absent when not evaluated.",
+          "type": "boolean"
         },
         "clicked": {
           "title": "Clicked selectors",

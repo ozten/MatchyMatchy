@@ -170,16 +170,8 @@ fn setup_cta_pair(tmp: &TempDir) -> (PathBuf, PathBuf) {
         }
     });
 
-    let old_bundle = make_bundle_json(
-        "http://old.example.com/",
-        vec![old_cta_node],
-        old_styles,
-    );
-    let new_bundle = make_bundle_json(
-        "http://new.example.com/",
-        vec![new_cta_node],
-        new_styles,
-    );
+    let old_bundle = make_bundle_json("http://old.example.com/", vec![old_cta_node], old_styles);
+    let new_bundle = make_bundle_json("http://new.example.com/", vec![new_cta_node], new_styles);
 
     let old_path = tmp.path().join("old.bundle.json");
     let new_path = tmp.path().join("new.bundle.json");
@@ -346,7 +338,12 @@ fn test_props_flag_restricts_output() {
     let out = run_explain(
         &old,
         &new,
-        &["--anchor", "text=Get started", "--props", "color,font-family"],
+        &[
+            "--anchor",
+            "text=Get started",
+            "--props",
+            "color,font-family",
+        ],
     );
     assert_eq!(
         out.exit_code, 0,
@@ -388,7 +385,10 @@ fn test_output_is_deterministic() {
     let out2 = run_explain(&old, &new, &["--anchor", "text=Get started"]);
 
     assert_eq!(out1.exit_code, out2.exit_code, "exit codes must match");
-    assert_eq!(out1.stdout, out2.stdout, "stdout must be byte-identical across runs");
+    assert_eq!(
+        out1.stdout, out2.stdout,
+        "stdout must be byte-identical across runs"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -400,11 +400,7 @@ fn test_missing_bundle_exits_2() {
     let tmp = TempDir::new().unwrap();
     let nonexistent = tmp.path().join("does_not_exist.bundle.json");
 
-    let out = run_explain(
-        &nonexistent,
-        &nonexistent,
-        &["--anchor", "text=anything"],
-    );
+    let out = run_explain(&nonexistent, &nonexistent, &["--anchor", "text=anything"]);
     assert_eq!(
         out.exit_code, 2,
         "missing bundle must exit 2 (got {}); stderr: {}",

@@ -290,13 +290,13 @@ mod tests {
         // member_issue_ids must be sorted ascending
         let mut sorted = r.member_issue_ids.clone();
         sorted.sort();
-        assert_eq!(r.member_issue_ids, sorted, "member_issue_ids must be sorted");
+        assert_eq!(
+            r.member_issue_ids, sorted,
+            "member_issue_ids must be sorted"
+        );
 
         // region id matches the pattern region_{12hex}
-        assert!(
-            r.id.starts_with("region_"),
-            "id must start with 'region_'"
-        );
+        assert!(r.id.starts_with("region_"), "id must start with 'region_'");
         assert_eq!(r.id.len(), 7 + 12, "id must be region_ + 12 hex chars");
     }
 
@@ -308,10 +308,30 @@ mod tests {
     #[test]
     fn test_ae2_below_min_node_count() {
         let kept = vec![
-            make_issue("bn_s_0000", IssueType::MissingText, IssueSeverity::Error, Some("banner")),
-            make_issue("bn_s_0001", IssueType::MissingText, IssueSeverity::Error, Some("banner")),
-            make_issue("bn_s_0002", IssueType::MissingText, IssueSeverity::Error, Some("banner")),
-            make_issue("bn_s_0003", IssueType::MissingText, IssueSeverity::Error, Some("banner")),
+            make_issue(
+                "bn_s_0000",
+                IssueType::MissingText,
+                IssueSeverity::Error,
+                Some("banner"),
+            ),
+            make_issue(
+                "bn_s_0001",
+                IssueType::MissingText,
+                IssueSeverity::Error,
+                Some("banner"),
+            ),
+            make_issue(
+                "bn_s_0002",
+                IssueType::MissingText,
+                IssueSeverity::Error,
+                Some("banner"),
+            ),
+            make_issue(
+                "bn_s_0003",
+                IssueType::MissingText,
+                IssueSeverity::Error,
+                Some("banner"),
+            ),
         ];
         let mut counts: BTreeMap<String, u32> = BTreeMap::new();
         // 4 old nodes — below MIN_NODE_COUNT=10
@@ -400,10 +420,7 @@ mod tests {
         counts.insert("complementary".to_string(), 100);
 
         let regions = compute_regions(&kept, &counts);
-        assert!(
-            regions.is_empty(),
-            "saturation 0.59 must not emit a region"
-        );
+        assert!(regions.is_empty(), "saturation 0.59 must not emit a region");
     }
 
     // -----------------------------------------------------------------------
@@ -659,7 +676,10 @@ mod tests {
 
         assert_eq!(r1.len(), r2.len(), "same number of regions");
         for (a, b) in r1.iter().zip(r2.iter()) {
-            assert_eq!(a.id, b.id, "region id must be identical regardless of input order");
+            assert_eq!(
+                a.id, b.id,
+                "region id must be identical regardless of input order"
+            );
             assert_eq!(
                 a.member_issue_ids, b.member_issue_ids,
                 "member_issue_ids must be identical (sorted)"
@@ -682,7 +702,10 @@ mod tests {
         assert_eq!(id_a.len(), 19, "region_ (7) + 12 hex = 19 chars");
         // Different landmark → different id
         let id_main = region_id("main");
-        assert_ne!(id_a, id_main, "different landmarks must produce different ids");
+        assert_ne!(
+            id_a, id_main,
+            "different landmarks must produce different ids"
+        );
     }
 
     // -----------------------------------------------------------------------

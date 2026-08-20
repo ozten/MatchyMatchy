@@ -19,9 +19,9 @@
   "properties": {
     "schemaVersion": {
       "title": "Schema version",
-      "description": "Semver-like schema version. Always '1.0' for this revision.",
+      "description": "Semver-like schema version. '1.1' adds optional hitTests, pseudoElements, pseudoTruncated top-level fields and optional settle/quiescence determinism keys (all additive; 1.0 documents still validate against the required set).",
       "type": "string",
-      "const": "1.0"
+      "const": "1.1"
     },
     "capturedAt": {
       "title": "Captured at",
@@ -195,6 +195,46 @@
             "failed",
             "skipped"
           ]
+        },
+        "settle": {
+          "title": "Settle pass",
+          "description": "Status of the evolved settle stage (viewport-height scroll steps + quiescence wait). Optional; absent on pre-1.1 bundles and when the settle stage did not run (e.g. --no-settle legacy path).",
+          "type": "string",
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
+        },
+        "hitTestProbe": {
+          "title": "Hit-test probe",
+          "description": "Status of the per-node clickable-area hit-test probe. Optional; absent on pre-1.1 bundles and when the probe did not run.",
+          "type": "string",
+          "enum": [
+            "ran",
+            "failed",
+            "skipped"
+          ]
+        },
+        "quiescence": {
+          "title": "Quiescence",
+          "description": "Outcome of the settle stage's MutationObserver quiescence wait. 'notRun' when the settle stage did not reach the quiescence phase (skipped/failed/legacy). Optional; absent on pre-1.1 bundles.",
+          "type": "string",
+          "enum": [
+            "reached",
+            "timeout",
+            "notRun"
+          ]
+        },
+        "settleScrollIneffective": {
+          "title": "Settle scroll ineffective",
+          "description": "True when the settle stage's scroll steps never moved scrollY (e.g. transform-based scroll containers), so settle recorded 'ran' without asserting real progress. Optional; absent when not evaluated.",
+          "type": "boolean"
+        },
+        "settleGrowthCapped": {
+          "title": "Settle growth capped",
+          "description": "True when the settle stage's page-growth cap (~3x initial height or max steps) was hit during scroll-through, e.g. an infinite feed. Optional; absent when not evaluated.",
+          "type": "boolean"
         },
         "clicked": {
           "title": "Clicked selectors",
@@ -467,6 +507,27 @@
           "type": "string"
         }
       }
+    },
+    "hitTests": {
+      "title": "Hit-test probe results",
+      "description": "Map of SemanticNode id to per-node clickable-area hit-test outcomes. Additive optional field (1.1); absent when the hit-test probe did not run (pre-1.1 bundles, or --no-settle-adjacent skip paths).",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/HitTestEntry"
+      }
+    },
+    "pseudoElements": {
+      "title": "Pseudo-element entries",
+      "description": "Map of owner key to captured ::before/::after entries. Additive optional field (1.1); absent when the pseudo-element scan did not run (pre-1.1 bundles).",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/PseudoElementEntry"
+      }
+    },
+    "pseudoTruncated": {
+      "title": "Pseudo-element truncation",
+      "description": "Present only when the pseudo-element budget was exceeded and some entries were dropped.",
+      "$ref": "#/$defs/PseudoTruncated"
     }
   },
   "$defs": {
@@ -1021,6 +1082,196 @@
           ],
           "minimum": 1,
           "maximum": 6
+        }
+      }
+    },
+    "HitTestEntry": {
+      "title": "HitTestEntry",
+      "description": "Per-node clickable-area hit-test result for one interactive SemanticNode.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "title": "Status",
+          "description": "'sampled' when the 5x5 grid was probed; 'skipped' when the node was too small, off-document, or detached.",
+          "type": "string",
+          "enum": ["sampled", "skipped"]
+        },
+        "skipReason": {
+          "title": "Skip reason",
+          "description": "Why the node was not sampled. Required when status is 'skipped'.",
+          "type": "string",
+          "enum": ["tooSmall", "offDocument", "detached"]
+        },
+        "gridSize": {
+          "title": "Grid size",
+          "description": "The N in the NxN sampling grid (always 5 in this revision). Required when status is 'sampled'.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "points": {
+          "title": "Grid points",
+          "description": "25 entries, row-major from top-left. Required when status is 'sampled'. Coordinates are never stored, only per-point outcomes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HitTestPoint"
+          },
+          "minItems": 25,
+          "maxItems": 25
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "skipped" } }
+          },
+          "then": {
+            "required": ["skipReason"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "sampled" } }
+          },
+          "then": {
+            "required": ["gridSize", "points"]
+          }
+        }
+      ]
+    },
+    "HitTestPoint": {
+      "title": "HitTestPoint",
+      "description": "The outcome of a single grid point probed via elementFromPoint. Coordinates are never stored — only the outcome (and, for a miss, the winning element's selector).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["o"],
+      "properties": {
+        "o": {
+          "title": "Outcome",
+          "description": "'hit' (node/descendant/labeled-control), 'miss' (a different element won), 'clipped' (the winner is an ancestor of the target — rounded/smaller rendering, not occlusion), or 'offViewport' (the point could not be brought on-screen).",
+          "type": "string",
+          "enum": ["hit", "miss", "clipped", "offViewport"]
+        },
+        "winner": {
+          "title": "Winner selector",
+          "description": "Landmark-relative CSS selector of the element elementFromPoint returned. Required when o is 'miss'.",
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "o": { "const": "miss" } }
+          },
+          "then": {
+            "required": ["winner"]
+          }
+        }
+      ]
+    },
+    "PseudoStyles": {
+      "title": "PseudoStyles",
+      "description": "Curated computed styles for a single ::before/::after pseudo-element, plus a best-effort bounding box.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content"],
+      "properties": {
+        "content": {
+          "title": "Content",
+          "description": "Resolved value of the CSS content property (quotes/escapes preserved as computed).",
+          "type": "string"
+        },
+        "position": { "type": "string" },
+        "width": { "type": "string" },
+        "height": { "type": "string" },
+        "background-color": { "type": "string" },
+        "background-image": { "type": "string" },
+        "border": { "type": "string" },
+        "border-radius": { "type": "string" },
+        "top": { "type": "string" },
+        "right": { "type": "string" },
+        "bottom": { "type": "string" },
+        "left": { "type": "string" },
+        "z-index": { "type": "string" },
+        "display": { "type": "string" },
+        "opacity": { "type": "string" },
+        "bbox": {
+          "title": "Bounding box",
+          "description": "Best-effort [x, y, width, height] in page coordinates. Absent when unresolvable.",
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "PseudoElementEntry": {
+      "title": "PseudoElementEntry",
+      "description": "A captured ::before and/or ::after pair for a single owner element, keyed by owner key in the top-level pseudoElements map.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownerTier", "landmark"],
+      "properties": {
+        "ownerTier": {
+          "title": "Owner tier",
+          "description": "'node' (owner is a SemanticNode, aligned via old_to_new_id), 'ancestor' (owner is an AncestorDescriptor), or 'selector' (owner is a decorative leaf identified by a landmark-scoped stable selector).",
+          "type": "string",
+          "enum": ["node", "ancestor", "selector"]
+        },
+        "ownerNodeId": {
+          "title": "Owner node id",
+          "description": "SemanticNode id of the owner. Required when ownerTier is 'node'.",
+          "type": "string"
+        },
+        "ownerSelector": {
+          "title": "Owner selector",
+          "description": "Landmark-scoped CSS selector identifying the owner. Required when ownerTier is 'ancestor' or 'selector'.",
+          "type": "string"
+        },
+        "landmark": {
+          "title": "Landmark",
+          "description": "ARIA landmark role nearest the owner, or null when the owner has no enclosing landmark.",
+          "type": ["string", "null"]
+        },
+        "before": {
+          "$ref": "#/$defs/PseudoStyles"
+        },
+        "after": {
+          "$ref": "#/$defs/PseudoStyles"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "ownerTier": { "const": "node" } }
+          },
+          "then": {
+            "required": ["ownerNodeId"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "ownerTier": { "enum": ["ancestor", "selector"] } }
+          },
+          "then": {
+            "required": ["ownerSelector"]
+          }
+        }
+      ]
+    },
+    "PseudoTruncated": {
+      "title": "PseudoTruncated",
+      "description": "Present only when the per-page pseudo-element budget was exceeded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["droppedCount"],
+      "properties": {
+        "droppedCount": {
+          "title": "Dropped count",
+          "description": "Number of pseudo-element entries dropped due to budget overflow.",
+          "type": "integer",
+          "minimum": 0
         }
       }
     }

@@ -164,10 +164,8 @@ fn resolve_side(bundle: &CaptureBundle, locator: &Locator) -> SideResult {
 /// Find a node in `nodes` matching the locator.
 /// When multiple nodes match, pick the one with the lowest (seq_index, id) — total order.
 fn find_node<'a>(nodes: &'a [SemanticNode], locator: &Locator) -> Option<&'a SemanticNode> {
-    let mut candidates: Vec<&SemanticNode> = nodes
-        .iter()
-        .filter(|n| node_matches(n, locator))
-        .collect();
+    let mut candidates: Vec<&SemanticNode> =
+        nodes.iter().filter(|n| node_matches(n, locator)).collect();
 
     if candidates.is_empty() {
         return None;
@@ -223,7 +221,11 @@ fn node_matches(node: &SemanticNode, locator: &Locator) -> bool {
 }
 
 /// Build the sorted property rows from the two resolved sides.
-fn build_rows(old_side: &SideResult, new_side: &SideResult, props: Option<&[String]>) -> Vec<PropRow> {
+fn build_rows(
+    old_side: &SideResult,
+    new_side: &SideResult,
+    props: Option<&[String]>,
+) -> Vec<PropRow> {
     const ABSENT: &str = "<absent>";
 
     // Helper: get a value from a SideResult's computed_styles, or bbox pseudo-props.
@@ -433,6 +435,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -526,6 +533,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 
@@ -586,11 +596,7 @@ mod tests {
             vec![other_old, cta_old],
             old_styles,
         );
-        let new_bundle = make_bundle(
-            "http://new.example.com/",
-            vec![cta_new],
-            new_styles,
-        );
+        let new_bundle = make_bundle("http://new.example.com/", vec![cta_new], new_styles);
 
         (old_bundle, new_bundle)
     }
@@ -643,7 +649,11 @@ mod tests {
         // All rows in diff-only mode must be changed
         for row in &report.rows {
             // bbox props may differ too (different nodes) - that's expected
-            assert!(row.changed, "diff-only must only include changed rows, got unchanged: {}", row.property);
+            assert!(
+                row.changed,
+                "diff-only must only include changed rows, got unchanged: {}",
+                row.property
+            );
         }
     }
 
@@ -670,7 +680,10 @@ mod tests {
         );
         let prop_names: Vec<&str> = report.rows.iter().map(|r| r.property.as_str()).collect();
         assert!(prop_names.contains(&"color"), "color must be present");
-        assert!(prop_names.contains(&"font-family"), "font-family must be present");
+        assert!(
+            prop_names.contains(&"font-family"),
+            "font-family must be present"
+        );
 
         // background-image must NOT appear (not in --props)
         assert!(
@@ -680,7 +693,11 @@ mod tests {
 
         // Both must be marked NOT changed
         for row in &report.rows {
-            assert!(!row.changed, "color/font-family must not be changed; got changed=true for {}", row.property);
+            assert!(
+                !row.changed,
+                "color/font-family must not be changed; got changed=true for {}",
+                row.property
+            );
         }
     }
 
@@ -738,7 +755,10 @@ mod tests {
         // Asymmetry message must be present
         assert!(report.asymmetry_message.is_some());
         let msg = report.asymmetry_message.as_deref().unwrap();
-        assert!(msg.contains("NEW only"), "asymmetry message must mention NEW only");
+        assert!(
+            msg.contains("NEW only"),
+            "asymmetry message must mention NEW only"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -776,7 +796,7 @@ mod tests {
     fn test_tie_break_determinism() {
         // Two nodes both with text="Get started"; lower seq_index wins.
         let node_a = make_node(
-            "node_b",  // id sorts after node_a but seq_index is higher
+            "node_b", // id sorts after node_a but seq_index is higher
             Some("Get started"),
             None,
             None,
@@ -786,20 +806,16 @@ mod tests {
             5,
         );
         let node_b = make_node(
-            "node_a",  // id sorts first
+            "node_a", // id sorts first
             Some("Get started"),
             None,
             None,
             None,
             None,
             [0, 100, 100, 40],
-            2,  // lower seq_index → wins
+            2, // lower seq_index → wins
         );
-        let bundle = make_bundle(
-            "http://example.com/",
-            vec![node_a, node_b],
-            BTreeMap::new(),
-        );
+        let bundle = make_bundle("http://example.com/", vec![node_a, node_b], BTreeMap::new());
 
         let locator = Locator::parse_anchor("text=Get started").unwrap();
         let side = resolve_side(&bundle, &locator);
@@ -830,6 +846,9 @@ mod tests {
 
         // Must mark the background-image row as CHANGED
         assert!(out1.contains("CHANGED"), "must mark changed rows");
-        assert!(out1.contains("background-image"), "must show background-image");
+        assert!(
+            out1.contains("background-image"),
+            "must show background-image"
+        );
     }
 }

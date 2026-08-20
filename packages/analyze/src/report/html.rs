@@ -498,7 +498,8 @@ pub fn render_html_mode(
             let summary_line = if mode == crate::report::DisclosureMode::Compact {
                 let cmd = crate::report::outline::BranchHandle::Region {
                     landmark: region.landmark.clone(),
-                }.drill_command(out_dir);
+                }
+                .drill_command(out_dir);
                 format!(
                     "<details class=\"region-members\">\n<summary>{} \u{00b7} {} member issue{} \u{2014} show detail \u{2014} drill: <code>{}</code></summary>\n",
                     escape(&region.landmark),
@@ -566,7 +567,8 @@ pub fn render_html_mode(
             if mode == crate::report::DisclosureMode::Compact {
                 let cmd = crate::report::outline::BranchHandle::Cluster {
                     id: cluster.id.clone(),
-                }.drill_command(out_dir);
+                }
+                .drill_command(out_dir);
                 out.push_str(&format!("<p>drill: <code>{}</code></p>\n", escape(&cmd)));
             }
 
@@ -601,7 +603,9 @@ pub fn render_html_mode(
         }
         crate::report::DisclosureMode::Compact => {
             // Use the already-computed model (computed once before section 5).
-            let model = compact_model.as_ref().expect("compact_model must be Some in Compact mode");
+            let model = compact_model
+                .as_ref()
+                .expect("compact_model must be Some in Compact mode");
 
             // (a) Critical defects — always visible (R13), never hidden behind a closed <details>.
             if !model.critical_lead.is_empty() {
@@ -887,6 +891,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -946,10 +955,12 @@ mod tests {
             old_url: "https://example.com/old".to_string(),
             new_url: "https://example.com/new".to_string(),
             parity_profile: "content-structure".to_string(),
+            severity_map: None,
             status: Status::Warn,
             agent_summary: AgentSummary {
                 fixable_now: 1,
                 by_type,
+                by_severity: BTreeMap::new(),
                 cluster_count: 0,
                 region_count: 0,
                 top_fixes: vec!["issue_aabbccddeeff".to_string()],
@@ -1497,9 +1508,15 @@ mod tests {
         );
 
         // The card must appear AFTER <h2>Regions</h2> and BEFORE the Issues section.
-        let regions_h2 = html.find("<h2>Regions</h2>").expect("<h2>Regions</h2> must be present");
-        let details_pos = html.find("<details class=\"region-members\">").expect("region-members details must be present");
-        let card_pos = html.find("id=\"issue_aabbccddeeff\"").expect("card must appear");
+        let regions_h2 = html
+            .find("<h2>Regions</h2>")
+            .expect("<h2>Regions</h2> must be present");
+        let details_pos = html
+            .find("<details class=\"region-members\">")
+            .expect("region-members details must be present");
+        let card_pos = html
+            .find("id=\"issue_aabbccddeeff\"")
+            .expect("card must appear");
 
         assert!(
             details_pos > regions_h2,
@@ -1511,7 +1528,9 @@ mod tests {
         );
 
         // Slice from <h2>Issues</h2> to the next <h2> and assert the card id is absent.
-        let issues_h2_pos = html.find("<h2>Issues</h2>").expect("<h2>Issues</h2> must be present");
+        let issues_h2_pos = html
+            .find("<h2>Issues</h2>")
+            .expect("<h2>Issues</h2> must be present");
         // Find the next <h2> after the Issues h2.
         let after_issues = &html[issues_h2_pos + "<h2>Issues</h2>".len()..];
         let next_h2 = after_issues.find("<h2>").unwrap_or(after_issues.len());
@@ -1563,7 +1582,9 @@ mod tests {
         let html = render_html(&result, &BTreeMap::new());
 
         // Slice the Issues section.
-        let issues_h2_pos = html.find("<h2>Issues</h2>").expect("<h2>Issues</h2> must be present");
+        let issues_h2_pos = html
+            .find("<h2>Issues</h2>")
+            .expect("<h2>Issues</h2> must be present");
         let after_issues = &html[issues_h2_pos + "<h2>Issues</h2>".len()..];
         let next_h2 = after_issues.find("<h2>").unwrap_or(after_issues.len());
         let issues_slice = &after_issues[..next_h2];
@@ -1631,7 +1652,10 @@ mod tests {
         assert!(!lower.contains("onerror="), "No onerror= after demotion");
         assert!(!lower.contains("onclick="), "No onclick= after demotion");
         assert!(!lower.contains("onload="), "No onload= after demotion");
-        assert!(!lower.contains("javascript:"), "No javascript: URLs after demotion");
+        assert!(
+            !lower.contains("javascript:"),
+            "No javascript: URLs after demotion"
+        );
     }
 
     /// Rendering the same result twice must produce byte-identical HTML.
@@ -1640,7 +1664,10 @@ mod tests {
         let result = make_fixture_with_region();
         let html1 = render_html(&result, &BTreeMap::new());
         let html2 = render_html(&result, &BTreeMap::new());
-        assert_eq!(html1, html2, "HTML must be byte-identical across two renders of the same input");
+        assert_eq!(
+            html1, html2,
+            "HTML must be byte-identical across two renders of the same input"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1719,14 +1746,22 @@ mod tests {
         let dims = BTreeMap::new();
         let via_wrapper = render_html(&result, &dims);
         let via_mode = render_html_mode(&result, &dims, crate::report::DisclosureMode::Full, "");
-        assert_eq!(via_wrapper, via_mode, "render_html_mode Full must equal render_html wrapper");
+        assert_eq!(
+            via_wrapper, via_mode,
+            "render_html_mode Full must equal render_html wrapper"
+        );
     }
 
     /// Compact mode with small sections (fits default budget) → <details class="section" open>.
     #[test]
     fn test_compact_section_details_open_when_inlined() {
         let result = make_fixture_with_sections();
-        let html = render_html_mode(&result, &BTreeMap::new(), crate::report::DisclosureMode::Compact, "/tmp/out");
+        let html = render_html_mode(
+            &result,
+            &BTreeMap::new(),
+            crate::report::DisclosureMode::Compact,
+            "/tmp/out",
+        );
         assert!(
             html.contains("<details class=\"section\" open>"),
             "At least one inlined section must render as <details class=\"section\" open>, got html snippet: {}",
@@ -1797,7 +1832,12 @@ mod tests {
         // Instead, verify the open/closed mapping via a custom test:
         // count "<details class=\"section\" open>" and "<details class=\"section\">"
         // (without " open") in the HTML.
-        let html = render_html_mode(&result, &BTreeMap::new(), crate::report::DisclosureMode::Compact, "/tmp/out");
+        let html = render_html_mode(
+            &result,
+            &BTreeMap::new(),
+            crate::report::DisclosureMode::Compact,
+            "/tmp/out",
+        );
 
         let open_count = html.matches("<details class=\"section\" open>").count();
         // "closed" details are `<details class="section">` without " open".
@@ -1820,10 +1860,13 @@ mod tests {
         // Additionally, if ANY section is collapsed in the model with config defaults, assert it.
         let default_opts = DisclosureOptions::new("/tmp/out");
         let default_model = compute_outline(&result, &default_opts);
-        let default_open = default_model.sections.iter().filter(|s| !s.collapsed).count();
+        let default_open = default_model
+            .sections
+            .iter()
+            .filter(|s| !s.collapsed)
+            .count();
         assert_eq!(
-            open_count,
-            default_open,
+            open_count, default_open,
             "HTML open details count must match model inlined count with config defaults"
         );
     }
@@ -1832,18 +1875,29 @@ mod tests {
     #[test]
     fn test_compact_html_csp_safe() {
         let result = make_fixture_with_sections();
-        let html = render_html_mode(&result, &BTreeMap::new(), crate::report::DisclosureMode::Compact, "/tmp/out");
+        let html = render_html_mode(
+            &result,
+            &BTreeMap::new(),
+            crate::report::DisclosureMode::Compact,
+            "/tmp/out",
+        );
 
         assert!(
             html.contains("<meta http-equiv=\"Content-Security-Policy\""),
             "CSP meta must be present in compact mode"
         );
         let lower = html.to_lowercase();
-        assert!(!lower.contains("<script"), "No <script tags in compact mode");
+        assert!(
+            !lower.contains("<script"),
+            "No <script tags in compact mode"
+        );
         assert!(!lower.contains("onerror="), "No onerror= in compact mode");
         assert!(!lower.contains("onclick="), "No onclick= in compact mode");
         assert!(!lower.contains("onload="), "No onload= in compact mode");
-        assert!(!lower.contains("javascript:"), "No javascript: in compact mode");
+        assert!(
+            !lower.contains("javascript:"),
+            "No javascript: in compact mode"
+        );
     }
 
     /// Fix 2: a Critical issue that is ALSO a region member must NOT render twice in compact
@@ -1992,7 +2046,12 @@ mod tests {
         };
         result.issues.push(critical_issue);
 
-        let html = render_html_mode(&result, &BTreeMap::new(), crate::report::DisclosureMode::Compact, "/tmp/out");
+        let html = render_html_mode(
+            &result,
+            &BTreeMap::new(),
+            crate::report::DisclosureMode::Compact,
+            "/tmp/out",
+        );
 
         // Critical heading must be present.
         assert!(

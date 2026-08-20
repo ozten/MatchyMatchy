@@ -7,8 +7,8 @@ use anyhow::Context;
 use chrono::Utc;
 
 use crate::contract::{
-    AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult, Issue,
-    IssueCategory, IntegrityInventory, IssueSeverity, IssueType, LandmarkScores, OutOfScope,
+    AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult,
+    IntegrityInventory, Issue, IssueCategory, IssueSeverity, IssueType, LandmarkScores, OutOfScope,
     RunWarning, Scores, Status, StepStatus, Suppressed, ViewportResult,
 };
 use crate::scoring::{compute_status, count_fixable_now, fix_value, ParityProfile};
@@ -176,12 +176,17 @@ pub fn assemble_diff_result(
     // (id_to_cluster is available for future use; cluster membership tested via clustered_ids)
 
     // ------------------------------------------------------------------
-    // 5. byType over kept.
+    // 5. byType + bySeverity over kept (port-parity U5: same kept set,
+    //    post-baseline, post-scope, as documented on AgentSummary).
     // ------------------------------------------------------------------
     let mut by_type: BTreeMap<String, u32> = BTreeMap::new();
+    let mut by_severity: BTreeMap<String, u64> = BTreeMap::new();
     for issue in &kept {
         *by_type
             .entry(issue.issue_type.as_str().to_string())
+            .or_insert(0) += 1;
+        *by_severity
+            .entry(issue.severity.as_str().to_string())
             .or_insert(0) += 1;
     }
 
@@ -236,8 +241,7 @@ pub fn assemble_diff_result(
     for issue in &kept {
         let claimed = region_claimed_ids.contains(issue.id.as_str());
         let unclustered_unclaimed = !clustered_ids.contains(issue.id.as_str()) && !claimed;
-        let critical_member =
-            claimed && issue.severity == crate::contract::IssueSeverity::Critical;
+        let critical_member = claimed && issue.severity == crate::contract::IssueSeverity::Critical;
         if unclustered_unclaimed || critical_member {
             let fv = fix_value(
                 &issue.severity,
@@ -371,16 +375,19 @@ pub fn assemble_diff_result(
     // 15. Assemble.
     // ------------------------------------------------------------------
     DiffResult {
-        schema_version: "1.2".to_string(),
+        schema_version: "1.3".to_string(),
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
         run_id: run_id.to_string(),
         old_url: old_url.to_string(),
         new_url: new_url.to_string(),
         parity_profile: profile.as_str().to_string(),
+        // Port-parity U3: severity-map echo. Always None until --severity-map lands.
+        severity_map: None,
         status: overall_status,
         agent_summary: AgentSummary {
             fixable_now,
             by_type,
+            by_severity,
             cluster_count,
             region_count,
             top_fixes,
@@ -664,6 +671,11 @@ fn make_default_determinism() -> CaptureDeterminism {
         images_decoded: StepStatus::Skipped,
         lazy_load_pass: StepStatus::Skipped,
         settled: StepStatus::Skipped,
+        settle: None,
+        hit_test_probe: None,
+        quiescence: None,
+        settle_scroll_ineffective: None,
+        settle_growth_capped: None,
         clicked: vec![],
         hidden: vec![],
         masked: vec![],
@@ -702,6 +714,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -1139,7 +1156,11 @@ mod tests {
             .iter()
             .filter(|w| w.code == "capture_integrity_delta")
             .collect();
-        assert_eq!(integrity_warnings.len(), 1, "heading delta should fire once");
+        assert_eq!(
+            integrity_warnings.len(),
+            1,
+            "heading delta should fire once"
+        );
         let ctx = integrity_warnings[0].context.as_ref().unwrap();
         assert_eq!(ctx["side"], serde_json::json!("old"));
         assert!(
@@ -1187,9 +1208,7 @@ mod tests {
         let baseline = Baseline::default();
         let warnings = build_warnings(&det_all_ran(), &det_all_ran(), &baseline, &[]);
         assert!(
-            warnings
-                .iter()
-                .all(|w| w.code != "capture_integrity_delta"),
+            warnings.iter().all(|w| w.code != "capture_integrity_delta"),
             "no integrity warning when integrity is None"
         );
     }
@@ -1210,10 +1229,15 @@ mod tests {
         // step_failed must appear before integrity_delta.
         let step_pos = codes.iter().position(|&c| c == "capture_step_failed");
         let integrity_pos = codes.iter().position(|&c| c == "capture_integrity_delta");
-        let retried_pos = codes.iter().position(|&c| c == "capture_retried_without_time_freeze");
+        let retried_pos = codes
+            .iter()
+            .position(|&c| c == "capture_retried_without_time_freeze");
 
         assert!(step_pos.is_some(), "step_failed warning must be present");
-        assert!(integrity_pos.is_some(), "integrity_delta warning must be present");
+        assert!(
+            integrity_pos.is_some(),
+            "integrity_delta warning must be present"
+        );
         assert!(retried_pos.is_some(), "retried warning must be present");
 
         assert!(
@@ -1239,14 +1263,35 @@ mod tests {
 
         let codes: Vec<&str> = warnings.iter().map(|w| w.code.as_str()).collect();
 
-        let step_pos = codes.iter().position(|&c| c == "capture_step_failed").unwrap();
-        let integrity_pos = codes.iter().position(|&c| c == "capture_integrity_delta").unwrap();
-        let retried_pos = codes.iter().position(|&c| c == "capture_retried_without_time_freeze").unwrap();
-        let stale_pos = codes.iter().position(|&c| c == "baseline_stale_ids").unwrap();
+        let step_pos = codes
+            .iter()
+            .position(|&c| c == "capture_step_failed")
+            .unwrap();
+        let integrity_pos = codes
+            .iter()
+            .position(|&c| c == "capture_integrity_delta")
+            .unwrap();
+        let retried_pos = codes
+            .iter()
+            .position(|&c| c == "capture_retried_without_time_freeze")
+            .unwrap();
+        let stale_pos = codes
+            .iter()
+            .position(|&c| c == "baseline_stale_ids")
+            .unwrap();
 
-        assert!(step_pos < integrity_pos, "step_failed must precede integrity_delta");
-        assert!(integrity_pos < retried_pos, "integrity_delta must precede retried");
-        assert!(retried_pos < stale_pos, "retried must precede baseline_stale_ids");
+        assert!(
+            step_pos < integrity_pos,
+            "step_failed must precede integrity_delta"
+        );
+        assert!(
+            integrity_pos < retried_pos,
+            "integrity_delta must precede retried"
+        );
+        assert!(
+            retried_pos < stale_pos,
+            "retried must precede baseline_stale_ids"
+        );
     }
 
     /// extra_warnings are appended after all generated warnings.
@@ -1317,8 +1362,7 @@ mod tests {
         landmark: Option<&str>,
         remediation_property: Option<&str>,
     ) -> Issue {
-        let remediation = remediation_property
-            .map(|p| serde_json::json!({ "property": p }));
+        let remediation = remediation_property.map(|p| serde_json::json!({ "property": p }));
         Issue {
             id: id.to_string(),
             issue_type,
@@ -1428,7 +1472,11 @@ mod tests {
         );
 
         // Exactly one region: contentinfo
-        assert_eq!(result.regions.len(), 1, "exactly one region must be emitted");
+        assert_eq!(
+            result.regions.len(),
+            1,
+            "exactly one region must be emitted"
+        );
         let region = &result.regions[0];
         assert_eq!(region.landmark, "contentinfo");
 
@@ -1527,8 +1575,14 @@ mod tests {
             vec![],
         );
 
-        assert!(result.regions.is_empty(), "regions must be empty when nothing saturates");
-        assert_eq!(result.agent_summary.region_count, 0, "region_count must be 0");
+        assert!(
+            result.regions.is_empty(),
+            "regions must be empty when nothing saturates"
+        );
+        assert_eq!(
+            result.agent_summary.region_count, 0,
+            "region_count must be 0"
+        );
         // clusters and top_fixes are non-empty (the color cluster should form)
         assert!(
             !result.clusters.is_empty(),
@@ -1579,7 +1633,10 @@ mod tests {
 
         assert!(result.regions.is_empty(), "main must not saturate");
         assert!(
-            result.agent_summary.top_fixes.contains(&"main_bl_0000".to_string()),
+            result
+                .agent_summary
+                .top_fixes
+                .contains(&"main_bl_0000".to_string()),
             "unclaimed BrokenLink must appear in top_fixes"
         );
     }
@@ -1649,17 +1706,25 @@ mod tests {
 
         // critical member is in region.member_issue_ids
         assert!(
-            region.member_issue_ids.contains(&"ci_form_0000".to_string()),
+            region
+                .member_issue_ids
+                .contains(&"ci_form_0000".to_string()),
             "critical member must be in region.member_issue_ids"
         );
         // critical member is ALSO in top_fixes (dual-surfaced)
         assert!(
-            result.agent_summary.top_fixes.contains(&"ci_form_0000".to_string()),
+            result
+                .agent_summary
+                .top_fixes
+                .contains(&"ci_form_0000".to_string()),
             "critical member must be dual-surfaced in top_fixes"
         );
         // error member is NOT in top_fixes as its own entry
         assert!(
-            !result.agent_summary.top_fixes.contains(&"ci_link_0000".to_string()),
+            !result
+                .agent_summary
+                .top_fixes
+                .contains(&"ci_link_0000".to_string()),
             "error-severity member must NOT be dual-surfaced in top_fixes"
         );
         // The region id itself appears in top_fixes
@@ -1725,12 +1790,17 @@ mod tests {
 
         // warning member is in region.member_issue_ids
         assert!(
-            region.member_issue_ids.contains(&"ci_warn_0000".to_string()),
+            region
+                .member_issue_ids
+                .contains(&"ci_warn_0000".to_string()),
             "warning member must be in region.member_issue_ids"
         );
         // warning member is NOT dual-surfaced in top_fixes
         assert!(
-            !result.agent_summary.top_fixes.contains(&"ci_warn_0000".to_string()),
+            !result
+                .agent_summary
+                .top_fixes
+                .contains(&"ci_warn_0000".to_string()),
             "warning-severity member must NOT be dual-surfaced in top_fixes"
         );
         // The region id itself appears in top_fixes
@@ -1790,6 +1860,9 @@ mod tests {
             result.agent_summary.top_fixes.contains(region_id),
             "region id must appear in top_fixes"
         );
-        assert_eq!(result.agent_summary.region_count, 1, "region_count must be 1");
+        assert_eq!(
+            result.agent_summary.region_count, 1,
+            "region_count must be 1"
+        );
     }
 }

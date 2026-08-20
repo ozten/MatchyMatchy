@@ -1343,6 +1343,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -1414,6 +1419,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: Default::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 
@@ -2330,16 +2338,18 @@ mod tests {
         let issues = outcome.issues;
 
         let result = DiffResult {
-            schema_version: "1.2".to_string(),
+            schema_version: "1.3".to_string(),
             tool_version: "0.1.0".to_string(),
             run_id: "2026-01-01T00-00-00Z".to_string(),
             old_url: "http://old.com/".to_string(),
             new_url: "http://new.com/".to_string(),
             parity_profile: "content-structure".to_string(),
+            severity_map: None,
             status: crate::contract::Status::Fail,
             agent_summary: AgentSummary {
                 fixable_now: 0,
                 by_type: BTreeMap::new(),
+                by_severity: BTreeMap::new(),
                 cluster_count: 0,
                 region_count: 0,
                 top_fixes: vec![],

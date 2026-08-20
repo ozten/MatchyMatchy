@@ -328,7 +328,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
 
     // Build the bundle
     const bundle: CaptureBundle = {
-      schemaVersion: "1.0",
+      schemaVersion: "1.1",
       capturedAt: new Date().toISOString(),
       viewport: { name: viewport.name, width: viewport.width, height: viewport.height, dsf: viewport.dsf },
       environment: { os: process.platform, chromiumBuild, playwright: pwVersion, dsf: viewport.dsf },

@@ -43,6 +43,162 @@ pub struct CaptureBundle {
     /// M4: ancestor chain metadata + chains map. Absent in pre-M4 bundles (defaults to empty).
     #[serde(default)]
     pub style_candidates: StyleCandidates,
+    /// Port-parity U6/1.1: per-node hit-test probe results, keyed by SemanticNode id.
+    /// Absent when the probe did not run (pre-1.1 bundles, or the probe was skipped entirely).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit_tests: Option<BTreeMap<String, HitTestEntry>>,
+    /// Port-parity U9/1.1: captured ::before/::after entries, keyed by owner key.
+    /// Absent when the pseudo-element scan did not run (pre-1.1 bundles).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pseudo_elements: Option<BTreeMap<String, PseudoElementEntry>>,
+    /// Port-parity U9/1.1: present only when the pseudo-element budget was exceeded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pseudo_truncated: Option<PseudoTruncated>,
+}
+
+// ---------------------------------------------------------------------------
+// Port-parity 1.1: hit-test + pseudo-element bundle types
+// ---------------------------------------------------------------------------
+
+/// Per-node clickable-area hit-test result (port-parity U6).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HitTestEntry {
+    pub status: HitTestStatus,
+    /// Required (by convention) iff status == Skipped. Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skip_reason: Option<HitTestSkipReason>,
+    /// The N in the NxN sampling grid (always 5 in this revision). Present iff status == Sampled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid_size: Option<u32>,
+    /// 25 entries, row-major from top-left. Present iff status == Sampled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub points: Option<Vec<HitTestPoint>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HitTestStatus {
+    Sampled,
+    Skipped,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HitTestSkipReason {
+    TooSmall,
+    OffDocument,
+    Detached,
+}
+
+/// A single grid-point outcome. Coordinates are never stored — only the
+/// outcome (and, for a miss, the winning element's selector).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HitTestPoint {
+    pub o: HitTestOutcome,
+    /// Landmark-relative CSS selector of the element elementFromPoint returned.
+    /// Present iff o == Miss.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub winner: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HitTestOutcome {
+    Hit,
+    Miss,
+    Clipped,
+    OffViewport,
+}
+
+/// A captured ::before and/or ::after pair for a single owner element
+/// (port-parity U9), keyed by owner key in `CaptureBundle::pseudo_elements`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PseudoElementEntry {
+    pub owner_tier: PseudoOwnerTier,
+    /// SemanticNode id of the owner. Present iff owner_tier == Node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_node_id: Option<String>,
+    /// Landmark-scoped CSS selector identifying the owner.
+    /// Present iff owner_tier is Ancestor or Selector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_selector: Option<String>,
+    /// ARIA landmark role nearest the owner. Always serialized (null when absent) —
+    /// required in the JSON contract, unlike the other optional fields here.
+    pub landmark: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before: Option<PseudoStyles>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after: Option<PseudoStyles>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PseudoOwnerTier {
+    Node,
+    Ancestor,
+    Selector,
+}
+
+/// Curated computed styles for a single ::before/::after pseudo-element, plus
+/// a best-effort bounding box. Field names mirror CSS property names exactly
+/// (hyphenated properties use explicit `#[serde(rename = ...)]`).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PseudoStyles {
+    pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<String>,
+    #[serde(
+        rename = "background-color",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub background_color: Option<String>,
+    #[serde(
+        rename = "background-image",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub background_image: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border: Option<String>,
+    #[serde(
+        rename = "border-radius",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub border_radius: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub right: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub left: Option<String>,
+    #[serde(rename = "z-index", default, skip_serializing_if = "Option::is_none")]
+    pub z_index: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<String>,
+    /// Best-effort [x, y, width, height] in page coordinates. Absent when unresolvable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bbox: Option<[f64; 4]>,
+}
+
+/// Present only when the per-page pseudo-element budget was exceeded (port-parity U9).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PseudoTruncated {
+    pub dropped_count: u32,
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +283,52 @@ impl StepStatus {
     }
 }
 
+/// Merge two optional step statuses, preferring the worse one when both are
+/// present and the present one when only one side has it. Shared by
+/// `CaptureDeterminism::merge_worst` for the port-parity U6/U12 optional steps.
+fn worst_opt_step(a: &Option<StepStatus>, b: &Option<StepStatus>) -> Option<StepStatus> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(StepStatus::worst(x, y)),
+        (Some(x), None) => Some(x.clone()),
+        (None, Some(y)) => Some(y.clone()),
+        (None, None) => None,
+    }
+}
+
+/// Outcome of the settle stage's MutationObserver quiescence wait
+/// (port-parity U12). Not merged via `StepStatus` because "not run" is not
+/// the same signal as "failed": a page under `--no-settle`/legacy mode simply
+/// never reaches this sub-phase.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuiescenceStatus {
+    Reached,
+    NotRun,
+    Timeout,
+}
+
+impl QuiescenceStatus {
+    /// Precedence for worst-across-viewports merging: reached (best, 0) <
+    /// notRun (no information either way, 1) < timeout (worst — demonstrably
+    /// failed to settle in time, 2).
+    pub fn precedence(&self) -> u8 {
+        match self {
+            QuiescenceStatus::Reached => 0,
+            QuiescenceStatus::NotRun => 1,
+            QuiescenceStatus::Timeout => 2,
+        }
+    }
+
+    /// Merge two statuses, returning the worse one.
+    pub fn worst(a: &QuiescenceStatus, b: &QuiescenceStatus) -> QuiescenceStatus {
+        if a.precedence() >= b.precedence() {
+            a.clone()
+        } else {
+            b.clone()
+        }
+    }
+}
+
 /// Per-element-type counts at one point in time.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -155,6 +357,26 @@ pub struct CaptureDeterminism {
     pub images_decoded: StepStatus,
     pub lazy_load_pass: StepStatus,
     pub settled: StepStatus,
+    /// Port-parity U12/1.1: status of the evolved settle stage. None on pre-1.1
+    /// bundles and when the stage did not run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settle: Option<StepStatus>,
+    /// Port-parity U6/1.1: status of the per-node clickable-area hit-test probe.
+    /// None on pre-1.1 bundles and when the probe did not run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hit_test_probe: Option<StepStatus>,
+    /// Port-parity U12/1.1: outcome of the settle stage's quiescence wait.
+    /// None on pre-1.1 bundles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quiescence: Option<QuiescenceStatus>,
+    /// Port-parity U12/1.1: true when the settle stage's scroll steps never
+    /// moved scrollY (e.g. transform-based scroll containers).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settle_scroll_ineffective: Option<bool>,
+    /// Port-parity U12/1.1: true when the settle stage's page-growth cap was
+    /// hit during scroll-through (e.g. an infinite feed).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settle_growth_capped: Option<bool>,
     pub clicked: Vec<String>,
     pub hidden: Vec<String>,
     pub masked: Vec<String>,
@@ -176,6 +398,26 @@ impl CaptureDeterminism {
             images_decoded: StepStatus::worst(&a.images_decoded, &b.images_decoded),
             lazy_load_pass: StepStatus::worst(&a.lazy_load_pass, &b.lazy_load_pass),
             settled: StepStatus::worst(&a.settled, &b.settled),
+            settle: worst_opt_step(&a.settle, &b.settle),
+            hit_test_probe: worst_opt_step(&a.hit_test_probe, &b.hit_test_probe),
+            quiescence: match (&a.quiescence, &b.quiescence) {
+                (Some(x), Some(y)) => Some(QuiescenceStatus::worst(x, y)),
+                (Some(x), None) => Some(x.clone()),
+                (None, Some(y)) => Some(y.clone()),
+                (None, None) => None,
+            },
+            // Scroll-ineffective/growth-capped: true if either side observed it.
+            settle_scroll_ineffective: match (
+                a.settle_scroll_ineffective,
+                b.settle_scroll_ineffective,
+            ) {
+                (None, None) => None,
+                (x, y) => Some(x.unwrap_or(false) || y.unwrap_or(false)),
+            },
+            settle_growth_capped: match (a.settle_growth_capped, b.settle_growth_capped) {
+                (None, None) => None,
+                (x, y) => Some(x.unwrap_or(false) || y.unwrap_or(false)),
+            },
             // Clicked/hidden/masked: union (sorted for determinism)
             clicked: {
                 let mut v: Vec<String> =
@@ -445,6 +687,12 @@ pub struct DiffResult {
     pub old_url: String,
     pub new_url: String,
     pub parity_profile: String,
+    /// Port-parity U3/1.3: resolved non-default severity overrides in effect
+    /// for this run, so two runs compared with different maps are never
+    /// silently incomparable. None when no `--severity-map` file was supplied
+    /// and no overrides apply. Always None in this unit (no map support yet).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub severity_map: Option<SeverityMapEcho>,
     pub status: Status,
     pub agent_summary: AgentSummary,
     pub scores: Scores,
@@ -515,9 +763,34 @@ pub struct AgentSummary {
     pub fixable_now: u32,
     /// BTreeMap for deterministic serialization order.
     pub by_type: BTreeMap<String, u32>,
+    /// Count of kept (post-baseline, post-scope) issues per severity level —
+    /// same kept set as `by_type` (port-parity U5/R4d). Always serialized,
+    /// even when empty, so a gate can assert e.g. "no remaining error+" without
+    /// re-deriving from `issues[]`. BTreeMap for deterministic serialization order.
+    pub by_severity: BTreeMap<String, u64>,
     pub cluster_count: u32,
     pub region_count: u32,
     pub top_fixes: Vec<String>,
+}
+
+/// Resolved non-default severity overrides in effect for a run (port-parity
+/// U3). Echoed on `DiffResult.severity_map` so two runs compared with
+/// different maps are never silently incomparable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeverityMapEcho {
+    /// Where the overrides came from. Currently always "file" (--severity-map).
+    pub source: String,
+    pub overrides: SeverityOverrides,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeverityOverrides {
+    /// Map of issue type key (as_str()) to overridden severity.
+    pub types: BTreeMap<String, IssueSeverity>,
+    /// Map of CSS property name to overridden severity.
+    pub properties: BTreeMap<String, IssueSeverity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -683,6 +956,14 @@ pub enum IssueType {
     StyleChanged,
     BackgroundGradientLost,
     BackgroundGradientChanged,
+    /// R1 (port-parity U7): occluded/reduced click target. Emitted with
+    /// `category: Visual`, `goal: None`. No detector in this unit — schema
+    /// surface only.
+    ClickableAreaRegressed,
+    /// R2 (port-parity U10): painted `::before`/`::after` present on old,
+    /// absent on new for an aligned owner. Emitted with `category: Style`,
+    /// `goal: Some("G4")`. No detector in this unit — schema surface only.
+    PseudoElementMissing,
     AccessibilityRegression,
     AccessibilityImproved,
     StatusCodeMismatch,
@@ -734,6 +1015,8 @@ impl IssueType {
             IssueType::StyleChanged => "style_changed",
             IssueType::BackgroundGradientLost => "background_gradient_lost",
             IssueType::BackgroundGradientChanged => "background_gradient_changed",
+            IssueType::ClickableAreaRegressed => "clickable_area_regressed",
+            IssueType::PseudoElementMissing => "pseudo_element_missing",
             IssueType::AccessibilityRegression => "accessibility_regression",
             IssueType::AccessibilityImproved => "accessibility_improved",
             IssueType::StatusCodeMismatch => "status_code_mismatch",
@@ -773,6 +1056,17 @@ pub enum IssueSeverity {
 }
 
 impl IssueSeverity {
+    /// Stable lowercase string key, matching the serde "lowercase" wire form.
+    /// Used for `agentSummary.bySeverity` map keys (port-parity U5).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            IssueSeverity::Info => "info",
+            IssueSeverity::Warning => "warning",
+            IssueSeverity::Error => "error",
+            IssueSeverity::Critical => "critical",
+        }
+    }
+
     pub fn rank(&self) -> u8 {
         match self {
             IssueSeverity::Info => 0,
@@ -997,6 +1291,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -1014,10 +1313,12 @@ mod tests {
             old_url: "https://example.com/old".to_string(),
             new_url: "https://example.com/new".to_string(),
             parity_profile: "content-structure".to_string(),
+            severity_map: None,
             status: Status::Pass,
             agent_summary: AgentSummary {
                 fixable_now: 0,
                 by_type: BTreeMap::new(),
+                by_severity: BTreeMap::new(),
                 cluster_count: 0,
                 region_count,
                 top_fixes: vec![],

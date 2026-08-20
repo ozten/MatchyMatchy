@@ -275,15 +275,13 @@ fn main() {
                 }
             }
         }
-        Some(CliCommand::Explain(args)) => {
-            match run_explain(args) {
-                Ok(code) => code,
-                Err(e) => {
-                    eprintln!("error: {:#}", e);
-                    2
-                }
+        Some(CliCommand::Explain(args)) => match run_explain(args) {
+            Ok(code) => code,
+            Err(e) => {
+                eprintln!("error: {:#}", e);
+                2
             }
-        }
+        },
         Some(CliCommand::Show(args)) => match run_show(args) {
             Ok(code) => code,
             Err(e) => {
@@ -337,18 +335,12 @@ fn main() {
                     eprintln!(
                         "       matchy analyze --old-bundle PATH --new-bundle PATH --out DIR"
                     );
-                    eprintln!(
-                        "       matchy show --region LANDMARK --out DIR"
-                    );
+                    eprintln!("       matchy show --region LANDMARK --out DIR");
                     eprintln!(
                         "       matchy show --section LANDMARK [--heading HEADING] --out DIR"
                     );
-                    eprintln!(
-                        "       matchy show --cluster ID --out DIR"
-                    );
-                    eprintln!(
-                        "       matchy show --issue ID --out DIR"
-                    );
+                    eprintln!("       matchy show --cluster ID --out DIR");
+                    eprintln!("       matchy show --issue ID --out DIR");
                     2
                 }
             }
@@ -688,9 +680,11 @@ fn run_self_check(
     if sc_viewport_analyses.is_empty() {
         // Every viewport failed: no self-check.json can be assembled/written.
         // Report a warning instead of the previous silent Ok(vec![]).
-        return Ok(build_self_check_failed_warning(&failed, false, viewports.len())
-            .into_iter()
-            .collect());
+        return Ok(
+            build_self_check_failed_warning(&failed, false, viewports.len())
+                .into_iter()
+                .collect(),
+        );
     }
 
     let sc_result = assemble_diff_result(
@@ -840,9 +834,15 @@ fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
         let loc = Locator::parse_anchor(anchor).map_err(|e| anyhow::anyhow!("{}", e))?;
         (loc, format!("--anchor \"{}\"", anchor))
     } else if let Some(node_id) = &args.locator.node {
-        (Locator::NodeId(node_id.clone()), format!("--node {}", node_id))
+        (
+            Locator::NodeId(node_id.clone()),
+            format!("--node {}", node_id),
+        )
     } else if let Some(sel) = &args.locator.selector {
-        (Locator::Selector(sel.clone()), format!("--selector \"{}\"", sel))
+        (
+            Locator::Selector(sel.clone()),
+            format!("--selector \"{}\"", sel),
+        )
     } else {
         // Clap enforces the required group, so this branch is unreachable.
         eprintln!("error: exactly one of --anchor, --node, or --selector is required");
@@ -900,7 +900,9 @@ fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
     // 1. Build the handle from the exactly-one required flag.
     let (handle, handle_str) = if let Some(lm) = &args.handle.region {
         (
-            BranchHandle::Region { landmark: lm.clone() },
+            BranchHandle::Region {
+                landmark: lm.clone(),
+            },
             format!("--region {}", lm),
         )
     } else if let Some(lm) = &args.handle.section {
@@ -931,13 +933,21 @@ fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
 
     // 2. Locate + read diff-result.json (dir or direct file path).
     let p = PathBuf::from(&args.out);
-    let result_path = if p.is_file() { p } else { p.join("diff-result.json") };
+    let result_path = if p.is_file() {
+        p
+    } else {
+        p.join("diff-result.json")
+    };
     let raw = std::fs::read_to_string(&result_path)
         .with_context(|| format!("failed to read {}", result_path.display()))?;
 
     // 3. Parse.
-    let result = DiffResult::from_json(&raw)
-        .with_context(|| format!("failed to parse {} (is it a diff-result.json?)", result_path.display()))?;
+    let result = DiffResult::from_json(&raw).with_context(|| {
+        format!(
+            "failed to parse {} (is it a diff-result.json?)",
+            result_path.display()
+        )
+    })?;
 
     // 4. schemaVersion guard — refuse a newer major than this binary understands.
     const SUPPORTED_SCHEMA_MAJOR: u32 = 1;
@@ -1224,6 +1234,11 @@ fn make_default_determinism() -> matchy_analyze::contract::CaptureDeterminism {
         images_decoded: StepStatus::Skipped,
         lazy_load_pass: StepStatus::Skipped,
         settled: StepStatus::Skipped,
+        settle: None,
+        hit_test_probe: None,
+        quiescence: None,
+        settle_scroll_ineffective: None,
+        settle_growth_capped: None,
         clicked: vec![],
         hidden: vec![],
         masked: vec![],
@@ -1337,7 +1352,10 @@ mod tests {
             "--full",
         ])
         .expect("parse with --full on analyze");
-        assert!(cli_analyze.full, "--full must be true when passed on analyze");
+        assert!(
+            cli_analyze.full,
+            "--full must be true when passed on analyze"
+        );
     }
 
     // -------------------------------------------------------------------

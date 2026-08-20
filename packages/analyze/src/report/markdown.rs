@@ -182,10 +182,14 @@ pub fn render_markdown_mode(
         // Build section counts using a BTreeMap for determinism (counts will be sorted later).
         let mut counts: BTreeMap<SectionKey, u32> = BTreeMap::new();
         for issue in &result.issues {
-            if crate::report::is_uncertain_pairing(&issue.evidence) || claimed.contains(issue.id.as_str()) {
+            if crate::report::is_uncertain_pairing(&issue.evidence)
+                || claimed.contains(issue.id.as_str())
+            {
                 continue;
             }
-            *counts.entry(crate::report::section_key_of(issue)).or_insert(0) += 1;
+            *counts
+                .entry(crate::report::section_key_of(issue))
+                .or_insert(0) += 1;
         }
 
         if !counts.is_empty() {
@@ -315,7 +319,10 @@ pub fn render_markdown_mode(
             let normal_issues: Vec<&crate::contract::Issue> = result
                 .issues
                 .iter()
-                .filter(|i| !crate::report::is_uncertain_pairing(&i.evidence) && !claimed.contains(i.id.as_str()))
+                .filter(|i| {
+                    !crate::report::is_uncertain_pairing(&i.evidence)
+                        && !claimed.contains(i.id.as_str())
+                })
                 .collect();
 
             let uncertain_issues: Vec<&crate::contract::Issue> = result
@@ -375,7 +382,8 @@ pub fn render_markdown_mode(
                         std::collections::HashMap::new();
 
                     for issue in issues.iter() {
-                        let fk: FoldKey = (issue.issue_type.as_str().to_string(), issue.message.clone());
+                        let fk: FoldKey =
+                            (issue.issue_type.as_str().to_string(), issue.message.clone());
                         if !fold_map.contains_key(&fk) {
                             fold_order.push(fk.clone());
                             let mut vp_map = BTreeMap::new();
@@ -391,7 +399,10 @@ pub fn render_markdown_mode(
                             );
                         } else {
                             let entry = fold_map
-                                .get_mut(&(issue.issue_type.as_str().to_string(), issue.message.clone()))
+                                .get_mut(&(
+                                    issue.issue_type.as_str().to_string(),
+                                    issue.message.clone(),
+                                ))
                                 .unwrap();
                             entry.worst_sev = worst_severity(entry.worst_sev, &issue.severity);
                             entry.viewports.insert(issue.viewport.clone(), ());
@@ -470,7 +481,8 @@ pub fn render_markdown_mode(
                         std::collections::HashMap::new();
 
                     for issue in &uncertain_issues {
-                        let fk: FoldKey2 = (issue.issue_type.as_str().to_string(), issue.message.clone());
+                        let fk: FoldKey2 =
+                            (issue.issue_type.as_str().to_string(), issue.message.clone());
                         if !fold_map2.contains_key(&fk) {
                             fold_order2.push(fk.clone());
                             let mut vp_map = BTreeMap::new();
@@ -485,7 +497,10 @@ pub fn render_markdown_mode(
                             );
                         } else {
                             let entry = fold_map2
-                                .get_mut(&(issue.issue_type.as_str().to_string(), issue.message.clone()))
+                                .get_mut(&(
+                                    issue.issue_type.as_str().to_string(),
+                                    issue.message.clone(),
+                                ))
                                 .unwrap();
                             entry.worst_sev = worst_severity(entry.worst_sev, &issue.severity);
                             entry.viewports.insert(issue.viewport.clone(), ());
@@ -567,7 +582,8 @@ pub fn render_markdown_mode(
             if mode == crate::report::DisclosureMode::Compact {
                 let cmd = crate::report::outline::BranchHandle::Cluster {
                     id: cluster.id.clone(),
-                }.drill_command(out_dir);
+                }
+                .drill_command(out_dir);
                 out.push_str(&format!(
                     "- {} (members: {}) \u{2014} drill: {}\n",
                     summary,
@@ -640,6 +656,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -731,10 +752,12 @@ mod tests {
             old_url: "https://example.com/old".to_string(),
             new_url: "https://example.com/new".to_string(),
             parity_profile: "content-structure".to_string(),
+            severity_map: None,
             status: Status::Warn,
             agent_summary: AgentSummary {
                 fixable_now: 1,
                 by_type,
+                by_severity: BTreeMap::new(),
                 cluster_count: 1,
                 region_count: 0,
                 top_fixes: vec!["cluster_112233445566".to_string()],
@@ -1639,7 +1662,10 @@ mod tests {
 
         let via_wrapper = render_markdown(&result);
         let via_mode = render_markdown_mode(&result, crate::report::DisclosureMode::Full, "");
-        assert_eq!(via_wrapper, via_mode, "render_markdown_mode Full must equal render_markdown wrapper");
+        assert_eq!(
+            via_wrapper, via_mode,
+            "render_markdown_mode Full must equal render_markdown wrapper"
+        );
     }
 
     /// Compact mode must contain the required check-m8 substrings.
@@ -1720,7 +1746,8 @@ mod tests {
         let result = make_fixture();
 
         // Compact mode — cluster bullet must contain "matchy show --cluster".
-        let md_compact = render_markdown_mode(&result, crate::report::DisclosureMode::Compact, "/tmp/out");
+        let md_compact =
+            render_markdown_mode(&result, crate::report::DisclosureMode::Compact, "/tmp/out");
         assert!(
             md_compact.contains("matchy show --cluster"),
             "Compact mode cluster bullet must contain 'matchy show --cluster', got clusters section: {}",
@@ -1728,7 +1755,8 @@ mod tests {
         );
 
         // Full mode — cluster bullet must NOT contain the drill text.
-        let md_full = render_markdown_mode(&result, crate::report::DisclosureMode::Full, "/tmp/out");
+        let md_full =
+            render_markdown_mode(&result, crate::report::DisclosureMode::Full, "/tmp/out");
         assert!(
             !md_full.contains("matchy show --cluster"),
             "Full mode cluster bullet must NOT contain 'matchy show --cluster' (byte-identity with legacy render)"
