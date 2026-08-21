@@ -1,0 +1,34 @@
+{
+  "status": "fail",
+  "required": [
+    {
+      "type": "clickable_area_regressed",
+      "anchors": {
+        "textContains": "See pricing and sign up",
+        "hrefContains": "pricing.html",
+        "nearestHeadingContains": "Reach more customers"
+      },
+      "minSeverity": "error",
+      "evidence": { "newContains": "img:nth-of-type(1)" },
+      "note": "The hero primary CTA ('See pricing and sign up') is bled over by the new decorative sibling-column image; its hit-test grid must collapse to mostly the image's winner selector (a bare img node, not a component name) on the new side. clickable_area_regressed is pinned to Error under the built-in severity table regardless of profile."
+    }
+  ],
+  "forbidden": [
+    {
+      "type": "clickable_area_regressed",
+      "anchors": { "textContains": "Get a Demo" },
+      "note": "The hero secondary CTA sits immediately beside the primary CTA but the occluder was sized/offset to stop short of its sampled grid — it must remain fully clickable. A second clickable_area_regressed anywhere would mean the occluder bled too far or the detector double-fires."
+    },
+    {
+      "anyOfTypes": ["missing_button", "missing_link"],
+      "anchors": { "textContains": "See pricing and sign up" },
+      "note": "The primary CTA node itself is untouched and still matches 1:1 to the old side; it must never be reported missing. Occlusion is a clickability defect, not an absence defect."
+    },
+    {
+      "type": "changed_link_target",
+      "anchors": { "textContains": "See pricing and sign up" },
+      "note": "The CTA's href and text are byte-identical to golden; only its clickable area regressed."
+    }
+  ],
+  "notes": "ADAPTED FIXTURE (U8, issue #4 R1 motivating defect): one decorative, absolutely-positioned, empty-alt image is inserted as the first child of the hero's second grid column (the hero-image column) and bleeds ~640px leftward (negative left offset, z-index:999) over the hero primary CTA ('See pricing and sign up') in the sibling column. OBSERVED (testbed/.runs/v22-cta-occluded/diff-result.json): old 25/25 (100%) -> new 0/25 (0%) sampled hit-test points, i.e. fully collapsed (a stronger case than issue #4's ~12%-clickable motivating example, which the detector's floor/delta thresholds cover regardless). Exactly one issue is emitted total. The secondary 'Get a Demo' CTA immediately beside the primary one is deliberately spared (occluder sized/positioned to stop short of its sampled grid, confirmed 0 clickable_area_regressed issues elsewhere) so exactly one clickable_area_regressed fires. The added decorative image is a real, extracted (unmatched) node but does NOT surface a separate visual_region_changed in practice — see manifest knockOnEffects for the observed explanation — so it is deliberately not asserted here as required or forbidden. v01-identical remains the zero-issue control for hit-test-enabled runs."
+}
