@@ -1323,6 +1323,26 @@ pub struct CaptureConfig {
     pub probe_links: bool,
 }
 
+/// Port-parity U12/1.1: settle-stage mode sent to capture.cjs. Mirrors
+/// `packages/capture/src/schema.ts`'s `SettleModeSchema` exactly — any new
+/// value requires extending both in lockstep plus the vocabulary-guard test
+/// in `packages/capture/tests/schema.test.ts` (the self-check-prefix lesson:
+/// contract CI does not cover this Rust↔TS config seam).
+///
+/// - `Legacy`: today's `lazyLoadPass` behavior, byte-for-byte (the DEFAULT in
+///   this unit — U12 lands the "full" stage inert; the flip is a dedicated
+///   later commit, see `crate::config::DEFAULT_SETTLE_MODE`).
+/// - `Full`: the evolved settle stage (viewport-height scroll steps +
+///   quiescence wait).
+/// - `Off`: skip step 8 entirely (config-file only; no CLI flag maps to it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SettleMode {
+    Full,
+    Legacy,
+    Off,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StabilizationConfig {
@@ -1333,6 +1353,8 @@ pub struct StabilizationConfig {
     pub network_idle_timeout_ms: u64,
     pub settle_ms: u64,
     pub lazy_scroll_step_px: u32,
+    /// Port-parity U12/1.1: settle-stage mode. See `SettleMode` doc comment.
+    pub settle_mode: SettleMode,
 }
 
 impl Default for StabilizationConfig {
@@ -1345,6 +1367,7 @@ impl Default for StabilizationConfig {
             network_idle_timeout_ms: 15000,
             settle_ms: 1000,
             lazy_scroll_step_px: 800,
+            settle_mode: crate::config::DEFAULT_SETTLE_MODE,
         }
     }
 }

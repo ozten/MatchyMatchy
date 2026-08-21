@@ -1,7 +1,7 @@
 //! Constants for the analyze layer (M1.md §5.6).
 //! A config-file layer is deferred; these are the defaults.
 
-use crate::contract::IssueSeverity;
+use crate::contract::{IssueSeverity, SettleMode};
 
 /// Pixel-level change threshold for YIQ perceptual delta (0–1).
 /// Delta > pixelThreshold => pixel is "changed".
@@ -440,6 +440,18 @@ pub const PSEUDO_DIFF_PROPERTIES: &[&str] = &[
 /// named constant since it gates a distinct code path and may calibrate
 /// independently later.
 pub const PSEUDO_SELECTOR_UNMATCHED_DEMOTION: f64 = 0.6;
+
+// ---------------------------------------------------------------------------
+// Settle stage (port-parity U12, design brief "CLI + orchestration").
+// ---------------------------------------------------------------------------
+
+/// Default `StabilizationConfig.settleMode` that `orchestrate::build_capture_config`
+/// sends when `--no-settle` is NOT passed. Frozen at `Legacy` for THIS unit
+/// (U12) — settle ships inert-then-flipped (plan §"Settle ships on by
+/// default"): the flip to `Full` is a dedicated, separately-triaged later
+/// commit. Change ONLY this constant to perform that flip; `--no-settle`
+/// always forces `Legacy` regardless of this constant's value.
+pub const DEFAULT_SETTLE_MODE: SettleMode = SettleMode::Legacy;
 
 // ---------------------------------------------------------------------------
 // Unit tests

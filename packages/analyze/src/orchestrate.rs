@@ -488,6 +488,10 @@ pub struct CaptureConfigParams<'a> {
     pub hide_selectors: &'a [String],
     pub mask_selectors: &'a [String],
     pub click_selectors: &'a [String],
+    /// Port-parity U12: `--no-settle` forces `settleMode = Legacy` regardless
+    /// of `config::DEFAULT_SETTLE_MODE`. `false` sends the default explicitly
+    /// (see `build_capture_config`).
+    pub no_settle: bool,
 }
 
 /// Build the default capture config for a given URL, prefix, out_dir, and viewport.
@@ -502,6 +506,7 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
         hide_selectors,
         mask_selectors,
         click_selectors,
+        no_settle,
     } = params;
     CaptureConfig {
         mode: "capture".to_string(),
@@ -512,6 +517,14 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
         stabilization: StabilizationConfig {
             freeze_time: *freeze_time,
             stub_random: *stub_random,
+            // Port-parity U12: `--no-settle` always forces Legacy; otherwise
+            // send the current default explicitly (see
+            // config::DEFAULT_SETTLE_MODE's doc comment for the flip plan).
+            settle_mode: if *no_settle {
+                crate::contract::SettleMode::Legacy
+            } else {
+                crate::config::DEFAULT_SETTLE_MODE
+            },
             ..Default::default()
         },
         hide_selectors: hide_selectors.to_vec(),
@@ -949,5 +962,71 @@ mod tests {
             .map(|w| w.context.as_ref().unwrap()["channel"].as_str().unwrap())
             .collect();
         assert_eq!(channels, vec!["hitTests", "pseudoElements", "settle"]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Port-parity U12: build_capture_config settleMode mapping
+    // -----------------------------------------------------------------------
+
+    fn default_vp() -> ViewportConfig {
+        ViewportConfig {
+            name: "desktop".to_string(),
+            width: 1440,
+            height: 1000,
+            dsf: 1.0,
+        }
+    }
+
+    /// `no_settle: false` sends the current default constant explicitly
+    /// (`config::DEFAULT_SETTLE_MODE`, frozen at `Legacy` in this unit).
+    #[test]
+    fn test_build_capture_config_default_settle_mode_matches_constant() {
+        let vp = default_vp();
+        let params = CaptureConfigParams {
+            url: "http://example.com/",
+            prefix: "old",
+            out_dir: Path::new("/tmp/out"),
+            viewport: &vp,
+            freeze_time: true,
+            stub_random: true,
+            hide_selectors: &[],
+            mask_selectors: &[],
+            click_selectors: &[],
+            no_settle: false,
+        };
+        let config = build_capture_config(&params);
+        assert_eq!(
+            config.stabilization.settle_mode,
+            crate::config::DEFAULT_SETTLE_MODE
+        );
+        // Locked to Legacy for THIS unit — the flip is a dedicated later commit.
+        assert_eq!(
+            config.stabilization.settle_mode,
+            crate::contract::SettleMode::Legacy
+        );
+    }
+
+    /// `no_settle: true` (`--no-settle`) forces Legacy regardless of the default
+    /// constant's current value.
+    #[test]
+    fn test_build_capture_config_no_settle_forces_legacy() {
+        let vp = default_vp();
+        let params = CaptureConfigParams {
+            url: "http://example.com/",
+            prefix: "old",
+            out_dir: Path::new("/tmp/out"),
+            viewport: &vp,
+            freeze_time: true,
+            stub_random: true,
+            hide_selectors: &[],
+            mask_selectors: &[],
+            click_selectors: &[],
+            no_settle: true,
+        };
+        let config = build_capture_config(&params);
+        assert_eq!(
+            config.stabilization.settle_mode,
+            crate::contract::SettleMode::Legacy
+        );
     }
 }

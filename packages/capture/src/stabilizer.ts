@@ -48,15 +48,20 @@ const ANIMATION_KILL_CSS = `
  *  - at least one step value is "failed"
  *  - the clock was installed (clockInstalled = true)
  *  - no retry has happened yet (alreadyRetried = false)
+ *
+ * Port-parity U12: the evolved settle stage's `settle` step (only ever set
+ * when `settleMode === "full"`; absent under "legacy"/"off") joins this SAME
+ * trigger set — a settle failure is a pipeline-step failure exactly like any
+ * other, so it must participate here rather than being silently swallowed.
  */
 export function shouldRetryWithoutFreeze(
-  det: Pick<DeterminismRecord, "animationsDisabled" | "reducedMotion" | "timeFrozen" | "randomStubbed" | "fontsReady" | "imagesDecoded" | "lazyLoadPass" | "settled">,
+  det: Pick<DeterminismRecord, "animationsDisabled" | "reducedMotion" | "timeFrozen" | "randomStubbed" | "fontsReady" | "imagesDecoded" | "lazyLoadPass" | "settled" | "settle">,
   clockInstalled: boolean,
   alreadyRetried: boolean
 ): boolean {
   if (alreadyRetried) return false;
   if (!clockInstalled) return false;
-  const steps: DeterminismRecord["animationsDisabled"][] = [
+  const steps: (DeterminismRecord["animationsDisabled"] | undefined)[] = [
     det.animationsDisabled,
     det.reducedMotion,
     det.timeFrozen,
@@ -65,8 +70,258 @@ export function shouldRetryWithoutFreeze(
     det.imagesDecoded,
     det.lazyLoadPass,
     det.settled,
+    det.settle,
   ];
   return steps.some((s) => s === "failed");
+}
+
+/**
+ * Node-side deadline wrapper: races `fn` against a real-clock setTimeout.
+ * Unaffected by page.clock; prevents any page.evaluate from hanging forever.
+ * Module-level (not a stabilize() closure) so the settle-stage helpers below
+ * can share it.
+ */
+function withDeadline<T>(fn: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`deadline exceeded (${ms}ms)`)),
+      ms
+    );
+    fn.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Port-parity U12: the evolved "full" settle stage.
+//
+// Frozen defaults for the optional StabilizationConfig knobs (the zod schema
+// leaves these `.optional()` — no runtime default — per schema.ts's comment
+// "stabilizer applies its own default when absent"). Deferred to
+// implementation per plan §"Deferred to Implementation"; calibrated on the
+// scroll-reveal fixture (v24) and this unit's browser tests.
+// ---------------------------------------------------------------------------
+const DEFAULT_SETTLE_DWELL_MS = 200;
+const DEFAULT_QUIESCENCE_WINDOW_MS = 500;
+const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5000;
+const DEFAULT_MAX_SETTLE_STEPS = 60;
+
+/**
+ * Await every `<img>` currently in the document to either load or error,
+ * bounded by the existing 10s node-side deadline pattern. Re-queries the DOM
+ * at call time so images inserted mid-scroll are included. `decode()`
+ * resolves once the image is successfully decoded and rejects on a load
+ * error (network failure, broken source, etc.) — `.catch(() => {})` treats
+ * "errored" as a terminal, non-fatal outcome exactly like a successful load
+ * (per-image rejection is page reality, not a step failure, mirroring the
+ * pre-existing step 7b/legacy lazyLoadPass convention).
+ */
+async function awaitAllImagesLoadOrError(pg: Page): Promise<void> {
+  await withDeadline(
+    pg.evaluate(async () => {
+      const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img"));
+      await Promise.allSettled(
+        imgs.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))
+      );
+    }),
+    10_000
+  );
+}
+
+/**
+ * Wait for DOM quiescence: install a MutationObserver on documentElement
+ * (childList + subtree + attributes + characterData) that IGNORES mutations
+ * whose target sits inside any hide/mask-selector-matched subtree, then poll
+ * a `lastMutation` timestamp in a loop that interleaves a virtual
+ * `clock.runFor(100)` (when the clock is installed — this is what lets
+ * rAF/timer-driven animation progress deterministically under a frozen
+ * wall-clock) with a REAL `waitForTimeout(25)` each iteration (real-async
+ * work — fetches, hydration — needs actual wall time to land; a clock-only
+ * loop would declare quiescence in near-zero wall time). Quiescence is
+ * reached once `windowMs` has elapsed (per the page's own `Date.now()`,
+ * which is virtual when the clock is installed) since the last counted
+ * mutation. Hard-bounded by `timeoutMs` of accumulated virtual+wall budget.
+ */
+async function waitForQuiescence(
+  pg: Page,
+  clockInstalled: boolean,
+  ignoredSelectors: string[],
+  windowMs: number,
+  timeoutMs: number
+): Promise<"reached" | "timeout"> {
+  await pg.evaluate((selectors: string[]) => {
+    const w = window as unknown as Record<string, unknown>;
+    w["__mmLastMutation"] = Date.now();
+
+    function insideIgnored(node: Node): boolean {
+      let el: Element | null = node.nodeType === 1 ? (node as Element) : node.parentElement;
+      while (el) {
+        for (const sel of selectors) {
+          try {
+            if (el.matches(sel)) return true;
+          } catch {
+            // Invalid/unsupported selector: never treat as a match.
+          }
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (!insideIgnored(m.target)) {
+          w["__mmLastMutation"] = Date.now();
+          break;
+        }
+      }
+    });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+    w["__mmSettleObserver"] = observer;
+  }, ignoredSelectors);
+
+  let budget = 0;
+  let status: "reached" | "timeout" = "timeout";
+
+  while (budget < timeoutMs) {
+    if (clockInstalled) {
+      await pg.clock.runFor(100);
+      budget += 100;
+    }
+    await pg.waitForTimeout(25);
+    budget += 25;
+
+    const { now, last } = await pg.evaluate(() => ({
+      now: Date.now(),
+      last: (window as unknown as Record<string, unknown>)["__mmLastMutation"] as number,
+    }));
+    if (now - last >= windowMs) {
+      status = "reached";
+      break;
+    }
+  }
+
+  await pg.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    (w["__mmSettleObserver"] as MutationObserver | undefined)?.disconnect();
+  });
+
+  return status;
+}
+
+/** Result of one full-settle pass, applied by the caller onto `det`. */
+interface FullSettleResult {
+  scrollIneffective: boolean;
+  growthCapped: boolean;
+  quiescence: "reached" | "timeout";
+}
+
+/**
+ * The evolved settle stage (port-parity U12, "full" mode):
+ *   1. Scroll-through in viewport-height steps, re-reading scrollHeight each
+ *      step; growth-cap guard against infinitely-growing pages.
+ *   2. Fixed dwell per step (clock.runFor when installed, else a real wait).
+ *   3. Lazy-image await (load-or-error) at the bottom.
+ *   4. Return to top, re-await fonts, lazy-image await again.
+ *   5. Quiescence wait (MutationObserver, hide/mask-aware, hard-bounded).
+ *   6. Scroll-ineffective detection (transform-scroll sites): if scrollY is
+ *      unchanged after the first two scroll steps, stop scrolling further
+ *      but still run image-await + quiescence.
+ *
+ * Throws on any unexpected failure — the caller wraps this in the same
+ * `step()` helper every other pipeline step uses, so a throw here is
+ * recorded as `determinism.settle = "failed"` and joins the existing
+ * shouldRetryWithoutFreeze trigger set exactly like any other step failure.
+ */
+async function runFullSettle(
+  pg: Page,
+  clockInstalled: boolean,
+  config: StabilizationConfig,
+  hideSelectors: string[],
+  maskSelectors: string[]
+): Promise<FullSettleResult> {
+  const dwellMs = config.settleDwellMs ?? DEFAULT_SETTLE_DWELL_MS;
+  const maxSettleSteps = config.maxSettleSteps ?? DEFAULT_MAX_SETTLE_STEPS;
+  const windowMs = config.quiescenceWindowMs ?? DEFAULT_QUIESCENCE_WINDOW_MS;
+  const timeoutMs = config.quiescenceTimeoutMs ?? DEFAULT_QUIESCENCE_TIMEOUT_MS;
+
+  const viewportHeight = await pg.evaluate(() => window.innerHeight);
+  let scrollHeight = await pg.evaluate(() => document.documentElement.scrollHeight);
+  const initialScrollHeight = scrollHeight;
+  const maxSteps = Math.max(
+    Math.ceil((3 * initialScrollHeight) / Math.max(viewportHeight, 1)),
+    maxSettleSteps
+  );
+
+  let current = 0;
+  let stepCount = 0;
+  let growthCapped = false;
+  let scrollIneffective = false;
+  const scrollYSamples: number[] = [];
+
+  // NOTE on the loop condition: a genuine `position:fixed; overflow:hidden`
+  // transform-scroll site (the real-world pattern that fully disables native
+  // document scrolling) typically reports `document.documentElement.scrollHeight`
+  // clamped to the viewport height — INDISTINGUISHABLE, by that reading alone,
+  // from a page that's simply shorter than the viewport. The only way to tell
+  // them apart is to attempt scrolling and observe `scrollY`, so the FIRST TWO
+  // steps are always attempted regardless of what `scrollHeight` claims;
+  // `current < scrollHeight` only gates steps AFTER the two-sample
+  // ineffectiveness check has had its chance to run. (Residual limitation:
+  // a legitimately short, non-scrollable page will also read as "ineffective"
+  // under this scheme — recorded faithfully rather than silently guessed at.)
+  while (scrollYSamples.length < 2 || current < scrollHeight) {
+    current += viewportHeight;
+    stepCount += 1;
+    if (stepCount > maxSteps) {
+      growthCapped = true;
+      break;
+    }
+
+    await pg.evaluate((y: number) => window.scrollTo(0, y), current);
+    if (clockInstalled) {
+      await pg.clock.runFor(dwellMs);
+    } else {
+      await pg.waitForTimeout(Math.min(dwellMs, 200));
+    }
+
+    const scrollY = await pg.evaluate(() => window.scrollY);
+    scrollYSamples.push(scrollY);
+    if (scrollYSamples.length === 2 && scrollYSamples[0] === scrollYSamples[1]) {
+      scrollIneffective = true;
+      break;
+    }
+
+    // Re-read scrollHeight each step — the page may have grown (e.g. an
+    // infinite feed appending content on scroll).
+    scrollHeight = await pg.evaluate(() => document.documentElement.scrollHeight);
+  }
+
+  // Lazy-image await at the bottom (or wherever the loop stopped).
+  await awaitAllImagesLoadOrError(pg);
+
+  // Return to top, re-await fonts (existing pattern), lazy-image await again.
+  await pg.evaluate(() => window.scrollTo(0, 0));
+  await withDeadline(pg.evaluate(() => document.fonts.ready), 10_000);
+  await awaitAllImagesLoadOrError(pg);
+
+  // Quiescence wait.
+  const quiescence = await waitForQuiescence(
+    pg,
+    clockInstalled,
+    [...hideSelectors, ...maskSelectors],
+    windowMs,
+    timeoutMs
+  );
+
+  return { scrollIneffective, growthCapped, quiescence };
 }
 
 /**
@@ -123,23 +378,6 @@ export async function stabilize(
   };
 
   /**
-   * Node-side deadline wrapper: races `fn` against a real-clock setTimeout.
-   * Unaffected by page.clock; prevents any page.evaluate from hanging forever.
-   */
-  function withDeadline<T>(fn: Promise<T>, ms: number): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`deadline exceeded (${ms}ms)`)),
-        ms
-      );
-      fn.then(
-        (v) => { clearTimeout(timer); resolve(v); },
-        (e) => { clearTimeout(timer); reject(e); }
-      );
-    });
-  }
-
-  /**
    * Run the post-navigation stabilization pipeline on the given page.
    * Mutates `det` (passed by reference via the outer scope).
    * Returns pre/post inventory snapshots (each may be undefined on failure).
@@ -160,6 +398,7 @@ export async function stabilize(
         | "imagesDecoded"
         | "lazyLoadPass"
         | "settled"
+        | "settle"
       >,
       fn: () => Promise<void>
     ): Promise<void> {
@@ -243,51 +482,74 @@ export async function stabilize(
       );
     });
 
-    // Step 8: lazy-load pass
-    await step("lazyLoadPass", async () => {
-      // Get total height first
-      const totalHeight = await pg.evaluate(
-        () => document.documentElement.scrollHeight
-      );
+    // Step 8: settle stage (port-parity U12). Dispatches on
+    // config.settleMode — "legacy" is BYTE-FOR-BYTE today's lazyLoadPass
+    // (characterized in tests/stabilizer.test.ts before this dispatch was
+    // introduced) and stays the zod-schema default in this unit; the
+    // default flip to "full" is a separate later commit.
+    if (config.settleMode === "off") {
+      // Config-file only (no CLI flag maps to this) — skip step 8 entirely.
+      det.lazyLoadPass = "skipped";
+      det.settle = "skipped";
+      det.quiescence = "notRun";
+    } else if (config.settleMode === "legacy") {
+      det.settle = "skipped";
+      det.quiescence = "notRun";
+      await step("lazyLoadPass", async () => {
+        // Get total height first
+        const totalHeight = await pg.evaluate(
+          () => document.documentElement.scrollHeight
+        );
 
-      // Scroll to bottom in steps from Node side (avoids setTimeout deadlock with frozen clock)
-      let current = 0;
-      while (current < totalHeight) {
-        current += config.lazyScrollStepPx;
-        const scrollTo = current;
-        await pg.evaluate((y: number) => window.scrollTo(0, y), scrollTo);
-        // Advance the clock a bit to allow intersection observers to fire
+        // Scroll to bottom in steps from Node side (avoids setTimeout deadlock with frozen clock)
+        let current = 0;
+        while (current < totalHeight) {
+          current += config.lazyScrollStepPx;
+          const scrollTo = current;
+          await pg.evaluate((y: number) => window.scrollTo(0, y), scrollTo);
+          // Advance the clock a bit to allow intersection observers to fire
+          if (clockIsInstalled) {
+            await pg.clock.runFor(100);
+          }
+        }
+
+        // Scroll back to top
+        await pg.evaluate(() => window.scrollTo(0, 0));
         if (clockIsInstalled) {
           await pg.clock.runFor(100);
         }
-      }
 
-      // Scroll back to top
-      await pg.evaluate(() => window.scrollTo(0, 0));
-      if (clockIsInstalled) {
-        await pg.clock.runFor(100);
-      }
+        // Re-wait fonts (10 s Node-side deadline)
+        await withDeadline(pg.evaluate(() => document.fonts.ready), 10_000);
 
-      // Re-wait fonts (10 s Node-side deadline)
-      await withDeadline(pg.evaluate(() => document.fonts.ready), 10_000);
+        // Re-decode: only images that have already finished loading (complete === true).
+        // After the scroll pass more images may have loaded; skip any still incomplete.
+        // 10 s Node-side deadline guards against any stragglers.
+        await withDeadline(
+          pg.evaluate(async () => {
+            const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img"));
+            const loaded = imgs.filter((img) => img.complete);
+            await Promise.allSettled(loaded.map((img) => img.decode()));
+          }),
+          10_000
+        );
 
-      // Re-decode: only images that have already finished loading (complete === true).
-      // After the scroll pass more images may have loaded; skip any still incomplete.
-      // 10 s Node-side deadline guards against any stragglers.
-      await withDeadline(
-        pg.evaluate(async () => {
-          const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img"));
-          const loaded = imgs.filter((img) => img.complete);
-          await Promise.allSettled(loaded.map((img) => img.decode()));
-        }),
-        10_000
-      );
-
-      // clock.runFor(250) if clock installed
-      if (clockIsInstalled) {
-        await pg.clock.runFor(250);
-      }
-    });
+        // clock.runFor(250) if clock installed
+        if (clockIsInstalled) {
+          await pg.clock.runFor(250);
+        }
+      });
+    } else {
+      // "full": the evolved settle stage.
+      det.lazyLoadPass = "skipped";
+      det.quiescence = "notRun";
+      await step("settle", async () => {
+        const result = await runFullSettle(pg, clockIsInstalled, config, hideSelectors, maskSelectors);
+        if (result.scrollIneffective) det.settleScrollIneffective = true;
+        if (result.growthCapped) det.settleGrowthCapped = true;
+        det.quiescence = result.quiescence;
+      });
+    }
 
     // Step 9: apply hideSelectors and maskSelectors
     det.hidden = [];

@@ -78,6 +78,17 @@ struct Cli {
     #[arg(long, global = false, default_value_t = false)]
     no_stub_random: bool,
 
+    /// Force the legacy settle stage (today's scroll-steps + clock dwell +
+    /// image-await lazyLoadPass — no quiescence wait, growth cap, or new
+    /// determinism statuses) regardless of the built-in default. Port-parity
+    /// U12: this unit's built-in default is ALSO "legacy" (the flip to the
+    /// full settle stage is a separate later commit), so today `--no-settle`
+    /// is a no-op vs. omitting it — it exists so scripts can pin "legacy"
+    /// explicitly ahead of that flip. Full stage-skip (`settleMode: "off"`)
+    /// is config-file only; no CLI flag maps to it.
+    #[arg(long, global = false, default_value_t = false)]
+    no_settle: bool,
+
     /// Fail on issues at or above this severity (info|warning|error|critical|never)
     #[arg(long, default_value = "error", global = true)]
     fail_on: String,
@@ -333,6 +344,7 @@ fn main() {
                         cli.markdown,
                         image_dims_mode,
                         cli.self_check,
+                        cli.no_settle,
                         mode,
                     ) {
                         Ok(code) => code,
@@ -387,6 +399,7 @@ fn run_full(
     markdown: bool,
     image_dims_mode: ImageDimensionsMode,
     self_check: bool,
+    no_settle: bool,
     mode: matchy_analyze::report::DisclosureMode,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
@@ -437,6 +450,7 @@ fn run_full(
             hide_selectors: hide,
             mask_selectors: mask,
             click_selectors: click,
+            no_settle,
         });
         let old_bundle_path_result = run_capture(&capture_script, &old_config);
 
@@ -451,6 +465,7 @@ fn run_full(
             hide_selectors: hide,
             mask_selectors: mask,
             click_selectors: click,
+            no_settle,
         });
         let new_bundle_path_result = run_capture(&capture_script, &new_config);
 
@@ -514,6 +529,7 @@ fn run_full(
             hide,
             mask,
             click,
+            no_settle,
             &severity_resolver,
             image_dims_mode,
             &run_id,
@@ -573,6 +589,7 @@ fn run_self_check(
     hide: &[String],
     mask: &[String],
     click: &[String],
+    no_settle: bool,
     severity_resolver: &matchy_analyze::scoring::SeverityResolver,
     image_dims_mode: ImageDimensionsMode,
     run_id: &str,
@@ -643,6 +660,7 @@ fn run_self_check(
             hide_selectors: hide,
             mask_selectors: mask,
             click_selectors: click,
+            no_settle,
         });
         let sc_bundle_path = match run_capture(capture_script, &sc_config) {
             Ok(p) => p,
@@ -759,7 +777,30 @@ fn run_self_check(
 
     let mut warnings: Vec<RunWarning> = Vec::new();
 
-    if let Some(w) = build_volatile_capture_warning(&sc_result.issues) {
+    // Port-parity U12: exclude the new clickable-area and pseudo-element
+    // channels from `volatile_capture`'s issue list — and therefore from
+    // testbed/pair-add.py's `knownDrift` seeding, which reads this warning's
+    // `message` verbatim. These are brand-new volatility channels with no
+    // calibration history yet; letting self-check noise from them seed
+    // knownDrift would risk baking in an under-calibrated exclusion before
+    // the detectors have been observed on real re-captures. Revisit after
+    // calibration (design brief "Hit-test/pseudo confidence couples to
+    // settle outcome"). self-check.json itself (written above) still
+    // carries the FULL, unfiltered issue list — only the seeding-facing
+    // warning is narrowed.
+    let known_drift_seed_issues: Vec<matchy_analyze::contract::Issue> = sc_result
+        .issues
+        .iter()
+        .filter(|i| {
+            !matches!(
+                i.issue_type,
+                matchy_analyze::contract::IssueType::ClickableAreaRegressed
+                    | matchy_analyze::contract::IssueType::PseudoElementMissing
+            )
+        })
+        .cloned()
+        .collect();
+    if let Some(w) = build_volatile_capture_warning(&known_drift_seed_issues) {
         warnings.push(w);
     }
 

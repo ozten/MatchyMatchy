@@ -9,7 +9,8 @@ use chrono::Utc;
 use crate::contract::{
     AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult,
     IntegrityInventory, Issue, IssueCategory, IssueSeverity, IssueType, LandmarkScores, OutOfScope,
-    RunWarning, Scores, SeverityMapEcho, Status, StepStatus, Suppressed, ViewportResult,
+    QuiescenceStatus, RunWarning, Scores, SeverityMapEcho, Status, StepStatus, Suppressed,
+    ViewportResult,
 };
 use crate::scoring::{compute_status, count_fixable_now, fix_value, ParityProfile};
 
@@ -368,12 +369,14 @@ pub fn assemble_diff_result(
     //   1. capture_step_failed (old then new, fixed field order)
     //   2. capture_integrity_delta (old then new)
     //   3. capture_retried_without_time_freeze (old then new)
-    //   4. baseline_stale_ids
-    //   5. capability_mismatch (port-parity U7: one per channel — hitTests,
+    //   4. settle_quiescence_timeout (port-parity U12: old then new)
+    //   5. settle_growth_capped (port-parity U12: old then new)
+    //   6. baseline_stale_ids
+    //   7. capability_mismatch (port-parity U7: one per channel — hitTests,
     //      pseudoElements, settle, in that fixed order — deduped across
     //      viewports; the first viewport (in caller order) to report a given
     //      channel wins, mirroring the "artifacts: first viewport's" convention)
-    //   6. extra_warnings (appended last, in the fixed relative order the caller
+    //   8. extra_warnings (appended last, in the fixed relative order the caller
     //      built them in — currently `--self-check`'s `run_self_check` produces, at
     //      most, `volatile_capture` followed by `self_check_failed`)
     // ------------------------------------------------------------------
@@ -543,7 +546,9 @@ fn emit_integrity_delta(
 /// 1. capture_step_failed: old then new, fixed field order.
 /// 2. capture_integrity_delta: old then new.
 /// 3. capture_retried_without_time_freeze: old then new.
-/// 4. baseline_stale_ids.
+/// 4. settle_quiescence_timeout (port-parity U12): old then new.
+/// 5. settle_growth_capped (port-parity U12): old then new.
+/// 6. baseline_stale_ids.
 ///
 /// (extra_warnings appended by caller after this function returns.)
 fn build_warnings(
@@ -603,6 +608,46 @@ fn build_warnings(
         warnings.push(RunWarning {
             code: "capture_retried_without_time_freeze".to_string(),
             message: "new capture: time-freeze broke page scripts; the capture was automatically retried with the clock freeze disabled".to_string(),
+            context: Some(serde_json::json!({ "side": "new" })),
+        });
+    }
+
+    // Port-parity U12: settle_quiescence_timeout — old then new. Fires when the
+    // settle stage's MutationObserver quiescence wait hit its hard timeout
+    // (never observed `quiescenceWindowMs` of silence before `quiescenceTimeoutMs`
+    // ran out) — a persistent-animator page (rAF marquee, etc.), not itself a
+    // capture failure (the pipeline continues; `determinism.settle` may still be
+    // `ran`).
+    if old_det.quiescence == Some(QuiescenceStatus::Timeout) {
+        warnings.push(RunWarning {
+            code: "settle_quiescence_timeout".to_string(),
+            message: "old capture: the settle stage's quiescence wait hit its hard timeout without observing a stable DOM; the page may still have been mutating at capture time".to_string(),
+            context: Some(serde_json::json!({ "side": "old" })),
+        });
+    }
+    if new_det.quiescence == Some(QuiescenceStatus::Timeout) {
+        warnings.push(RunWarning {
+            code: "settle_quiescence_timeout".to_string(),
+            message: "new capture: the settle stage's quiescence wait hit its hard timeout without observing a stable DOM; the page may still have been mutating at capture time".to_string(),
+            context: Some(serde_json::json!({ "side": "new" })),
+        });
+    }
+
+    // Port-parity U12: settle_growth_capped — old then new. Fires when the
+    // settle stage's viewport-height scroll-through hit its page-growth cap
+    // (e.g. an infinite feed that keeps appending content while scrolling) —
+    // the capture may not include content past the cap.
+    if old_det.settle_growth_capped == Some(true) {
+        warnings.push(RunWarning {
+            code: "settle_growth_capped".to_string(),
+            message: "old capture: the settle stage's scroll-through hit its page-growth cap; the page kept growing under scroll and was not fully captured".to_string(),
+            context: Some(serde_json::json!({ "side": "old" })),
+        });
+    }
+    if new_det.settle_growth_capped == Some(true) {
+        warnings.push(RunWarning {
+            code: "settle_growth_capped".to_string(),
+            message: "new capture: the settle stage's scroll-through hit its page-growth cap; the page kept growing under scroll and was not fully captured".to_string(),
             context: Some(serde_json::json!({ "side": "new" })),
         });
     }
@@ -937,6 +982,91 @@ mod tests {
             warnings.iter().all(|w| w.code != "baseline_stale_ids"),
             "no staleness warning when all baseline ids were matched"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Port-parity U12: settle_quiescence_timeout / settle_growth_capped warnings
+    // -----------------------------------------------------------------------
+
+    /// `quiescence == Timeout` on the old side alone emits exactly one
+    /// `settle_quiescence_timeout` warning with `side: "old"`.
+    #[test]
+    fn test_warnings_settle_quiescence_timeout_old() {
+        let mut old_det = det_all_ran();
+        old_det.quiescence = Some(crate::contract::QuiescenceStatus::Timeout);
+        let warnings = build_warnings(&old_det, &det_all_ran(), &Baseline::default(), &[]);
+        let matches: Vec<&RunWarning> = warnings
+            .iter()
+            .filter(|w| w.code == "settle_quiescence_timeout")
+            .collect();
+        assert_eq!(matches.len(), 1);
+        assert_eq!(
+            matches[0].context.as_ref().unwrap()["side"],
+            serde_json::json!("old")
+        );
+    }
+
+    /// `quiescence == Timeout` on both sides emits two warnings, old before new.
+    #[test]
+    fn test_warnings_settle_quiescence_timeout_both_sides_ordered() {
+        let mut old_det = det_all_ran();
+        old_det.quiescence = Some(crate::contract::QuiescenceStatus::Timeout);
+        let mut new_det = det_all_ran();
+        new_det.quiescence = Some(crate::contract::QuiescenceStatus::Timeout);
+        let warnings = build_warnings(&old_det, &new_det, &Baseline::default(), &[]);
+        let matches: Vec<&RunWarning> = warnings
+            .iter()
+            .filter(|w| w.code == "settle_quiescence_timeout")
+            .collect();
+        assert_eq!(matches.len(), 2);
+        assert_eq!(
+            matches[0].context.as_ref().unwrap()["side"],
+            serde_json::json!("old")
+        );
+        assert_eq!(
+            matches[1].context.as_ref().unwrap()["side"],
+            serde_json::json!("new")
+        );
+    }
+
+    /// `quiescence == Reached` (or `NotRun`) never emits the timeout warning.
+    #[test]
+    fn test_warnings_no_quiescence_timeout_warning_when_reached() {
+        let mut old_det = det_all_ran();
+        old_det.quiescence = Some(crate::contract::QuiescenceStatus::Reached);
+        let mut new_det = det_all_ran();
+        new_det.quiescence = Some(crate::contract::QuiescenceStatus::NotRun);
+        let warnings = build_warnings(&old_det, &new_det, &Baseline::default(), &[]);
+        assert!(warnings
+            .iter()
+            .all(|w| w.code != "settle_quiescence_timeout"));
+    }
+
+    /// `settleGrowthCapped == true` on the new side alone emits exactly one
+    /// `settle_growth_capped` warning with `side: "new"`.
+    #[test]
+    fn test_warnings_settle_growth_capped_new() {
+        let mut new_det = det_all_ran();
+        new_det.settle_growth_capped = Some(true);
+        let warnings = build_warnings(&det_all_ran(), &new_det, &Baseline::default(), &[]);
+        let matches: Vec<&RunWarning> = warnings
+            .iter()
+            .filter(|w| w.code == "settle_growth_capped")
+            .collect();
+        assert_eq!(matches.len(), 1);
+        assert_eq!(
+            matches[0].context.as_ref().unwrap()["side"],
+            serde_json::json!("new")
+        );
+    }
+
+    /// `settleGrowthCapped` absent or `false` never emits the warning.
+    #[test]
+    fn test_warnings_no_growth_capped_warning_when_absent_or_false() {
+        let mut old_det = det_all_ran();
+        old_det.settle_growth_capped = Some(false);
+        let warnings = build_warnings(&old_det, &det_all_ran(), &Baseline::default(), &[]);
+        assert!(warnings.iter().all(|w| w.code != "settle_growth_capped"));
     }
 
     // -----------------------------------------------------------------------
