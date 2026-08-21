@@ -124,6 +124,7 @@ verify:
 	python3 testbed/check-fixture.py v20-console-error
 	python3 testbed/check-fixture.py v21-a11y-lang
 	python3 testbed/check-fixture.py v22-cta-occluded
+	python3 testbed/check-fixture.py v23-pseudo-rule-removed
 
 	@echo "=== 5/9  M8 acceptance (reporters, profiles, baseline) ==="
 	python3 testbed/check-m8.py
