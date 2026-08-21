@@ -74,6 +74,11 @@ pub mod base_confidence {
     /// (see `CLICKABLE_OLD_FLOOR` / `CLICKABLE_DELTA`), so a surviving true positive
     /// starts at high base confidence, same tier as `STYLE_CHANGED`.
     pub const CLICKABLE_AREA_REGRESSED: f64 = 0.9;
+    /// `pseudo_element_missing` (port-parity U10): an aligned owner painted a
+    /// pseudo on old and paints nothing on new. Same tier as `STYLE_CHANGED` /
+    /// `CLICKABLE_AREA_REGRESSED` — a confirmed owner alignment with a clean
+    /// presence/absence signal.
+    pub const PSEUDO_ELEMENT_MISSING: f64 = 0.9;
 }
 
 /// Minimum group size to emit a cluster (spec §7.4 clusterMin default).
@@ -396,6 +401,47 @@ pub const CLICKABLE_DELTA: f64 = 0.1;
 pub const CLICKABLE_SETTLE_DEMOTION: f64 = 0.7;
 
 // ---------------------------------------------------------------------------
+// Pseudo-element diff (port-parity U10, design brief "Detector").
+// ---------------------------------------------------------------------------
+
+/// Curated pseudo-element style diff property list (port-parity U10), mirroring
+/// `contract::PseudoStyles`'s field set — `content` plus the same properties
+/// U9's capture-side `PSEUDO_STYLE_PROPS` records
+/// (packages/capture/src/extract/page-model.ts; keep both lists in sync).
+/// Diffed through the SAME canonicalization ladder `STYLE_DIFF_PROPERTIES`
+/// uses (`style_diff::normalize_value_with_page_url` /
+/// `style_diff::canonicalize_for_compare` / C2/C3) — never a second
+/// implementation.
+pub const PSEUDO_DIFF_PROPERTIES: &[&str] = &[
+    "content",
+    "position",
+    "width",
+    "height",
+    "background-color",
+    "background-image",
+    "border",
+    "border-radius",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "z-index",
+    "display",
+    "opacity",
+];
+
+/// Confidence multiplier for a tier-"selector" pseudo owner with no key-matched
+/// counterpart on the new side (design brief U10 step 3 — the "attribute-dropped
+/// port" case: the id/data-* attribute the owner key depends on vanished along
+/// with the painting rule, so the owner alignment itself is a best-effort key
+/// match rather than a confirmed pairing). Chosen equal to the existing
+/// `UNCERTAIN_MULTIPLIER` (0.6) used for uncertain-band node pairings elsewhere —
+/// same semantic (an alignment guess, not a confirmed identity) — kept as its own
+/// named constant since it gates a distinct code path and may calibrate
+/// independently later.
+pub const PSEUDO_SELECTOR_UNMATCHED_DEMOTION: f64 = 0.6;
+
+// ---------------------------------------------------------------------------
 // Unit tests
 // ---------------------------------------------------------------------------
 
@@ -474,5 +520,16 @@ mod tests {
         assert_eq!(CLICKABLE_DELTA, 0.1);
         assert_eq!(CLICKABLE_SETTLE_DEMOTION, 0.7);
         assert_eq!(base_confidence::CLICKABLE_AREA_REGRESSED, 0.9);
+    }
+
+    /// port-parity U10: pseudo-element diff constants are frozen at the
+    /// design-brief values.
+    #[test]
+    fn test_pseudo_constants_frozen() {
+        assert_eq!(base_confidence::PSEUDO_ELEMENT_MISSING, 0.9);
+        assert_eq!(PSEUDO_SELECTOR_UNMATCHED_DEMOTION, 0.6);
+        assert_eq!(PSEUDO_SELECTOR_UNMATCHED_DEMOTION, UNCERTAIN_MULTIPLIER);
+        assert_eq!(PSEUDO_DIFF_PROPERTIES[0], "content");
+        assert_eq!(PSEUDO_DIFF_PROPERTIES.len(), 15);
     }
 }

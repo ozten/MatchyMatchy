@@ -862,22 +862,34 @@ fn build_self_check_failed_warning(
 // ---------------------------------------------------------------------------
 
 fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
-    use matchy_analyze::explain::{explain, format_report, Locator, ResolutionStatus};
+    use matchy_analyze::explain::{
+        explain, explain_pseudo, format_report, parse_pseudo_selector, Locator, ResolutionStatus,
+    };
+
+    /// Which of the three `--anchor`/`--node`/`--selector` locator forms was
+    /// given, resolved to either the ordinary node `Locator` or (port-parity
+    /// U10) a pseudo-element `(owner_part, slot)` pair when `--selector`
+    /// carries a trailing `::before`/`::after` suffix.
+    enum Resolved {
+        Node(Locator),
+        Pseudo(String, matchy_analyze::pseudo_diff::PseudoSlot),
+    }
 
     // Parse the locator from the exactly-one required flag group.
-    let (locator, locator_str) = if let Some(anchor) = &args.locator.anchor {
+    let (resolved, locator_str) = if let Some(anchor) = &args.locator.anchor {
         let loc = Locator::parse_anchor(anchor).map_err(|e| anyhow::anyhow!("{}", e))?;
-        (loc, format!("--anchor \"{}\"", anchor))
+        (Resolved::Node(loc), format!("--anchor \"{}\"", anchor))
     } else if let Some(node_id) = &args.locator.node {
         (
-            Locator::NodeId(node_id.clone()),
+            Resolved::Node(Locator::NodeId(node_id.clone())),
             format!("--node {}", node_id),
         )
     } else if let Some(sel) = &args.locator.selector {
-        (
-            Locator::Selector(sel.clone()),
-            format!("--selector \"{}\"", sel),
-        )
+        let resolved = match parse_pseudo_selector(sel) {
+            Some((owner_part, slot)) => Resolved::Pseudo(owner_part, slot),
+            None => Resolved::Node(Locator::Selector(sel.clone())),
+        };
+        (resolved, format!("--selector \"{}\"", sel))
     } else {
         // Clap enforces the required group, so this branch is unreachable.
         eprintln!("error: exactly one of --anchor, --node, or --selector is required");
@@ -902,7 +914,12 @@ fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
     let props_slice = props_vec.as_deref();
 
     // Run the pure explain function.
-    let report = explain(&old_bundle, &new_bundle, &locator, props_slice);
+    let report = match &resolved {
+        Resolved::Node(locator) => explain(&old_bundle, &new_bundle, locator, props_slice),
+        Resolved::Pseudo(owner_part, slot) => {
+            explain_pseudo(&old_bundle, &new_bundle, owner_part, *slot, props_slice)
+        }
+    };
 
     // Check resolution status.
     let both_not_found = report.old.status == ResolutionStatus::NotFound
@@ -1090,7 +1107,7 @@ fn run_analyze(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores, old_landmark_node_counts) =
+    let (issues, detector_warnings, scores, old_landmark_node_counts) =
         matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
@@ -1104,8 +1121,12 @@ fn run_analyze(
         })?;
 
     let artifacts = make_artifacts(&viewport_name, &old_bundle, &new_bundle);
-    let capability_warnings =
+    let mut capability_warnings =
         matchy_analyze::orchestrate::capability_mismatch_warnings(&old_bundle, &new_bundle);
+    // Port-parity U10: detector-level warnings (e.g. `pseudo_budget_truncated`)
+    // discovered during analysis, merged into the same per-viewport bucket
+    // `dedupe_capability_warnings` (report/json.rs) folds into the run.
+    capability_warnings.extend(detector_warnings);
 
     let old_url = old_bundle.page.url.clone();
     let new_url = new_bundle.page.url.clone();
@@ -1242,7 +1263,7 @@ fn analyze_bundle_pair(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores, old_landmark_node_counts) =
+    let (issues, detector_warnings, scores, old_landmark_node_counts) =
         matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
@@ -1256,8 +1277,10 @@ fn analyze_bundle_pair(
         })?;
 
     let artifacts = make_artifacts(viewport_name, &old_bundle, &new_bundle);
-    let capability_warnings =
+    let mut capability_warnings =
         matchy_analyze::orchestrate::capability_mismatch_warnings(&old_bundle, &new_bundle);
+    // Port-parity U10: detector-level warnings (e.g. `pseudo_budget_truncated`).
+    capability_warnings.extend(detector_warnings);
 
     Ok(ViewportAnalysis {
         name: viewport_name.to_string(),

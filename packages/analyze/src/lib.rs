@@ -16,6 +16,7 @@ pub mod locale_data;
 pub mod matching;
 pub mod network_diff;
 pub mod orchestrate;
+pub mod pseudo_diff;
 pub mod region_link;
 pub mod regions;
 pub mod report;
@@ -130,11 +131,17 @@ pub(crate) fn old_landmark_node_counts(
 
 /// Core analysis: given old and new bundles + paths, produce per-viewport issues + scores.
 ///
-/// Returns (issues, scores, old_landmark_node_counts) for a single viewport.
+/// Returns (issues, warnings, scores, old_landmark_node_counts) for a single
+/// viewport. `warnings` carries detector-level run warnings discovered during
+/// this pass (currently just port-parity U10's `pseudo_budget_truncated`) —
+/// distinct from `orchestrate::capability_mismatch_warnings`, which the CLI
+/// layer computes independently from the same two bundles.
+#[allow(clippy::type_complexity)]
 pub fn analyze_viewport(
     params: &ViewportAnalysisParams<'_>,
 ) -> anyhow::Result<(
     Vec<contract::Issue>,
+    Vec<contract::RunWarning>,
     contract::Scores,
     std::collections::BTreeMap<String, u32>,
 )> {
@@ -196,7 +203,7 @@ pub fn analyze_viewport(
             hygiene: hygiene_score,
             by_landmark: std::collections::BTreeMap::new(),
         };
-        return Ok((issues, scores, landmark_counts));
+        return Ok((issues, vec![], scores, landmark_counts));
     }
 
     // --- Content diff: match nodes then derive semantic issues (M3.md §5.7) ---
@@ -242,6 +249,16 @@ pub fn analyze_viewport(
 
     // --- Clickable-area hit-test diff (port-parity U7) ---
     let clickable_area_issues_vec = hit_test_diff::clickable_area_issues(
+        old_bundle,
+        new_bundle,
+        &match_outcome,
+        viewport_name,
+        profile,
+        env_mismatch,
+    );
+
+    // --- Pseudo-element diff (port-parity U10) ---
+    let (pseudo_issues_vec, pseudo_warnings_vec) = pseudo_diff::pseudo_issues(
         old_bundle,
         new_bundle,
         &match_outcome,
@@ -523,6 +540,7 @@ pub fn analyze_viewport(
     issues.extend(sequence_issues_vec);
     issues.extend(style_issues_vec);
     issues.extend(clickable_area_issues_vec);
+    issues.extend(pseudo_issues_vec);
     issues.extend(network_issues);
     issues.extend(a11y_issues_vec);
 
@@ -578,7 +596,7 @@ pub fn analyze_viewport(
     let issue_refs: Vec<&contract::Issue> = issues.iter().collect();
     let scores = compute_scores_from_issues(&issue_refs, visual_score);
 
-    Ok((issues, scores, landmark_counts))
+    Ok((issues, pseudo_warnings_vec, scores, landmark_counts))
 }
 
 // ---------------------------------------------------------------------------

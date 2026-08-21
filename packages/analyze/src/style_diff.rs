@@ -63,17 +63,15 @@ pub fn style_issues(
             .then_with(|| oa.id.cmp(&ob.id))
     });
 
-    // Build old_id -> new_id map for ancestor channel (only Matched pairs)
-    let mut old_to_new_id: BTreeMap<String, String> = BTreeMap::new();
+    // Build old_id -> new_id map for ancestor channel (only Matched pairs).
+    // Factored into `matched_old_to_new_id` (pub(crate)) — reused verbatim by
+    // `pseudo_diff.rs`'s tier-"node" owner alignment (port-parity U10), never a
+    // second implementation.
+    let old_to_new_id = matched_old_to_new_id(old_bundle, new_bundle, match_outcome);
 
     for pair in &all_pairs {
         let old_node = &old_bundle.page.nodes[pair.old_idx];
         let new_node = &new_bundle.page.nodes[pair.new_idx];
-
-        // Only use Matched pairs for the ancestor channel map.
-        if pair.band == MatchBand::Matched {
-            old_to_new_id.insert(old_node.id.clone(), new_node.id.clone());
-        }
 
         let old_styles = match old_bundle.computed_styles.get(&old_node.id) {
             Some(s) => s,
@@ -145,23 +143,66 @@ pub fn style_issues(
     issues
 }
 
+/// Build the old-node-id -> new-node-id map for Matched-band pairs only.
+///
+/// `pub(crate)`: the single source of truth for this alignment map — besides
+/// the leaf/ancestor style channels here, `pseudo_diff.rs` (port-parity U10)
+/// reuses it directly for tier-"node" pseudo-owner alignment rather than
+/// re-deriving it from `match_outcome`.
+pub(crate) fn matched_old_to_new_id(
+    old_bundle: &CaptureBundle,
+    new_bundle: &CaptureBundle,
+    match_outcome: &MatchOutcome,
+) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::new();
+    for pair in &match_outcome.pairs {
+        if pair.band != MatchBand::Matched {
+            continue;
+        }
+        let old_node = &old_bundle.page.nodes[pair.old_idx];
+        let new_node = &new_bundle.page.nodes[pair.new_idx];
+        map.insert(old_node.id.clone(), new_node.id.clone());
+    }
+    map
+}
+
 // ---------------------------------------------------------------------------
 // Ancestor channel (§3.2)
 // ---------------------------------------------------------------------------
 
+/// One accepted ancestor pairing (old ancestor id ↔ new ancestor id) from the
+/// descendant-set + style-similarity assignment below.
+///
+/// `pub(crate)`: the single source of truth for ancestor alignment — reused
+/// verbatim by `pseudo_diff.rs`'s tier-"ancestor" owner alignment (port-parity
+/// U10), which shares the exact same key space (`AncestorDescriptor::id`,
+/// i.e. the same ids capture uses as `pseudoElements` map keys for tier
+/// "ancestor" entries) — never a second implementation.
+pub(crate) struct AncestorPair {
+    pub(crate) old_id: String,
+    pub(crate) new_id: String,
+    /// `round4(min(uncapped_sim, 1.0))` — the score as embedded in `evidence.match`.
+    pub(crate) sim: f64,
+    /// `round4(base_ratio)` component of the similarity score.
+    pub(crate) sim_base: f64,
+    /// Tag-bonus component of the similarity score (already a small fixed increment; not rounded).
+    pub(crate) sim_bonus: f64,
+}
+
+/// Compute the accepted ancestor pairing via descendant-set grouping +
+/// greedy style-similarity assignment (§3.2). Order: by descendant-set key
+/// ascending, then by greedy-acceptance order within each key group — the
+/// same order `ancestor_channel_issues` has always emitted issues in.
 #[allow(clippy::too_many_arguments)]
-fn ancestor_channel_issues(
+pub(crate) fn build_ancestor_pairing(
     old_bundle: &CaptureBundle,
     new_bundle: &CaptureBundle,
     old_to_new_id: &BTreeMap<String, String>,
     old_node_ids: &std::collections::BTreeSet<String>,
     new_node_ids: &std::collections::BTreeSet<String>,
-    viewport: &str,
-    profile: &SeverityResolver,
-    env_mismatch: bool,
     old_page_url: &str,
     new_page_url: &str,
-) -> Vec<Issue> {
+) -> Vec<AncestorPair> {
     // Build reverse map: new_id → old_id
     let mut new_to_old_id: BTreeMap<String, String> = BTreeMap::new();
     for (old_id, new_id) in old_to_new_id {
@@ -259,7 +300,7 @@ fn ancestor_channel_issues(
         v.sort();
     }
 
-    let mut issues: Vec<Issue> = Vec::new();
+    let mut pairs: Vec<AncestorPair> = Vec::new();
 
     // For each key present on both sides, run style-similarity assignment
     for (desc_key, old_group) in &old_by_desc_key {
@@ -342,7 +383,6 @@ fn ancestor_channel_issues(
                 None => continue,
             };
 
-            // Recompute base/bonus for evidence signals (sim stored in candidates is uncapped).
             let (_, sim_base, sim_bonus) = style_similarity(
                 old_styles,
                 new_styles,
@@ -351,50 +391,119 @@ fn ancestor_channel_issues(
                 old_page_url,
                 new_page_url,
             );
-            let match_evidence = serde_json::json!({
-                "stage": "ancestor",
-                "score": round4(sim.min(1.0)),
-                "signals": {
-                    "descendantSet": 1.0,
-                    "styleSim": round4(sim_base),
-                    "tagBonus": sim_bonus
-                }
+
+            pairs.push(AncestorPair {
+                old_id: old_id.clone(),
+                new_id: new_id.clone(),
+                sim: round4(sim.min(1.0)),
+                sim_base: round4(sim_base),
+                sim_bonus,
             });
-
-            let base = base_confidence::STYLE_CHANGED;
-            let confidence = compute_confidence(
-                base,
-                env_mismatch,
-                &old_bundle.determinism,
-                &new_bundle.determinism,
-            );
-
-            let old_anchors = old_desc.anchors.clone();
-
-            let mut anc_issues = diff_styles(
-                old_styles,
-                new_styles,
-                &old_anchors,
-                old_desc.css_selector.as_deref(),
-                new_desc.css_selector.as_deref(),
-                Some(old_desc.bbox),
-                Some(new_desc.bbox),
-                None, // ancestors have no seqIndex
-                None,
-                &match_evidence,
-                confidence,
-                viewport,
-                &new_bundle.page.lang,
-                profile,
-                env_mismatch,
-                &old_bundle.determinism,
-                &new_bundle.determinism,
-                old_page_url,
-                new_page_url,
-                false, // ancestor channel: similarity >= ANCESTOR_MIN_SIMILARITY, always confident
-            );
-            issues.append(&mut anc_issues);
         }
+    }
+
+    pairs
+}
+
+#[allow(clippy::too_many_arguments)]
+fn ancestor_channel_issues(
+    old_bundle: &CaptureBundle,
+    new_bundle: &CaptureBundle,
+    old_to_new_id: &BTreeMap<String, String>,
+    old_node_ids: &std::collections::BTreeSet<String>,
+    new_node_ids: &std::collections::BTreeSet<String>,
+    viewport: &str,
+    profile: &SeverityResolver,
+    env_mismatch: bool,
+    old_page_url: &str,
+    new_page_url: &str,
+) -> Vec<Issue> {
+    let old_ancestors: BTreeMap<String, &AncestorDescriptor> = old_bundle
+        .style_candidates
+        .ancestors
+        .iter()
+        .map(|a| (a.id.clone(), a))
+        .collect();
+    let new_ancestors: BTreeMap<String, &AncestorDescriptor> = new_bundle
+        .style_candidates
+        .ancestors
+        .iter()
+        .map(|a| (a.id.clone(), a))
+        .collect();
+
+    let pairs = build_ancestor_pairing(
+        old_bundle,
+        new_bundle,
+        old_to_new_id,
+        old_node_ids,
+        new_node_ids,
+        old_page_url,
+        new_page_url,
+    );
+
+    let mut issues: Vec<Issue> = Vec::new();
+
+    for pair in &pairs {
+        let old_desc = match old_ancestors.get(pair.old_id.as_str()) {
+            Some(d) => d,
+            None => continue,
+        };
+        let new_desc = match new_ancestors.get(pair.new_id.as_str()) {
+            Some(d) => d,
+            None => continue,
+        };
+        let old_styles = match old_bundle.computed_styles.get(pair.old_id.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let new_styles = match new_bundle.computed_styles.get(pair.new_id.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+
+        let match_evidence = serde_json::json!({
+            "stage": "ancestor",
+            "score": pair.sim,
+            "signals": {
+                "descendantSet": 1.0,
+                "styleSim": pair.sim_base,
+                "tagBonus": pair.sim_bonus
+            }
+        });
+
+        let base = base_confidence::STYLE_CHANGED;
+        let confidence = compute_confidence(
+            base,
+            env_mismatch,
+            &old_bundle.determinism,
+            &new_bundle.determinism,
+        );
+
+        let old_anchors = old_desc.anchors.clone();
+
+        let mut anc_issues = diff_styles(
+            old_styles,
+            new_styles,
+            &old_anchors,
+            old_desc.css_selector.as_deref(),
+            new_desc.css_selector.as_deref(),
+            Some(old_desc.bbox),
+            Some(new_desc.bbox),
+            None, // ancestors have no seqIndex
+            None,
+            &match_evidence,
+            confidence,
+            viewport,
+            &new_bundle.page.lang,
+            profile,
+            env_mismatch,
+            &old_bundle.determinism,
+            &new_bundle.determinism,
+            old_page_url,
+            new_page_url,
+            false, // ancestor channel: similarity >= ANCESTOR_MIN_SIMILARITY, always confident
+        );
+        issues.append(&mut anc_issues);
     }
 
     issues
@@ -475,8 +584,29 @@ fn style_similarity(
 ///
 /// All other properties: returned unchanged.
 /// The function is pure, deterministic, and allocation-light.
-fn canonicalize_for_compare(prop: &str, value: &str, own_font_size: Option<&str>) -> String {
+/// `pub(crate)`: reused verbatim by `pseudo_diff.rs` (port-parity U10) for the
+/// SAME canonicalization ladder on the curated pseudo-element property set —
+/// never a second implementation. The `"content"` arm below exists only for
+/// that caller (no leaf/ancestor `STYLE_DIFF_PROPERTIES` entry is named
+/// "content", so this is inert for the pre-existing channels).
+pub(crate) fn canonicalize_for_compare(
+    prop: &str,
+    value: &str,
+    own_font_size: Option<&str>,
+) -> String {
     match prop {
+        "content" => {
+            // C4-style pseudo-content canonicalization (port-parity U10):
+            // normalize quotes around a fully-quoted string value so `'x'` and
+            // `"x"` compare equal. `strip_url_quotes` already implements
+            // exactly this "strip a single matching leading/trailing quote
+            // pair" rule (used elsewhere for url() inner strings) — reused
+            // rather than re-implemented. url() filename-tail equivalence for
+            // `content: url(...)` is handled by the shared C3 check
+            // (`values_equal_c3`), which every caller already runs alongside
+            // this function; no separate handling needed here.
+            strip_url_quotes(value.trim()).to_string()
+        }
         "border" | "outline" => {
             // Rule 1: if any whole token is exactly "none", the border never paints.
             for token in value.split_ascii_whitespace() {
@@ -741,7 +871,11 @@ fn diff_styles(
 /// - Trim + collapse internal whitespace.
 /// - For color properties: parse to canonical rgb()/rgba() form.
 /// - Rewrite same-site url() tokens via `norm_href` so path-prefix-mounted pages compare equal.
-fn normalize_value_with_page_url(prop: &str, value: &str, page_final_url: &str) -> String {
+pub(crate) fn normalize_value_with_page_url(
+    prop: &str,
+    value: &str,
+    page_final_url: &str,
+) -> String {
     let trimmed = collapse_whitespace(value);
     // Color properties
     let after_color = if is_color_property(prop) {
@@ -993,7 +1127,7 @@ fn tokenize_css_value(s: &str) -> Vec<CssToken> {
 ///   - every numeric token pair has identical unit and value difference < STYLE_NUMERIC_EPSILON.
 ///
 /// If the sequences have different lengths or any non-numeric token differs, returns false.
-fn values_equal_c2(a: &str, b: &str) -> bool {
+pub(crate) fn values_equal_c2(a: &str, b: &str) -> bool {
     use crate::config::STYLE_NUMERIC_EPSILON;
     if a == b {
         return true;
@@ -1118,7 +1252,7 @@ fn url_insensitive_form(value: &str) -> (String, String) {
 /// - both hosts empty (both relative, same origin implied, e.g.
 ///   url("assets/a.svg") vs url("images/a.svg")): author-controlled path
 ///   change → DO NOT suppress.
-fn values_equal_c3(a: &str, b: &str) -> bool {
+pub(crate) fn values_equal_c3(a: &str, b: &str) -> bool {
     let (form_a, host_a) = url_insensitive_form(a);
     let (form_b, host_b) = url_insensitive_form(b);
     // Both relative (both hosts empty) → same-origin path change, not migration noise.
@@ -1628,7 +1762,7 @@ fn gradients_to_json(specs: &[GradientSpec]) -> serde_json::Value {
 
 /// Build a property-level evidence JSON object.
 /// Avoids &&str by taking prop as &str.
-fn build_prop_evidence(
+pub(crate) fn build_prop_evidence(
     prop: &str,
     old_v: &str,
     new_v: &str,
@@ -1656,7 +1790,7 @@ fn build_prop_evidence(
     serde_json::Value::Object(ev)
 }
 
-fn build_locator(
+pub(crate) fn build_locator(
     anchors: Anchors,
     css_selector_old: Option<&str>,
     css_selector_new: Option<&str>,
@@ -1676,7 +1810,12 @@ fn build_locator(
     }
 }
 
-fn build_remediation(prop: &str, old_v: &str, new_v: &str, anchors: &Anchors) -> serde_json::Value {
+pub(crate) fn build_remediation(
+    prop: &str,
+    old_v: &str,
+    new_v: &str,
+    anchors: &Anchors,
+) -> serde_json::Value {
     let near = anchors.nearest_heading.as_deref();
     let mut grep_targets: Vec<serde_json::Value> = Vec::new();
     if let Some(href) = anchors.href.as_deref() {
@@ -1710,7 +1849,7 @@ fn build_remediation(prop: &str, old_v: &str, new_v: &str, anchors: &Anchors) ->
     })
 }
 
-fn build_message(prop: &str, old_v: &str, new_v: &str, anchors: &Anchors) -> String {
+pub(crate) fn build_message(prop: &str, old_v: &str, new_v: &str, anchors: &Anchors) -> String {
     let near = anchors.nearest_heading.as_deref().unwrap_or("");
     let near_part = if !near.is_empty() {
         format!(" near \"{}\"", near)

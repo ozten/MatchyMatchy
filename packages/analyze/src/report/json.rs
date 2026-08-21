@@ -660,12 +660,29 @@ fn build_warnings(
 /// availability is a tool-version property, not a per-viewport one), the
 /// first viewport in caller order wins — same convention as "artifacts:
 /// first viewport's artifacts" above.
+///
+/// Port-parity U10: `ViewportAnalysis.capability_warnings` is also the bucket
+/// `analyze_viewport`'s own detector-level warnings (currently just
+/// `pseudo_budget_truncated`) get merged into at the call site — any code
+/// OTHER than `capability_mismatch` is deduped by `code` instead of by
+/// `channel` (it carries no `channel` context field), first viewport in
+/// caller order wins, emitted after the channel-ordered warnings sorted by
+/// code for determinism. Inert for every pre-U10 caller (they only ever push
+/// `capability_mismatch`-coded entries here), so no existing golden output
+/// changes.
 fn dedupe_capability_warnings(viewports: &[ViewportAnalysis]) -> Vec<RunWarning> {
     const CHANNEL_ORDER: &[&str] = &["hitTests", "pseudoElements", "settle"];
 
     let mut by_channel: BTreeMap<&'static str, RunWarning> = BTreeMap::new();
+    let mut by_other_code: BTreeMap<String, RunWarning> = BTreeMap::new();
     for vp in viewports {
         for w in &vp.capability_warnings {
+            if w.code != "capability_mismatch" {
+                by_other_code
+                    .entry(w.code.clone())
+                    .or_insert_with(|| w.clone());
+                continue;
+            }
             let channel = w
                 .context
                 .as_ref()
@@ -678,10 +695,12 @@ fn dedupe_capability_warnings(viewports: &[ViewportAnalysis]) -> Vec<RunWarning>
         }
     }
 
-    CHANNEL_ORDER
+    let mut out: Vec<RunWarning> = CHANNEL_ORDER
         .iter()
         .filter_map(|c| by_channel.get(c).cloned())
-        .collect()
+        .collect();
+    out.extend(by_other_code.into_values());
+    out
 }
 
 /// Write DiffResult as pretty JSON (with trailing newline) to out_dir/diff-result.json.
