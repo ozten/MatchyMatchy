@@ -8,6 +8,7 @@ pub mod contract;
 pub mod doctor;
 pub mod egress;
 pub mod explain;
+pub mod hit_test_diff;
 pub mod hygiene;
 pub mod issue;
 pub mod locale;
@@ -231,6 +232,16 @@ pub fn analyze_viewport(
 
     // --- Style diff: computed-style issues (M4 §3.5) ---
     let style_issues_vec = style_diff::style_issues(
+        old_bundle,
+        new_bundle,
+        &match_outcome,
+        viewport_name,
+        profile,
+        env_mismatch,
+    );
+
+    // --- Clickable-area hit-test diff (port-parity U7) ---
+    let clickable_area_issues_vec = hit_test_diff::clickable_area_issues(
         old_bundle,
         new_bundle,
         &match_outcome,
@@ -511,6 +522,7 @@ pub fn analyze_viewport(
     issues.extend(content_issues);
     issues.extend(sequence_issues_vec);
     issues.extend(style_issues_vec);
+    issues.extend(clickable_area_issues_vec);
     issues.extend(network_issues);
     issues.extend(a11y_issues_vec);
 

@@ -7,7 +7,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::contract::{CaptureBundle, SemanticNode};
+use crate::contract::{CaptureBundle, HitTestEntry, HitTestOutcome, HitTestPoint, HitTestStatus, SemanticNode};
+use crate::hit_test_diff::{format_miss_winners, tally_points};
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -62,6 +63,30 @@ pub struct SideResult {
     pub computed_styles: BTreeMap<String, String>,
     /// Bbox as four synthetic props: bbox.x, bbox.y, bbox.w, bbox.h
     pub bbox: Option<[i32; 4]>,
+    /// Port-parity U7: the resolved node's raw hit-test entry, if the bundle
+    /// carries the `hitTests` channel for this node. `None` when the node
+    /// wasn't resolved or the channel is absent for it.
+    pub hit_test: Option<HitTestEntry>,
+}
+
+/// One side's hit-test view for the `explain` output (port-parity U7).
+#[derive(Debug, Clone)]
+pub struct HitTestSideExplain {
+    /// Adjusted (or, single-sided, raw) hit fraction, round4-formatted (e.g. "1.0000").
+    pub fraction: String,
+    /// "hits/denominator" over the same denominator used for `fraction`.
+    pub raw_hits: String,
+    /// Top-3 miss winners for this side, "sel (xN); sel2 (xM)" (empty when none).
+    pub miss_winners: String,
+}
+
+/// The hit-test section of an `explain` report: present iff at least one side
+/// has sampled hit-test data for the located node. Each side is `None` when
+/// that side has no comparable data — rendered as `<absent>`.
+#[derive(Debug, Clone)]
+pub struct HitTestExplain {
+    pub old: Option<HitTestSideExplain>,
+    pub new: Option<HitTestSideExplain>,
 }
 
 /// One property row in the explain output.
@@ -82,6 +107,9 @@ pub struct ExplainReport {
     pub rows: Vec<PropRow>,
     /// Human-readable asymmetry description when only one side resolved.
     pub asymmetry_message: Option<String>,
+    /// Port-parity U7: hit-test section, present iff either side has sampled
+    /// hit-test data for the located node.
+    pub hit_test: Option<HitTestExplain>,
 }
 
 // ---------------------------------------------------------------------------
@@ -121,11 +149,14 @@ pub fn explain(
         _ => None,
     };
 
+    let hit_test = build_hit_test_section(old_side.hit_test.as_ref(), new_side.hit_test.as_ref());
+
     ExplainReport {
         old: old_side,
         new: new_side,
         rows,
         asymmetry_message,
+        hit_test,
     }
 }
 
@@ -143,6 +174,7 @@ fn resolve_side(bundle: &CaptureBundle, locator: &Locator) -> SideResult {
             node_id: None,
             computed_styles: BTreeMap::new(),
             bbox: None,
+            hit_test: None,
         },
         Some(n) => {
             let computed_styles = bundle
@@ -151,13 +183,129 @@ fn resolve_side(bundle: &CaptureBundle, locator: &Locator) -> SideResult {
                 .cloned()
                 .unwrap_or_default();
             let bbox = Some(n.bbox);
+            let hit_test = bundle
+                .hit_tests
+                .as_ref()
+                .and_then(|m| m.get(&n.id))
+                .cloned();
             SideResult {
                 status: ResolutionStatus::Resolved,
                 node_id: Some(n.id.clone()),
                 computed_styles,
                 bbox,
+                hit_test,
             }
         }
+    }
+}
+
+/// A side's hit-test entry, restricted to the case `explain` can render:
+/// `status == Sampled` with a non-empty points array.
+fn sampled_points(entry: Option<&HitTestEntry>) -> Option<&[HitTestPoint]> {
+    entry
+        .filter(|e| e.status == HitTestStatus::Sampled)
+        .and_then(|e| e.points.as_deref())
+        .filter(|p| !p.is_empty())
+}
+
+/// Independent (no partner side) per-point tally: excludes `clipped`/`offViewport`
+/// but cannot apply the joint both-side-miss drop (there's no partner to compare
+/// against), so the "adjusted" fraction here is simply the raw fraction over the
+/// excluded-aware denominator.
+fn raw_side_explain(points: &[HitTestPoint]) -> HitTestSideExplain {
+    let mut hits = 0u32;
+    let mut denom = 0u32;
+    let mut winners: BTreeMap<String, u32> = BTreeMap::new();
+    for p in points {
+        match p.o {
+            HitTestOutcome::Hit => {
+                hits += 1;
+                denom += 1;
+            }
+            HitTestOutcome::Miss => {
+                denom += 1;
+                if let Some(w) = &p.winner {
+                    *winners.entry(w.clone()).or_insert(0) += 1;
+                }
+            }
+            HitTestOutcome::Clipped | HitTestOutcome::OffViewport => {}
+        }
+    }
+    let fraction = if denom == 0 {
+        0.0
+    } else {
+        hits as f64 / denom as f64
+    };
+    HitTestSideExplain {
+        fraction: format!("{:.4}", round4(fraction)),
+        raw_hits: format!("{}/{}", hits, denom),
+        miss_winners: format_miss_winners(&winners),
+    }
+}
+
+fn round4(v: f64) -> f64 {
+    (v * 10000.0).round() / 10000.0
+}
+
+/// Build the hit-test section: joint (adjusted, exclusion-aware) when both
+/// sides have comparable sampled data; independent raw view when only one
+/// side does; `None` (no section at all) when neither side has any.
+fn build_hit_test_section(
+    old_entry: Option<&HitTestEntry>,
+    new_entry: Option<&HitTestEntry>,
+) -> Option<HitTestExplain> {
+    let old_points = sampled_points(old_entry);
+    let new_points = sampled_points(new_entry);
+
+    if old_points.is_none() && new_points.is_none() {
+        return None;
+    }
+
+    match (old_points, new_points) {
+        (Some(op), Some(np)) => match tally_points(op, np) {
+            Some(tally) => Some(HitTestExplain {
+                old: Some(HitTestSideExplain {
+                    fraction: format!(
+                        "{:.4}",
+                        round4(if tally.denominator == 0 {
+                            0.0
+                        } else {
+                            tally.hits_old as f64 / tally.denominator as f64
+                        })
+                    ),
+                    raw_hits: format!("{}/{}", tally.hits_old, tally.denominator),
+                    miss_winners: format_miss_winners(&tally.old_miss_winners),
+                }),
+                new: Some(HitTestSideExplain {
+                    fraction: format!(
+                        "{:.4}",
+                        round4(if tally.denominator == 0 {
+                            0.0
+                        } else {
+                            tally.hits_new as f64 / tally.denominator as f64
+                        })
+                    ),
+                    raw_hits: format!("{}/{}", tally.hits_new, tally.denominator),
+                    miss_winners: format_miss_winners(&tally.new_miss_winners),
+                }),
+            }),
+            // Grid-size mismatch between sides (never emitted by capture, but
+            // explain must never panic on hand-built/adversarial bundles) —
+            // fall back to independent raw views for both.
+            None => Some(HitTestExplain {
+                old: Some(raw_side_explain(op)),
+                new: Some(raw_side_explain(np)),
+            }),
+        },
+        (Some(op), None) => Some(HitTestExplain {
+            old: Some(raw_side_explain(op)),
+            new: None,
+        }),
+        (None, Some(np)) => Some(HitTestExplain {
+            old: None,
+            new: Some(raw_side_explain(np)),
+        }),
+        (None, None) => unreachable!("checked above"),
     }
 }
 
@@ -345,6 +493,8 @@ pub fn format_report(report: &ExplainReport, locator_str: &str) -> String {
 
     out.push('\n');
 
+    push_hit_test_section(&mut out, report.hit_test.as_ref());
+
     if report.rows.is_empty() {
         out.push_str("(no properties to display)\n");
         return out;
@@ -410,6 +560,34 @@ pub fn format_report(report: &ExplainReport, locator_str: &str) -> String {
     }
 
     out
+}
+
+/// Append the hit-test (clickable-area) section, when present. Deterministic
+/// formatting: fixed field order, `<absent>` for a side with no comparable data.
+fn push_hit_test_section(out: &mut String, hit_test: Option<&HitTestExplain>) {
+    let Some(ht) = hit_test else { return };
+
+    out.push_str("hit-test (clickable-area):\n");
+    push_hit_test_side(out, "old", ht.old.as_ref());
+    push_hit_test_side(out, "new", ht.new.as_ref());
+    out.push('\n');
+}
+
+fn push_hit_test_side(out: &mut String, side: &str, view: Option<&HitTestSideExplain>) {
+    match view {
+        None => out.push_str(&format!("  {}: <absent>\n", side)),
+        Some(v) => {
+            let winners = if v.miss_winners.is_empty() {
+                "(none)"
+            } else {
+                v.miss_winners.as_str()
+            };
+            out.push_str(&format!(
+                "  {}: fraction={} rawHits={} missWinners={}\n",
+                side, v.fraction, v.raw_hits, winners
+            ));
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -851,5 +1029,155 @@ mod tests {
             out1.contains("background-image"),
             "must show background-image"
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // port-parity U7: hit-test section
+    // -------------------------------------------------------------------------
+
+    fn hit_pt(o: HitTestOutcome, winner: Option<&str>) -> HitTestPoint {
+        HitTestPoint {
+            o,
+            winner: winner.map(str::to_string),
+        }
+    }
+
+    fn sampled_entry(points: Vec<HitTestPoint>) -> HitTestEntry {
+        HitTestEntry {
+            status: HitTestStatus::Sampled,
+            skip_reason: None,
+            grid_size: Some(5),
+            points: Some(points),
+        }
+    }
+
+    fn make_bundle_with_hit_tests(
+        url: &str,
+        nodes: Vec<SemanticNode>,
+        hit_tests: BTreeMap<String, HitTestEntry>,
+    ) -> CaptureBundle {
+        let mut bundle = make_bundle(url, nodes, BTreeMap::new());
+        bundle.hit_tests = Some(hit_tests);
+        bundle
+    }
+
+    /// Both sides have comparable sampled data -> the joint (adjusted) view is
+    /// used, including winners on both old and new sides.
+    #[test]
+    fn test_hit_test_section_joint_view_both_sides() {
+        let node_old = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+        let node_new = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+
+        let old_points = (0..25)
+            .map(|_| hit_pt(HitTestOutcome::Hit, None))
+            .collect::<Vec<_>>();
+        let mut new_points = (0..3)
+            .map(|_| hit_pt(HitTestOutcome::Hit, None))
+            .collect::<Vec<_>>();
+        new_points.extend((0..22).map(|_| hit_pt(HitTestOutcome::Miss, Some("img.overlay"))));
+
+        let mut old_ht = BTreeMap::new();
+        old_ht.insert("n_cta".to_string(), sampled_entry(old_points));
+        let mut new_ht = BTreeMap::new();
+        new_ht.insert("n_cta".to_string(), sampled_entry(new_points));
+
+        let old_bundle = make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
+        let new_bundle = make_bundle_with_hit_tests("http://new.example.com/", vec![node_new], new_ht);
+
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+
+        let ht = report.hit_test.clone().expect("hit_test section must be present");
+        let old_view = ht.old.expect("old side present");
+        let new_view = ht.new.expect("new side present");
+        assert_eq!(old_view.fraction, "1.0000");
+        assert_eq!(old_view.raw_hits, "25/25");
+        assert_eq!(new_view.fraction, "0.1200");
+        assert_eq!(new_view.raw_hits, "3/25");
+        assert_eq!(new_view.miss_winners, "img.overlay (x22)");
+
+        let out = format_report(&report, "text=Get started");
+        assert!(out.contains("hit-test (clickable-area):"));
+        assert!(out.contains("fraction=1.0000"));
+        assert!(out.contains("fraction=0.1200"));
+        assert!(out.contains("img.overlay (x22)"));
+    }
+
+    /// Only one side has hit-test data -> the other side prints `<absent>`,
+    /// and the present side's fraction is the raw (unpaired) fraction.
+    #[test]
+    fn test_hit_test_section_one_side_absent() {
+        let node_old = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+        let node_new = make_node(
+            "n_cta_new",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+
+        let old_points = (0..25)
+            .map(|_| hit_pt(HitTestOutcome::Hit, None))
+            .collect::<Vec<_>>();
+        let mut old_ht = BTreeMap::new();
+        old_ht.insert("n_cta".to_string(), sampled_entry(old_points));
+
+        let old_bundle = make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
+        // New bundle has no hitTests channel at all.
+        let new_bundle = make_bundle("http://new.example.com/", vec![node_new], BTreeMap::new());
+
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+
+        let ht = report.hit_test.clone().expect("hit_test section must be present");
+        assert!(ht.old.is_some());
+        assert!(ht.new.is_none());
+        assert_eq!(ht.old.unwrap().raw_hits, "25/25");
+
+        let out = format_report(&report, "text=Get started");
+        assert!(out.contains("new: <absent>"));
+    }
+
+    /// Neither side has hit-test data -> no section at all (no panic, no
+    /// spurious header).
+    #[test]
+    fn test_hit_test_section_absent_on_both_no_section() {
+        let (old_bundle, new_bundle) = make_cta_bundles();
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+
+        assert!(report.hit_test.is_none());
+        let out = format_report(&report, "text=Get started");
+        assert!(!out.contains("hit-test (clickable-area):"));
     }
 }

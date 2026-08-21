@@ -851,6 +851,52 @@ mod tests {
         );
     }
 
+    /// port-parity U7: `clickable_area_regressed` renders via the generic
+    /// per-issue table (type/message columns) without panicking. The main
+    /// markdown table doesn't dump raw evidence for ANY issue type (that's
+    /// `matchy show`'s job — see `report::outline`'s equivalent test); this
+    /// pins that the new type doesn't crash or get dropped from the table.
+    #[test]
+    fn test_clickable_area_regressed_renders_without_panic() {
+        let mut result = make_fixture();
+        result.issues[0] = make_issue(
+            "issue_car000000001",
+            IssueType::ClickableAreaRegressed,
+            IssueSeverity::Error,
+            "desktop",
+            "Clickable area regressed near \"Hero\" (top overlap: img.sibling-photo)",
+            Some("main"),
+            None,
+            false,
+        );
+        result.issues[0].category = IssueCategory::Visual;
+        result.issues[0].evidence = serde_json::json!({
+            "old": { "hitFraction": "1.0000", "rawHits": "25/25" },
+            "new": {
+                "hitFraction": "0.1200",
+                "rawHits": "3/25",
+                "missWinners": "img.sibling-photo (x10); .overlay-banner (x8); .nav-fixed (x3)"
+            },
+            "excludedPoints": "0"
+        });
+        result.viewports[0].issues = vec!["issue_car000000001".to_string()];
+        result.agent_summary.by_type = {
+            let mut m = BTreeMap::new();
+            m.insert("clickable_area_regressed".to_string(), 1u32);
+            m
+        };
+
+        let md = render_markdown(&result);
+        assert!(
+            md.contains("clickable_area_regressed"),
+            "issue type wire name must appear in the table"
+        );
+        assert!(
+            md.contains("img.sibling-photo"),
+            "message text must appear"
+        );
+    }
+
     #[test]
     fn test_section_headers_present() {
         let result = make_fixture();

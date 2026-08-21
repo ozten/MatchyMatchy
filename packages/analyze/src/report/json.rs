@@ -22,6 +22,11 @@ pub struct ViewportAnalysis {
     pub old_det: CaptureDeterminism,
     pub new_det: CaptureDeterminism,
     pub old_landmark_node_counts: std::collections::BTreeMap<String, u32>,
+    /// Port-parity U7: `capability_mismatch` warnings computed from this
+    /// viewport's bundle pair (`orchestrate::capability_mismatch_warnings`).
+    /// Empty when both bundles carry every channel, or when there was no
+    /// bundle pair to compute from (e.g. a `load_error` placeholder).
+    pub capability_warnings: Vec<RunWarning>,
 }
 
 /// Scope options passed to assemble_diff_result.
@@ -364,11 +369,16 @@ pub fn assemble_diff_result(
     //   2. capture_integrity_delta (old then new)
     //   3. capture_retried_without_time_freeze (old then new)
     //   4. baseline_stale_ids
-    //   5. extra_warnings (appended last, in the fixed relative order the caller
+    //   5. capability_mismatch (port-parity U7: one per channel — hitTests,
+    //      pseudoElements, settle, in that fixed order — deduped across
+    //      viewports; the first viewport (in caller order) to report a given
+    //      channel wins, mirroring the "artifacts: first viewport's" convention)
+    //   6. extra_warnings (appended last, in the fixed relative order the caller
     //      built them in — currently `--self-check`'s `run_self_check` produces, at
     //      most, `volatile_capture` followed by `self_check_failed`)
     // ------------------------------------------------------------------
     let mut warnings = build_warnings(&old_det, &new_det, baseline, &suppressed.ids);
+    warnings.extend(dedupe_capability_warnings(&viewports));
     warnings.extend(extra_warnings);
 
     // ------------------------------------------------------------------
@@ -641,6 +651,37 @@ fn build_warnings(
     }
 
     warnings
+}
+
+/// Merge per-viewport `capability_mismatch` warnings (port-parity U7) into a
+/// single run-level list: at most one warning per channel, in the fixed
+/// channel order `hitTests`, `pseudoElements`, `settle`. When more than one
+/// viewport reports a channel (almost always identical, since channel
+/// availability is a tool-version property, not a per-viewport one), the
+/// first viewport in caller order wins — same convention as "artifacts:
+/// first viewport's artifacts" above.
+fn dedupe_capability_warnings(viewports: &[ViewportAnalysis]) -> Vec<RunWarning> {
+    const CHANNEL_ORDER: &[&str] = &["hitTests", "pseudoElements", "settle"];
+
+    let mut by_channel: BTreeMap<&'static str, RunWarning> = BTreeMap::new();
+    for vp in viewports {
+        for w in &vp.capability_warnings {
+            let channel = w
+                .context
+                .as_ref()
+                .and_then(|c| c.get("channel"))
+                .and_then(|c| c.as_str())
+                .unwrap_or("");
+            if let Some(known) = CHANNEL_ORDER.iter().copied().find(|c| *c == channel) {
+                by_channel.entry(known).or_insert_with(|| w.clone());
+            }
+        }
+    }
+
+    CHANNEL_ORDER
+        .iter()
+        .filter_map(|c| by_channel.get(c).cloned())
+        .collect()
 }
 
 /// Write DiffResult as pretty JSON (with trailing newline) to out_dir/diff-result.json.
@@ -918,6 +959,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -972,6 +1014,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1034,6 +1077,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1091,6 +1135,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1323,6 +1368,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1462,6 +1508,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1567,6 +1614,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1624,6 +1672,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1695,6 +1744,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1780,6 +1830,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1846,6 +1897,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1945,6 +1997,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -2012,6 +2065,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -2137,6 +2191,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -2199,5 +2254,163 @@ mod tests {
             Some(1)
         );
         assert_eq!(result.agent_summary.by_severity.get("critical"), None);
+    }
+
+    // -----------------------------------------------------------------------
+    // port-parity U7: capability_mismatch dedupe + --scope exclusion of a
+    // clickable_area_regressed issue.
+    // -----------------------------------------------------------------------
+
+    /// `dedupe_capability_warnings` merges per-viewport capability_mismatch
+    /// warnings into at most one per channel, in fixed channel order, with the
+    /// first viewport (caller order) winning when more than one reports the
+    /// same channel.
+    #[test]
+    fn test_dedupe_capability_warnings_across_viewports() {
+        use crate::contract::RunWarning;
+
+        fn cap_warning(channel: &str, missing_on: &str) -> RunWarning {
+            RunWarning {
+                code: "capability_mismatch".to_string(),
+                message: format!("channel '{}' unavailable", channel),
+                context: Some(serde_json::json!({
+                    "channel": channel,
+                    "missingOn": missing_on
+                })),
+            }
+        }
+
+        let vp_desktop = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![cap_warning("settle", "old"), cap_warning("hitTests", "both")],
+        };
+        // Mobile independently reports pseudoElements AND a *different*
+        // hitTests missingOn value — desktop (processed first) must win for
+        // hitTests, and pseudoElements (absent from desktop) must still surface.
+        let vp_mobile = ViewportAnalysis {
+            name: "mobile".to_string(),
+            issues: vec![],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![
+                cap_warning("hitTests", "new"),
+                cap_warning("pseudoElements", "old"),
+            ],
+        };
+
+        let result = assemble_diff_result(
+            "run-test",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp_desktop, vp_mobile],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+            None,
+        );
+
+        let cap_warnings: Vec<&crate::contract::RunWarning> = result
+            .warnings
+            .iter()
+            .filter(|w| w.code == "capability_mismatch")
+            .collect();
+        assert_eq!(cap_warnings.len(), 3, "one warning per channel, deduped");
+
+        let channels: Vec<&str> = cap_warnings
+            .iter()
+            .map(|w| w.context.as_ref().unwrap()["channel"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            channels,
+            vec!["hitTests", "pseudoElements", "settle"],
+            "fixed channel order regardless of viewport order"
+        );
+
+        // First-viewport-wins: desktop's hitTests (missingOn=both) beats mobile's.
+        let hit_tests_w = cap_warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "hitTests")
+            .unwrap();
+        assert_eq!(hit_tests_w.context.as_ref().unwrap()["missingOn"], "both");
+    }
+
+    /// `--scope main` excludes a footer-landmark `clickable_area_regressed`
+    /// regression from both `issues[]` and the summary counts, surfacing it
+    /// only via `out_of_scope`.
+    #[test]
+    fn test_scope_excludes_footer_landmark_clickable_area_regression() {
+        let scope_opts = ScopeOptions {
+            scope: vec!["main".to_string()],
+        };
+
+        let mut footer_issue = make_issue(
+            "issue_footer_cta0001",
+            IssueCategory::Visual,
+            IssueSeverity::Error,
+            Some("contentinfo"),
+        );
+        footer_issue.issue_type = IssueType::ClickableAreaRegressed;
+
+        let main_issue = make_issue(
+            "issue_main_cta00001",
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+        );
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![footer_issue, main_issue],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
+        };
+
+        let result = assemble_diff_result(
+            "run-test",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &scope_opts,
+            vec![],
+            None,
+        );
+
+        assert_eq!(result.out_of_scope.count, 1);
+        assert!(result
+            .out_of_scope
+            .ids
+            .contains(&"issue_footer_cta0001".to_string()));
+
+        let kept_ids: Vec<&str> = result.issues.iter().map(|i| i.id.as_str()).collect();
+        assert!(!kept_ids.contains(&"issue_footer_cta0001"));
+        assert!(kept_ids.contains(&"issue_main_cta00001"));
+
+        // Summary counts (byType) must reflect only the kept set, per the
+        // documented post-baseline + post-scope guarantee.
+        assert_eq!(
+            result
+                .agent_summary
+                .by_type
+                .get("clickable_area_regressed")
+                .copied(),
+            None,
+            "the out-of-scope clickable_area_regressed must not appear in byType"
+        );
     }
 }

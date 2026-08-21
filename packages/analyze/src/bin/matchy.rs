@@ -1104,6 +1104,8 @@ fn run_analyze(
         })?;
 
     let artifacts = make_artifacts(&viewport_name, &old_bundle, &new_bundle);
+    let capability_warnings =
+        matchy_analyze::orchestrate::capability_mismatch_warnings(&old_bundle, &new_bundle);
 
     let old_url = old_bundle.page.url.clone();
     let new_url = new_bundle.page.url.clone();
@@ -1116,6 +1118,7 @@ fn run_analyze(
         old_det: old_bundle.determinism,
         new_det: new_bundle.determinism,
         old_landmark_node_counts,
+        capability_warnings,
     };
 
     let result = assemble_diff_result(
@@ -1253,6 +1256,8 @@ fn analyze_bundle_pair(
         })?;
 
     let artifacts = make_artifacts(viewport_name, &old_bundle, &new_bundle);
+    let capability_warnings =
+        matchy_analyze::orchestrate::capability_mismatch_warnings(&old_bundle, &new_bundle);
 
     Ok(ViewportAnalysis {
         name: viewport_name.to_string(),
@@ -1262,6 +1267,7 @@ fn analyze_bundle_pair(
         old_det: old_bundle.determinism,
         new_det: new_bundle.determinism,
         old_landmark_node_counts,
+        capability_warnings,
     })
 }
 
@@ -1326,6 +1332,8 @@ fn make_load_error_analysis(
         old_det: make_default_determinism(),
         new_det: make_default_determinism(),
         old_landmark_node_counts: std::collections::BTreeMap::new(),
+        // No bundle pair was loaded (load_error placeholder) — nothing to compare.
+        capability_warnings: vec![],
     }
 }
 

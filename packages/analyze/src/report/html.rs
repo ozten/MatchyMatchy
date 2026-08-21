@@ -1020,6 +1020,37 @@ mod tests {
     // Existing tests (kept/updated)
     // -----------------------------------------------------------------------
 
+    /// port-parity U7: `clickable_area_regressed` renders via the generic
+    /// evidence-map path without panicking, and its `missWinners` string is
+    /// shown as-is (no renderer-side truncation — it's already top-3'd at
+    /// emission).
+    #[test]
+    fn test_clickable_area_regressed_renders_without_panic() {
+        let mut result = make_fixture();
+        result.issues[0].issue_type = IssueType::ClickableAreaRegressed;
+        result.issues[0].category = IssueCategory::Visual;
+        result.issues[0].evidence = serde_json::json!({
+            "old": { "hitFraction": "1.0000", "rawHits": "25/25" },
+            "new": {
+                "hitFraction": "0.1200",
+                "rawHits": "3/25",
+                "missWinners": "img.sibling-photo (x10); .overlay-banner (x8); .nav-fixed (x3)"
+            },
+            "excludedPoints": "0"
+        });
+        result.issues[0].remediation = Some(serde_json::json!({
+            "action": "restore_clickable_area",
+            "findBy": { "grep": ["img.sibling-photo"], "near": null },
+            "note": "overlap note"
+        }));
+
+        let html = render_html(&result, &BTreeMap::new());
+        assert!(
+            html.contains("img.sibling-photo (x10); .overlay-banner (x8); .nav-fixed (x3)"),
+            "missWinners string must be displayed as-is"
+        );
+    }
+
     #[test]
     fn test_escape_correctness() {
         assert_eq!(escape("a&b<c>\"d'e"), "a&amp;b&lt;c&gt;&quot;d&#39;e");

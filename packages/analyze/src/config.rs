@@ -69,6 +69,11 @@ pub mod base_confidence {
     /// A11y rule set diff (axe-core violations). M7-introduced; not under the M6 freeze;
     /// calibratable at real-pair use.
     pub const A11Y: f64 = 0.95;
+    /// `clickable_area_regressed` (port-parity U7): per-point hit-test parity check.
+    /// The detector already gates on a hard occlusion threshold before ever emitting
+    /// (see `CLICKABLE_OLD_FLOOR` / `CLICKABLE_DELTA`), so a surviving true positive
+    /// starts at high base confidence, same tier as `STYLE_CHANGED`.
+    pub const CLICKABLE_AREA_REGRESSED: f64 = 0.9;
 }
 
 /// Minimum group size to emit a cluster (spec §7.4 clusterMin default).
@@ -361,6 +366,36 @@ pub const DISCLOSURE_SECTION_CEILING: usize = 1500;
 pub const MIN_PAIRING_SCORE_FOR_STYLE: f64 = 0.75;
 
 // ---------------------------------------------------------------------------
+// Clickable-area hit-test thresholds (port-parity U7, design brief "Detector").
+//
+// Issue #4's suggested thresholds, frozen here (recalibration requires a
+// golden-changelog entry, same discipline as the M3 matcher constants above).
+// ---------------------------------------------------------------------------
+
+/// Minimum surviving denominator (after excluding clipped/offViewport points on
+/// either side and both-side misses) required to evaluate the clickable-area
+/// parity ratio. Below this, the sample is too small to trust — guards
+/// degenerate geometry (tiny/odd-shaped interactive elements) per plan U7.
+/// The grid is 25 points (5x5); 9 is roughly a third of the grid.
+pub const MIN_HIT_DENOMINATOR: usize = 9;
+
+/// Minimum adjusted old-side hit fraction required before a clickable-area
+/// regression can fire. Below this, the old side was already partly occluded
+/// and a further drop isn't a clean "it used to work, now it doesn't" signal.
+pub const CLICKABLE_OLD_FLOOR: f64 = 0.9;
+
+/// Minimum (adjusted old − adjusted new) hit-fraction drop required to fire
+/// `clickable_area_regressed`.
+pub const CLICKABLE_DELTA: f64 = 0.1;
+
+/// Confidence multiplier applied to `clickable_area_regressed` when either
+/// bundle's determinism shows the settle stage did not cleanly reach
+/// quiescence (`quiescence == timeout`) or the settle step itself
+/// failed/was skipped. Absent settle fields (pre-settle bundles) mean NO
+/// demotion — settle simply never ran, which is not itself a red flag.
+pub const CLICKABLE_SETTLE_DEMOTION: f64 = 0.7;
+
+// ---------------------------------------------------------------------------
 // Unit tests
 // ---------------------------------------------------------------------------
 
@@ -428,5 +463,16 @@ mod tests {
             BUILTIN_PROPERTY_SEVERITY.iter().cloned().collect();
         assert_eq!(map.get("letter-spacing"), Some(&IssueSeverity::Info));
         assert_eq!(map.get("line-height"), Some(&IssueSeverity::Info));
+    }
+
+    /// port-parity U7: hit-test/clickable-area thresholds are frozen at the
+    /// design-brief values (issue #4's suggested thresholds).
+    #[test]
+    fn test_clickable_area_thresholds_frozen() {
+        assert_eq!(MIN_HIT_DENOMINATOR, 9);
+        assert_eq!(CLICKABLE_OLD_FLOOR, 0.9);
+        assert_eq!(CLICKABLE_DELTA, 0.1);
+        assert_eq!(CLICKABLE_SETTLE_DEMOTION, 0.7);
+        assert_eq!(base_confidence::CLICKABLE_AREA_REGRESSED, 0.9);
     }
 }
