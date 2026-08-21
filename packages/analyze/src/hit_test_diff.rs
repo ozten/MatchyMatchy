@@ -15,8 +15,8 @@ use crate::config::{
     MIN_HIT_DENOMINATOR,
 };
 use crate::contract::{
-    Anchors, CaptureBundle, CaptureDeterminism, HitTestOutcome, HitTestPoint, HitTestStatus,
-    Issue, IssueCategory, IssueType, Locator, QuiescenceStatus, SemanticNode, StepStatus,
+    Anchors, CaptureBundle, CaptureDeterminism, HitTestOutcome, HitTestPoint, HitTestStatus, Issue,
+    IssueCategory, IssueType, Locator, QuiescenceStatus, SemanticNode, StepStatus,
 };
 use crate::issue::compute_issue_id;
 use crate::matching::{MatchBand, MatchOutcome};
@@ -127,7 +127,10 @@ fn top_miss_winner(winners: &BTreeMap<String, u32>) -> Option<String> {
 fn settle_penalty_applies(old_det: &CaptureDeterminism, new_det: &CaptureDeterminism) -> bool {
     let bad = |det: &CaptureDeterminism| -> bool {
         matches!(det.quiescence, Some(QuiescenceStatus::Timeout))
-            || matches!(det.settle, Some(StepStatus::Failed) | Some(StepStatus::Skipped))
+            || matches!(
+                det.settle,
+                Some(StepStatus::Failed) | Some(StepStatus::Skipped)
+            )
     };
     bad(old_det) || bad(new_det)
 }
@@ -199,7 +202,12 @@ fn build_remediation(anchors: &Anchors, top_winner: Option<&str>) -> serde_json:
     })
 }
 
-fn build_message(anchors: &Anchors, adjusted_old: f64, adjusted_new: f64, top_winner: Option<&str>) -> String {
+fn build_message(
+    anchors: &Anchors,
+    adjusted_old: f64,
+    adjusted_new: f64,
+    top_winner: Option<&str>,
+) -> String {
     let near = anchors.nearest_heading.as_deref().unwrap_or("");
     let near_part = if !near.is_empty() {
         format!(" near \"{}\"", near)
@@ -334,7 +342,12 @@ pub fn clickable_area_issues(
         });
 
         let remediation = build_remediation(&old_anchors, top_winner.as_deref());
-        let message = build_message(&old_anchors, adjusted_old, adjusted_new, top_winner.as_deref());
+        let message = build_message(
+            &old_anchors,
+            adjusted_old,
+            adjusted_new,
+            top_winner.as_deref(),
+        );
 
         issues.push(Issue {
             id,
@@ -740,24 +753,52 @@ mod tests {
     /// the top-3 miss winners in evidence and the top winner in remediation.
     #[test]
     fn test_motivating_defect_fires_with_winners_in_evidence_and_remediation() {
-        let old_node = make_node("n_cta", 3, Some("Get started"), Some("/signup"), Some("main"));
-        let new_node = make_node("n_cta", 3, Some("Get started"), Some("/signup"), Some("main"));
+        let old_node = make_node(
+            "n_cta",
+            3,
+            Some("Get started"),
+            Some("/signup"),
+            Some("main"),
+        );
+        let new_node = make_node(
+            "n_cta",
+            3,
+            Some("Get started"),
+            Some("/signup"),
+            Some("main"),
+        );
 
         let old_points = all_hit(25);
         // 3 hits, 22 misses distributed across winners:
         // img.sibling-photo x10, .overlay-banner x8, .nav-fixed x3, .footer-block x1
         let mut new_points = all_hit(3);
-        new_points.extend(std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some("img.sibling-photo"))).take(10));
-        new_points.extend(std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some(".overlay-banner"))).take(8));
-        new_points.extend(std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some(".nav-fixed"))).take(3));
-        new_points.extend(std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some(".footer-block"))).take(1));
+        new_points.extend(
+            std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some("img.sibling-photo"))).take(10),
+        );
+        new_points.extend(
+            std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some(".overlay-banner"))).take(8),
+        );
+        new_points.extend(
+            std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some(".nav-fixed"))).take(3),
+        );
+        new_points.extend(
+            std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some(".footer-block"))).take(1),
+        );
         assert_eq!(new_points.len(), 25);
 
         let old_hit_tests = hit_map(&[("n_cta", sampled(old_points))]);
         let new_hit_tests = hit_map(&[("n_cta", sampled(new_points))]);
 
-        let old_bundle = make_bundle("http://old.example.com/", vec![old_node], Some(old_hit_tests));
-        let new_bundle = make_bundle("http://new.example.com/", vec![new_node], Some(new_hit_tests));
+        let old_bundle = make_bundle(
+            "http://old.example.com/",
+            vec![old_node],
+            Some(old_hit_tests),
+        );
+        let new_bundle = make_bundle(
+            "http://new.example.com/",
+            vec![new_node],
+            Some(new_hit_tests),
+        );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
         let issues = clickable_area_issues(
@@ -769,7 +810,11 @@ mod tests {
             false,
         );
 
-        assert_eq!(issues.len(), 1, "exactly one clickable_area_regressed issue");
+        assert_eq!(
+            issues.len(),
+            1,
+            "exactly one clickable_area_regressed issue"
+        );
         let issue = &issues[0];
         assert_eq!(issue.issue_type, IssueType::ClickableAreaRegressed);
         assert_eq!(issue.category, IssueCategory::Visual);
@@ -828,7 +873,14 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty(), "identical occlusion must not fire");
     }
 
@@ -877,12 +929,26 @@ mod tests {
         // No drop: 21/21 both sides -> no issue.
         let (old_bundle, new_bundle) = make_pair_bundles(0);
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty(), "21/21 both sides must not fire");
 
         // Drop to 10/21 -> fires.
         let (old_bundle, new_bundle) = make_pair_bundles(11);
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert_eq!(issues.len(), 1, "10/21 must fire");
         assert_eq!(issues[0].evidence["new"]["rawHits"], "10/21");
     }
@@ -912,7 +978,14 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty());
     }
 
@@ -956,7 +1029,14 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].evidence["old"]["hitFraction"], "1.0000");
         assert_eq!(issues[0].evidence["old"]["rawHits"], "22/22");
@@ -1003,7 +1083,14 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty(), "old adjusted 0.85 must never fire");
     }
 
@@ -1026,7 +1113,14 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty());
     }
 
@@ -1046,7 +1140,14 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty());
     }
 
@@ -1061,16 +1162,37 @@ mod tests {
         let new_bundle = make_bundle("http://new.example.com/", vec![new_node], None);
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert!(issues.is_empty());
     }
 
     fn motivating_defect_bundles() -> (CaptureBundle, CaptureBundle, MatchOutcome) {
-        let old_node = make_node("n_cta", 3, Some("Get started"), Some("/signup"), Some("main"));
-        let new_node = make_node("n_cta", 3, Some("Get started"), Some("/signup"), Some("main"));
+        let old_node = make_node(
+            "n_cta",
+            3,
+            Some("Get started"),
+            Some("/signup"),
+            Some("main"),
+        );
+        let new_node = make_node(
+            "n_cta",
+            3,
+            Some("Get started"),
+            Some("/signup"),
+            Some("main"),
+        );
         let old_points = all_hit(25);
         let mut new_points = all_hit(3);
-        new_points.extend(std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some("img.sibling-photo"))).take(22));
+        new_points.extend(
+            std::iter::repeat_with(|| pt(HitTestOutcome::Miss, Some("img.sibling-photo"))).take(22),
+        );
         let old_bundle = make_bundle(
             "http://old.example.com/",
             vec![old_node],
@@ -1089,8 +1211,22 @@ mod tests {
     #[test]
     fn test_id_stability_same_fixture_reanalyzed() {
         let (old_bundle, new_bundle, outcome) = motivating_defect_bundles();
-        let issues1 = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
-        let issues2 = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues1 = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
+        let issues2 = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert_eq!(issues1.len(), 1);
         assert_eq!(issues2.len(), 1);
         assert_eq!(issues1[0].id, issues2[0].id);
@@ -1102,8 +1238,18 @@ mod tests {
     #[test]
     fn test_confidence_no_demotion_when_settle_fields_absent() {
         let (old_bundle, new_bundle, outcome) = motivating_defect_bundles();
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
-        assert_eq!(issues[0].confidence, base_confidence::CLICKABLE_AREA_REGRESSED);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
+        assert_eq!(
+            issues[0].confidence,
+            base_confidence::CLICKABLE_AREA_REGRESSED
+        );
     }
 
     /// Confidence demotion: `quiescence == timeout` on either side demotes by
@@ -1113,9 +1259,17 @@ mod tests {
         let (old_bundle, mut new_bundle, outcome) = motivating_defect_bundles();
         new_bundle.determinism.quiescence = Some(QuiescenceStatus::Timeout);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert_eq!(issues.len(), 1);
-        let expected = round4(base_confidence::CLICKABLE_AREA_REGRESSED * CLICKABLE_SETTLE_DEMOTION);
+        let expected =
+            round4(base_confidence::CLICKABLE_AREA_REGRESSED * CLICKABLE_SETTLE_DEMOTION);
         assert_eq!(issues[0].confidence, expected);
     }
 
@@ -1125,9 +1279,17 @@ mod tests {
         let (mut old_bundle, new_bundle, outcome) = motivating_defect_bundles();
         old_bundle.determinism.settle = Some(StepStatus::Failed);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert_eq!(issues.len(), 1);
-        let expected = round4(base_confidence::CLICKABLE_AREA_REGRESSED * CLICKABLE_SETTLE_DEMOTION);
+        let expected =
+            round4(base_confidence::CLICKABLE_AREA_REGRESSED * CLICKABLE_SETTLE_DEMOTION);
         assert_eq!(issues[0].confidence, expected);
     }
 
@@ -1137,9 +1299,17 @@ mod tests {
         let (mut old_bundle, new_bundle, outcome) = motivating_defect_bundles();
         old_bundle.determinism.settle = Some(StepStatus::Skipped);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
         assert_eq!(issues.len(), 1);
-        let expected = round4(base_confidence::CLICKABLE_AREA_REGRESSED * CLICKABLE_SETTLE_DEMOTION);
+        let expected =
+            round4(base_confidence::CLICKABLE_AREA_REGRESSED * CLICKABLE_SETTLE_DEMOTION);
         assert_eq!(issues[0].confidence, expected);
     }
 
@@ -1173,7 +1343,17 @@ mod tests {
         );
         let outcome = make_outcome(vec![make_matched_pair(0, 0)]);
 
-        let issues = clickable_area_issues(&old_bundle, &new_bundle, &outcome, "desktop", &profile(), false);
-        assert!(issues.is_empty(), "denominator below floor must suppress the issue");
+        let issues = clickable_area_issues(
+            &old_bundle,
+            &new_bundle,
+            &outcome,
+            "desktop",
+            &profile(),
+            false,
+        );
+        assert!(
+            issues.is_empty(),
+            "denominator below floor must suppress the issue"
+        );
     }
 }

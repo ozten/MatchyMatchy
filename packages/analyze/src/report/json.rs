@@ -2288,7 +2288,10 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
-            capability_warnings: vec![cap_warning("settle", "old"), cap_warning("hitTests", "both")],
+            capability_warnings: vec![
+                cap_warning("settle", "old"),
+                cap_warning("hitTests", "both"),
+            ],
         };
         // Mobile independently reports pseudoElements AND a *different*
         // hitTests missingOn value — desktop (processed first) must win for

@@ -7,7 +7,9 @@
 
 use std::collections::BTreeMap;
 
-use crate::contract::{CaptureBundle, HitTestEntry, HitTestOutcome, HitTestPoint, HitTestStatus, SemanticNode};
+use crate::contract::{
+    CaptureBundle, HitTestEntry, HitTestOutcome, HitTestPoint, HitTestStatus, SemanticNode,
+};
 use crate::hit_test_diff::{format_miss_winners, tally_points};
 
 // ---------------------------------------------------------------------------
@@ -1099,13 +1101,18 @@ mod tests {
         let mut new_ht = BTreeMap::new();
         new_ht.insert("n_cta".to_string(), sampled_entry(new_points));
 
-        let old_bundle = make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
-        let new_bundle = make_bundle_with_hit_tests("http://new.example.com/", vec![node_new], new_ht);
+        let old_bundle =
+            make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
+        let new_bundle =
+            make_bundle_with_hit_tests("http://new.example.com/", vec![node_new], new_ht);
 
         let locator = Locator::parse_anchor("text=Get started").unwrap();
         let report = explain(&old_bundle, &new_bundle, &locator, None);
 
-        let ht = report.hit_test.clone().expect("hit_test section must be present");
+        let ht = report
+            .hit_test
+            .clone()
+            .expect("hit_test section must be present");
         let old_view = ht.old.expect("old side present");
         let new_view = ht.new.expect("new side present");
         assert_eq!(old_view.fraction, "1.0000");
@@ -1152,14 +1159,18 @@ mod tests {
         let mut old_ht = BTreeMap::new();
         old_ht.insert("n_cta".to_string(), sampled_entry(old_points));
 
-        let old_bundle = make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
+        let old_bundle =
+            make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
         // New bundle has no hitTests channel at all.
         let new_bundle = make_bundle("http://new.example.com/", vec![node_new], BTreeMap::new());
 
         let locator = Locator::parse_anchor("text=Get started").unwrap();
         let report = explain(&old_bundle, &new_bundle, &locator, None);
 
-        let ht = report.hit_test.clone().expect("hit_test section must be present");
+        let ht = report
+            .hit_test
+            .clone()
+            .expect("hit_test section must be present");
         assert!(ht.old.is_some());
         assert!(ht.new.is_none());
         assert_eq!(ht.old.unwrap().raw_hits, "25/25");

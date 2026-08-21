@@ -73,6 +73,55 @@ export interface RawLandmarkRect {
   bbox: [number, number, number, number];
 }
 
+/**
+ * Port-parity U9: curated computed styles for a single ::before/::after
+ * pseudo-element, plus a best-effort bounding box. Field names mirror CSS
+ * property names exactly (mirrors packages/analyze/src/contract.rs's
+ * PseudoStyles / packages/capture/src/schema.ts's PseudoStylesSchema — keep
+ * all three in sync).
+ */
+export interface RawPseudoStyles {
+  content: string;
+  position?: string;
+  width?: string;
+  height?: string;
+  "background-color"?: string;
+  "background-image"?: string;
+  border?: string;
+  "border-radius"?: string;
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
+  "z-index"?: string;
+  display?: string;
+  opacity?: string;
+  /** Best-effort [x, y, width, height] in page coordinates. Absent when unresolvable. */
+  bbox?: [number, number, number, number];
+}
+
+export type RawPseudoOwnerTier = "node" | "ancestor" | "selector";
+
+/**
+ * A captured ::before and/or ::after pair for a single owner element,
+ * emitted keyed by owner key in RawPageModelResult.pseudoElements.
+ */
+export interface RawPseudoElementEntry {
+  ownerTier: RawPseudoOwnerTier;
+  /** SemanticNode id of the owner. Present iff ownerTier === "node". */
+  ownerNodeId?: string;
+  /** Landmark-scoped selector identifying the owner. Present iff ownerTier is "ancestor" or "selector". */
+  ownerSelector?: string;
+  landmark: string | null;
+  before?: RawPseudoStyles;
+  after?: RawPseudoStyles;
+}
+
+/** Present only when the per-page pseudo-element budget was exceeded. */
+export interface RawPseudoTruncated {
+  droppedCount: number;
+}
+
 export interface RawPageModelResult {
   nodes: RawSemanticNode[];
   pageHeight: number;
@@ -80,6 +129,10 @@ export interface RawPageModelResult {
   landmarkRects: RawLandmarkRect[];
   computedStyles: Record<string, Record<string, string>>;
   styleCandidates: RawStyleCandidates;
+  /** Port-parity U9: captured ::before/::after entries, keyed by owner key. Always present (possibly empty); capture.ts omits it from the bundle when empty. */
+  pseudoElements: Record<string, RawPseudoElementEntry>;
+  /** Port-parity U9: present only when the pseudo-element budget was exceeded. */
+  pseudoTruncated?: RawPseudoTruncated;
 }
 
 /**
@@ -1053,6 +1106,16 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     });
   }
 
+  // Port-parity U9: ancestor id -> cssSelector lookup, built directly from
+  // ancestorDescriptors (the same array serialized as styleCandidates.ancestors)
+  // so the pseudo-element "ancestor" tier reuses EXACTLY the key/selector the
+  // computedStyles ancestor entries already use — never a second scheme.
+  const ancestorIdToSelector = new Map<string, string>();
+  for (let i = 0; i < ancestorDescriptors.length; i++) {
+    const d = ancestorDescriptors[i]!;
+    if (d.cssSelector) ancestorIdToSelector.set(d.id, d.cssSelector);
+  }
+
   // ── Build chains (nodeId -> id[]) nearest->furthest ────────────────────────
   // Chains reference node ids (for SemanticNode ancestors) and anc_N ids.
   // Drop entries for dropped ancestors from chains.
@@ -1090,6 +1153,267 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     droppedCount,
   };
 
+  // ── Port-parity U9: pseudo-element (::before/::after) scan ────────────────
+  //
+  // Candidate owners = the styleCandidates set (semantic nodes + their
+  // ancestor chains, already computed above) ∪ a full-document scan for
+  // elements with a painted pseudo. Because every SemanticNode and every true
+  // ancestor element is itself somewhere in document.body, a single
+  // document-order TreeWalker pass over document.body that checks EVERY
+  // element already covers both halves of that union — node/ancestor
+  // candidates are simply tier-classified below via elementToNodeId /
+  // trueAncestorToId, and everything else (decorative leaves) falls to the
+  // "selector" tier. Owners failing checkVisibility are excluded — mirrors
+  // the node-extraction visibility rule (isVisible's first check) and keeps
+  // hideSelectors-hidden subtrees out of the pseudo channel.
+
+  // Icon-font pages can paint thousands of ::before/::after rules (e.g. one
+  // per glyph-bearing element); MAX_PSEUDO_ENTRIES bounds the per-page entry
+  // count (evidence: issue #4 R2 risk register — "pseudo capture floods
+  // bundles on icon-font sites"). Drop order on overflow is deterministic:
+  // keep by ascending viewport-distance of the owner's rect top, then
+  // document order — mirrors the styleCandidates truncation pattern above.
+  const MAX_PSEUDO_ENTRIES = 250;
+
+  // Curated pseudo style properties beyond `content` (handled separately via
+  // normalizeStr, matching the treatment of other extracted strings).
+  // NOTE: mirrors packages/analyze/src/contract.rs's PseudoStyles field list
+  // and schema.ts's PseudoStylesSchema — keep all three in sync.
+  const PSEUDO_STYLE_PROPS: string[] = [
+    "position",
+    "width",
+    "height",
+    "background-color",
+    "background-image",
+    "border",
+    "border-radius",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "z-index",
+    "display",
+    "opacity",
+  ];
+
+  // Parses a computed length as a strict numeric px value, or null when the
+  // computed value is anything else (e.g. "auto", "%", "calc(...)").
+  function resolvePx(raw: string): number | null {
+    if (/^-?\d+(\.\d+)?px$/.test(raw)) return parseFloat(raw);
+    return null;
+  }
+
+  // Best-effort bbox for a positioned (absolute/fixed) pseudo: the owner's
+  // own rect + resolvable numeric offsets/dimensions (i.e. treating the
+  // owner's border box as the pseudo's containing block — a simplification,
+  // not universally correct CSS containing-block resolution, but "best
+  // effort" per design). Never guesses: returns undefined unless width,
+  // height, and at least one of {left,right} and one of {top,bottom} resolve
+  // to numeric px values.
+  function computePseudoBbox(
+    ownerEl: Element,
+    position: string,
+    offsets: { top: string; right: string; bottom: string; left: string; width: string; height: string }
+  ): [number, number, number, number] | undefined {
+    if (position !== "absolute" && position !== "fixed") return undefined;
+    const w = resolvePx(offsets.width);
+    const h = resolvePx(offsets.height);
+    if (w === null || h === null) return undefined;
+
+    const ownerRect = ownerEl.getBoundingClientRect();
+    const leftPx = resolvePx(offsets.left);
+    const rightPx = resolvePx(offsets.right);
+    const topPx = resolvePx(offsets.top);
+    const bottomPx = resolvePx(offsets.bottom);
+
+    let x: number | null = null;
+    if (leftPx !== null) x = ownerRect.left + scrollX + leftPx;
+    else if (rightPx !== null) x = ownerRect.left + scrollX + ownerRect.width - rightPx - w;
+
+    let y: number | null = null;
+    if (topPx !== null) y = ownerRect.top + scrollY + topPx;
+    else if (bottomPx !== null) y = ownerRect.top + scrollY + ownerRect.height - bottomPx - h;
+
+    if (x === null || y === null) return undefined;
+    return [Math.round(x), Math.round(y), Math.round(w), Math.round(h)];
+  }
+
+  // A pseudo is "painted" when its computed content is neither the "none"
+  // nor "normal" keyword AND its computed display is not "none" (point 2 of
+  // the design: skip a pseudo whose computed display is "none").
+  function isPseudoPainted(cs: CSSStyleDeclaration): boolean {
+    const content = cs.getPropertyValue("content");
+    if (content === "none" || content === "normal") return false;
+    if (cs.getPropertyValue("display") === "none") return false;
+    return true;
+  }
+
+  // Builds the RawPseudoStyles entry for one painted pseudo. `content` gets
+  // the same length-cap + control-char-strip treatment as other extracted
+  // strings (normalizeStr); the curated style props get the same value-cap
+  // treatment as computedStyles (capStyleValue).
+  function buildPseudoStylesEntry(ownerEl: Element, cs: CSSStyleDeclaration): RawPseudoStyles {
+    const contentRaw = cs.getPropertyValue("content");
+    const entry: RawPseudoStyles = { content: normalizeStr(contentRaw, maxTextLength) };
+
+    const props: Record<string, string> = {};
+    for (let i = 0; i < PSEUDO_STYLE_PROPS.length; i++) {
+      const prop = PSEUDO_STYLE_PROPS[i]!;
+      const raw = cs.getPropertyValue(prop);
+      if (raw) props[prop] = capStyleValue(raw);
+    }
+
+    if (props["position"]) entry.position = props["position"];
+    if (props["width"]) entry.width = props["width"];
+    if (props["height"]) entry.height = props["height"];
+    if (props["background-color"]) entry["background-color"] = props["background-color"];
+    if (props["background-image"]) entry["background-image"] = props["background-image"];
+    if (props["border"]) entry.border = props["border"];
+    if (props["border-radius"]) entry["border-radius"] = props["border-radius"];
+    if (props["top"]) entry.top = props["top"];
+    if (props["right"]) entry.right = props["right"];
+    if (props["bottom"]) entry.bottom = props["bottom"];
+    if (props["left"]) entry.left = props["left"];
+    if (props["z-index"]) entry["z-index"] = props["z-index"];
+    if (props["display"]) entry.display = props["display"];
+    if (props["opacity"]) entry.opacity = props["opacity"];
+
+    const bbox = computePseudoBbox(ownerEl, props["position"] ?? "static", {
+      top: props["top"] ?? "auto",
+      right: props["right"] ?? "auto",
+      bottom: props["bottom"] ?? "auto",
+      left: props["left"] ?? "auto",
+      width: props["width"] ?? "auto",
+      height: props["height"] ?? "auto",
+    });
+    if (bbox) entry.bbox = bbox;
+
+    return entry;
+  }
+
+  // Tier-c (decorative leaf) owner selector: prefer #id, then the first
+  // data-* attribute in alphabetical attr-name order, else fall back to the
+  // existing landmark-relative nth-of-type chain (buildSelector). id/data-*
+  // attribute VALUES pass through the shared strip/cap pipeline (normalizeStr)
+  // before embedding — these are attacker-influenceable page strings that
+  // flow into locators, renderers, and the LLM-consumed contract.
+  function buildDecorativeOwnerSelector(el: Element, landmarkEl: Element | null): string {
+    const idAttr = el.id;
+    if (idAttr) {
+      return `#${normalizeStr(idAttr, maxTextLength)}`;
+    }
+    const dataAttrs: Array<{ name: string; value: string }> = [];
+    const attrs = el.attributes;
+    for (let i = 0; i < attrs.length; i++) {
+      const attr = attrs[i];
+      if (attr && attr.name.indexOf("data-") === 0) {
+        dataAttrs.push({ name: attr.name, value: attr.value });
+      }
+    }
+    if (dataAttrs.length > 0) {
+      dataAttrs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      const first = dataAttrs[0]!;
+      const cappedValue = normalizeStr(first.value, maxTextLength);
+      return `[${first.name}="${cappedValue}"]`;
+    }
+    return buildSelector(el, landmarkEl);
+  }
+
+  interface PseudoCandidate {
+    el: Element;
+    docOrderIndex: number;
+    viewportDistance: number;
+    before?: RawPseudoStyles;
+    after?: RawPseudoStyles;
+  }
+
+  const pseudoCandidates: PseudoCandidate[] = [];
+  let pseudoDocOrderCounter = 0;
+  const pseudoWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+  let pseudoWalkerCurrent: Node | null = pseudoWalker.currentNode;
+  while (pseudoWalkerCurrent) {
+    const pel = pseudoWalkerCurrent as Element;
+    const docOrderIndex = pseudoDocOrderCounter++;
+    if (pel.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) {
+      const beforeCs = window.getComputedStyle(pel, "::before");
+      const afterCs = window.getComputedStyle(pel, "::after");
+      const beforePainted = isPseudoPainted(beforeCs);
+      const afterPainted = isPseudoPainted(afterCs);
+      if (beforePainted || afterPainted) {
+        const rect = pel.getBoundingClientRect();
+        pseudoCandidates.push({
+          el: pel,
+          docOrderIndex,
+          viewportDistance: Math.abs(rect.top),
+          before: beforePainted ? buildPseudoStylesEntry(pel, beforeCs) : undefined,
+          after: afterPainted ? buildPseudoStylesEntry(pel, afterCs) : undefined,
+        });
+      }
+    }
+    pseudoWalkerCurrent = pseudoWalker.nextNode();
+  }
+
+  let pseudoTruncated: RawPseudoTruncated | undefined;
+  let keptPseudoCandidates = pseudoCandidates;
+  if (pseudoCandidates.length > MAX_PSEUDO_ENTRIES) {
+    const sortedForBudget = pseudoCandidates.slice().sort((a, b) => {
+      if (a.viewportDistance !== b.viewportDistance) return a.viewportDistance - b.viewportDistance;
+      return a.docOrderIndex - b.docOrderIndex;
+    });
+    keptPseudoCandidates = sortedForBudget.slice(0, MAX_PSEUDO_ENTRIES);
+    pseudoTruncated = { droppedCount: pseudoCandidates.length - MAX_PSEUDO_ENTRIES };
+  }
+
+  const pseudoEntryList: Array<{ key: string; entry: RawPseudoElementEntry }> = [];
+  for (let i = 0; i < keptPseudoCandidates.length; i++) {
+    const candidate = keptPseudoCandidates[i]!;
+    const el = candidate.el;
+
+    const nodeId = elementToNodeId.get(el);
+    const ancId = trueAncestorToId.get(el);
+    const landmark = getNearestLandmark(el);
+
+    let ownerTier: RawPseudoOwnerTier;
+    let key: string;
+    let ownerNodeId: string | undefined;
+    let ownerSelector: string | undefined;
+
+    if (nodeId) {
+      ownerTier = "node";
+      key = nodeId;
+      ownerNodeId = nodeId;
+    } else if (ancId && ancestorIdToSelector.has(ancId)) {
+      // Non-dropped true ancestor: reuse the exact key/selector the
+      // computedStyles ancestor entries use (never a second scheme).
+      ownerTier = "ancestor";
+      key = ancId;
+      ownerSelector = ancestorIdToSelector.get(ancId)!;
+    } else {
+      const landmarkEl = getNearestLandmarkElement(el);
+      const selector = buildDecorativeOwnerSelector(el, landmarkEl);
+      ownerTier = "selector";
+      ownerSelector = selector;
+      key = `${landmark ?? "__none__"}::${selector}`;
+    }
+
+    const entry: RawPseudoElementEntry = { ownerTier, landmark };
+    if (ownerNodeId !== undefined) entry.ownerNodeId = ownerNodeId;
+    if (ownerSelector !== undefined) entry.ownerSelector = ownerSelector;
+    if (candidate.before) entry.before = candidate.before;
+    if (candidate.after) entry.after = candidate.after;
+
+    pseudoEntryList.push({ key, entry });
+  }
+
+  // Deterministic serialization: sort by key so the emitted JSON object has
+  // sorted keys regardless of scan/insertion order (byte-determinism).
+  pseudoEntryList.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const pseudoElements: Record<string, RawPseudoElementEntry> = {};
+  for (let i = 0; i < pseudoEntryList.length; i++) {
+    const { key, entry } = pseudoEntryList[i]!;
+    pseudoElements[key] = entry;
+  }
+
   return {
     nodes,
     pageHeight: document.documentElement.scrollHeight,
@@ -1097,5 +1421,7 @@ export function extractPageModel(maxTextLength: number): RawPageModelResult {
     landmarkRects,
     computedStyles,
     styleCandidates,
+    pseudoElements,
+    pseudoTruncated,
   };
 }

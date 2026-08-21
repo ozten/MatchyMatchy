@@ -896,7 +896,9 @@ mod tests {
         let old = cap_bundle(None, None, Some(StepStatus::Ran));
         let new = cap_bundle(None, None, Some(StepStatus::Ran));
         let warnings = capability_mismatch_warnings(&old, &new);
-        assert!(!warnings.iter().any(|w| w.context.as_ref().unwrap()["channel"] == "settle"));
+        assert!(!warnings
+            .iter()
+            .any(|w| w.context.as_ref().unwrap()["channel"] == "settle"));
     }
 
     /// settle: both sides absent -> symmetric, no warning.
@@ -905,7 +907,9 @@ mod tests {
         let old = cap_bundle(None, None, None);
         let new = cap_bundle(None, None, None);
         let warnings = capability_mismatch_warnings(&old, &new);
-        assert!(!warnings.iter().any(|w| w.context.as_ref().unwrap()["channel"] == "settle"));
+        assert!(!warnings
+            .iter()
+            .any(|w| w.context.as_ref().unwrap()["channel"] == "settle"));
     }
 
     /// settle: old ran, new did not -> asymmetric, warns with missingOn=new.

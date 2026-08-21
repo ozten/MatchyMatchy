@@ -411,6 +411,11 @@ async function runCapture(configRaw: unknown): Promise<void> {
         viewport: `${viewport.name}/${prefix}-vp.png`,
       },
       hitTests,
+      // Port-parity U9: pseudoElements is omitted (not an empty object) when
+      // the scan found no painted ::before/::after entries.
+      pseudoElements:
+        Object.keys(pageModelRaw.pseudoElements).length > 0 ? pageModelRaw.pseudoElements : undefined,
+      pseudoTruncated: pageModelRaw.pseudoTruncated,
     };
 
     // Zod validation before writing

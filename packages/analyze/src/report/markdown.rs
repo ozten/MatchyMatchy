@@ -891,10 +891,7 @@ mod tests {
             md.contains("clickable_area_regressed"),
             "issue type wire name must appear in the table"
         );
-        assert!(
-            md.contains("img.sibling-photo"),
-            "message text must appear"
-        );
+        assert!(md.contains("img.sibling-photo"), "message text must appear");
     }
 
     #[test]
