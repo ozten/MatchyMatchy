@@ -7,7 +7,9 @@
  * tests/stabilizer.test.ts.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import type { Browser, BrowserContext } from "playwright";
+import type { Browser, BrowserContext, Page } from "playwright";
+import * as http from "http";
+import type { AddressInfo } from "net";
 import { stabilize } from "../src/stabilizer.js";
 import type { StabilizationConfig } from "../src/schema.js";
 import { launchBrowser, createContext } from "../src/browser-runner.js";
@@ -15,6 +17,38 @@ import { serveHtml } from "./helpers/serve-html.js";
 import { baseStabilizationConfig } from "./helpers/stabilization-config.js";
 
 const BROWSER_TIMEOUT_MS = 30_000;
+
+/**
+ * Like `serveHtml`, but a single `notFoundPath` returns a genuine 404
+ * instead of the fixed HTML body — needed to reproduce a real "already
+ * failed before settle runs" image (bug 1's exact scenario), which requires
+ * an actual non-2xx response, not just invalid image bytes.
+ */
+async function serveHtmlWith404(
+  html: string,
+  notFoundPath: string
+): Promise<{ url: string; close: () => Promise<void> }> {
+  const server = http.createServer((req, res) => {
+    if (req.url === notFoundPath) {
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("not found");
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(html);
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      }),
+  };
+}
 
 describe("settle stage — 'full' mode / 'off' mode (browser)", () => {
   let browser: Browser;
@@ -297,6 +331,106 @@ describe("settle stage — 'full' mode / 'off' mode (browser)", () => {
         expect(determinism.timeFrozen).toBe("skipped");
         expect(determinism.settle).toBe("ran");
         expect(["reached", "timeout"]).toContain(determinism.quiescence);
+        await page.close();
+      });
+    } finally {
+      await served.close();
+    }
+  }, BROWSER_TIMEOUT_MS);
+
+  // ── (h) BUG 1 — an already-404'd image must never hang the image-await
+  //        phase. `page.goto({ waitUntil: "load" })` already blocks on the
+  //        window `load` event, which itself waits for every <img> to
+  //        finish attempting its load (success or error) — so by the time
+  //        settle's step 8 runs, this image's error event has ALREADY fired
+  //        and will never fire again. The old code's 10s-per-phase deadline
+  //        THREW on expiry if any image-await call ever failed to settle;
+  //        this test pins the fast, non-hanging path for the ordinary
+  //        already-settled case. ─────────────────────────────────────────
+  it("treats an already-404'd image as settled instantly and completes settle in bounded time", async () => {
+    const html = `<!doctype html><html><body style="margin:0">
+      <div style="height:800px">content</div>
+      <img id="broken" src="/missing.png" width="10" height="10">
+    </body></html>`;
+    const served = await serveHtmlWith404(html, "/missing.png");
+    try {
+      await withContext({ width: 800, height: 300 }, async (context) => {
+        const config = baseStabilizationConfig({ settleMode: "full", settleMs: 0 });
+        const t0 = Date.now();
+        const { page, determinism } = await stabilize(
+          context,
+          served.url,
+          config,
+          [],
+          [],
+          [],
+          () => {}
+        );
+        const elapsedMs = Date.now() - t0;
+        expect(determinism.settle).toBe("ran");
+        // Well under the old 10s-per-phase hang (two image-await calls could
+        // have consumed up to ~20s if either one hung).
+        expect(elapsedMs).toBeLessThan(8000);
+
+        const imgState = await page.evaluate(() => {
+          const img = document.getElementById("broken") as HTMLImageElement;
+          return { complete: img.complete, naturalWidth: img.naturalWidth };
+        });
+        expect(imgState.complete).toBe(true);
+        expect(imgState.naturalWidth).toBe(0);
+        await page.close();
+      });
+    } finally {
+      await served.close();
+    }
+  }, BROWSER_TIMEOUT_MS);
+
+  // ── (i) BUG 2 — settle must restore page state on ANY failure. Forces a
+  //        throw partway through the scroll loop (after scrollY has already
+  //        moved off 0) via a test-only monkeypatch of `page.evaluate`
+  //        installed through the `onPageCreated` hook, then asserts BOTH
+  //        that the failure is recorded AND that runFullSettle's finally
+  //        block restored scroll to (0, 0) before extraction would run. ──
+  it("restores scroll to (0,0) via the finally block when a settle phase throws mid-pass", async () => {
+    const html = `<!doctype html><html><body style="margin:0">
+      <div style="height:3000px">tall content</div>
+    </body></html>`;
+    const served = await serveHtml(html);
+    try {
+      await withContext({ width: 800, height: 300 }, async (context) => {
+        const config = baseStabilizationConfig({ settleMode: "full", settleMs: 0 });
+        const { page, determinism } = await stabilize(
+          context,
+          served.url,
+          config,
+          [],
+          [],
+          [],
+          () => {},
+          (pg: Page) => {
+            // Test hook: force the settle stage's SECOND per-step
+            // `scrollTo(0, y)` evaluate call to throw, simulating a
+            // mid-phase failure once the page has already scrolled away
+            // from the top (the first scrollTo call is allowed to succeed).
+            const original = pg.evaluate.bind(pg);
+            let scrollStepCalls = 0;
+            (pg as unknown as { evaluate: unknown }).evaluate = (
+              fn: unknown,
+              ...args: unknown[]
+            ) => {
+              if (typeof fn === "function" && fn.toString().includes("scrollTo(0, y)")) {
+                scrollStepCalls += 1;
+                if (scrollStepCalls === 2) {
+                  return Promise.reject(new Error("injected test failure: forced settle throw"));
+                }
+              }
+              return (original as (...a: unknown[]) => unknown)(fn, ...args);
+            };
+          }
+        );
+        expect(determinism.settle).toBe("failed");
+        const scrollY = await page.evaluate(() => window.scrollY);
+        expect(scrollY).toBe(0);
         await page.close();
       });
     } finally {

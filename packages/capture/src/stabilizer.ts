@@ -108,26 +108,72 @@ const DEFAULT_QUIESCENCE_WINDOW_MS = 500;
 const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_SETTLE_STEPS = 60;
 
+/** Result of one {@link awaitAllImagesLoadOrError} phase. */
+interface ImageAwaitResult {
+  /** True when the 10s Node-side deadline elapsed before every image settled. */
+  timedOut: boolean;
+  /** Count of images that were not yet `complete` when the phase began (0 when timedOut is false). */
+  pendingCount: number;
+}
+
 /**
  * Await every `<img>` currently in the document to either load or error,
  * bounded by the existing 10s node-side deadline pattern. Re-queries the DOM
- * at call time so images inserted mid-scroll are included. `decode()`
- * resolves once the image is successfully decoded and rejects on a load
- * error (network failure, broken source, etc.) — `.catch(() => {})` treats
- * "errored" as a terminal, non-fatal outcome exactly like a successful load
- * (per-image rejection is page reality, not a step failure, mirroring the
- * pre-existing step 7b/legacy lazyLoadPass convention).
+ * at call time so images inserted mid-scroll are included.
+ *
+ * An image whose `complete === true` is ALREADY settled — this covers both a
+ * successful load and a failed one (a 404'd image has `complete === true`
+ * and `naturalWidth === 0`) — and is never made to wait on an event that has
+ * already fired and will not fire again.
+ *
+ * For a still-pending image, race its `decode()` call against fresh `load`/
+ * `error` listeners: `decode()` resolves once the image is successfully
+ * decoded and rejects on a load error, but per real-world observation (an
+ * `<img>` sitting inside a collapsed/hidden subtree — e.g. an unopened
+ * dropdown menu — can be `naturalWidth > 0` yet permanently NOT `complete`,
+ * because Chromium never runs the decode/layout pass for a non-rendered
+ * image) `decode()` alone can hang forever even though the element already
+ * fired its terminal event in the past. Racing both catches whichever the
+ * browser actually delivers; whichever fires first is a terminal outcome
+ * (a decode() rejection counts as settled, exactly like a successful load).
+ *
+ * BUG FIX: the 10s Node-side deadline used to THROW on expiry, which — for a
+ * page carrying any image that can never settle by the above race (the
+ * hidden-subtree case is common and not fixable client-side) — hard-failed
+ * the whole settle stage before it ever reached the quiescence wait. The
+ * deadline now degrades gracefully: it returns `{ timedOut: true,
+ * pendingCount }` instead of throwing. A timed-out image phase is a
+ * mutation-pending signal, not a step failure — the caller proceeds to the
+ * quiescence wait, which observes any genuinely-late settling honestly.
  */
-async function awaitAllImagesLoadOrError(pg: Page): Promise<void> {
-  await withDeadline(
-    pg.evaluate(async () => {
-      const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img"));
-      await Promise.allSettled(
-        imgs.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))
-      );
-    }),
-    10_000
+async function awaitAllImagesLoadOrError(pg: Page): Promise<ImageAwaitResult> {
+  const pendingCount = await pg.evaluate(
+    () => Array.from(document.querySelectorAll<HTMLImageElement>("img")).filter((img) => !img.complete).length
   );
+
+  const settleAll = pg.evaluate(async () => {
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img"));
+    await Promise.allSettled(
+      imgs.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          const done = () => resolve();
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+          // decode() rejection (e.g. a broken image) counts as settled too —
+          // whichever of decode()/load/error fires first wins the race.
+          img.decode().then(done, done);
+        });
+      })
+    );
+  });
+
+  try {
+    await withDeadline(settleAll, 10_000);
+    return { timedOut: false, pendingCount: 0 };
+  } catch {
+    return { timedOut: true, pendingCount };
+  }
 }
 
 /**
@@ -239,89 +285,127 @@ interface FullSettleResult {
  * `step()` helper every other pipeline step uses, so a throw here is
  * recorded as `determinism.settle = "failed"` and joins the existing
  * shouldRetryWithoutFreeze trigger set exactly like any other step failure.
+ *
+ * BUG FIX: the body runs inside a try/finally. A settle failure must never
+ * leave extraction running against a scrolled page (the documented WP-H
+ * lesson — log-and-continue must not silently corrupt capture), so on ANY
+ * exit — success or throw — scroll position is unconditionally forced back
+ * to (0, 0), and fonts are best-effort re-awaited on their own short bound
+ * (a stuck finally-path `fonts.ready` must not itself hang the pipeline).
+ * The scroll restore is attempted even if that best-effort font re-await
+ * fails, and vice versa; neither failure replaces/masks the original error.
  */
 async function runFullSettle(
   pg: Page,
   clockInstalled: boolean,
   config: StabilizationConfig,
   hideSelectors: string[],
-  maskSelectors: string[]
+  maskSelectors: string[],
+  log: (msg: string) => void
 ): Promise<FullSettleResult> {
   const dwellMs = config.settleDwellMs ?? DEFAULT_SETTLE_DWELL_MS;
   const maxSettleSteps = config.maxSettleSteps ?? DEFAULT_MAX_SETTLE_STEPS;
   const windowMs = config.quiescenceWindowMs ?? DEFAULT_QUIESCENCE_WINDOW_MS;
   const timeoutMs = config.quiescenceTimeoutMs ?? DEFAULT_QUIESCENCE_TIMEOUT_MS;
 
-  const viewportHeight = await pg.evaluate(() => window.innerHeight);
-  let scrollHeight = await pg.evaluate(() => document.documentElement.scrollHeight);
-  const initialScrollHeight = scrollHeight;
-  const maxSteps = Math.max(
-    Math.ceil((3 * initialScrollHeight) / Math.max(viewportHeight, 1)),
-    maxSettleSteps
-  );
+  try {
+    const viewportHeight = await pg.evaluate(() => window.innerHeight);
+    let scrollHeight = await pg.evaluate(() => document.documentElement.scrollHeight);
+    const initialScrollHeight = scrollHeight;
+    const maxSteps = Math.max(
+      Math.ceil((3 * initialScrollHeight) / Math.max(viewportHeight, 1)),
+      maxSettleSteps
+    );
 
-  let current = 0;
-  let stepCount = 0;
-  let growthCapped = false;
-  let scrollIneffective = false;
-  const scrollYSamples: number[] = [];
+    let current = 0;
+    let stepCount = 0;
+    let growthCapped = false;
+    let scrollIneffective = false;
+    const scrollYSamples: number[] = [];
 
-  // NOTE on the loop condition: a genuine `position:fixed; overflow:hidden`
-  // transform-scroll site (the real-world pattern that fully disables native
-  // document scrolling) typically reports `document.documentElement.scrollHeight`
-  // clamped to the viewport height — INDISTINGUISHABLE, by that reading alone,
-  // from a page that's simply shorter than the viewport. The only way to tell
-  // them apart is to attempt scrolling and observe `scrollY`, so the FIRST TWO
-  // steps are always attempted regardless of what `scrollHeight` claims;
-  // `current < scrollHeight` only gates steps AFTER the two-sample
-  // ineffectiveness check has had its chance to run. (Residual limitation:
-  // a legitimately short, non-scrollable page will also read as "ineffective"
-  // under this scheme — recorded faithfully rather than silently guessed at.)
-  while (scrollYSamples.length < 2 || current < scrollHeight) {
-    current += viewportHeight;
-    stepCount += 1;
-    if (stepCount > maxSteps) {
-      growthCapped = true;
-      break;
+    // NOTE on the loop condition: a genuine `position:fixed; overflow:hidden`
+    // transform-scroll site (the real-world pattern that fully disables native
+    // document scrolling) typically reports `document.documentElement.scrollHeight`
+    // clamped to the viewport height — INDISTINGUISHABLE, by that reading alone,
+    // from a page that's simply shorter than the viewport. The only way to tell
+    // them apart is to attempt scrolling and observe `scrollY`, so the FIRST TWO
+    // steps are always attempted regardless of what `scrollHeight` claims;
+    // `current < scrollHeight` only gates steps AFTER the two-sample
+    // ineffectiveness check has had its chance to run. (Residual limitation:
+    // a legitimately short, non-scrollable page will also read as "ineffective"
+    // under this scheme — recorded faithfully rather than silently guessed at.)
+    while (scrollYSamples.length < 2 || current < scrollHeight) {
+      current += viewportHeight;
+      stepCount += 1;
+      if (stepCount > maxSteps) {
+        growthCapped = true;
+        break;
+      }
+
+      await pg.evaluate((y: number) => window.scrollTo(0, y), current);
+      if (clockInstalled) {
+        await pg.clock.runFor(dwellMs);
+      } else {
+        await pg.waitForTimeout(Math.min(dwellMs, 200));
+      }
+
+      const scrollY = await pg.evaluate(() => window.scrollY);
+      scrollYSamples.push(scrollY);
+      if (scrollYSamples.length === 2 && scrollYSamples[0] === scrollYSamples[1]) {
+        scrollIneffective = true;
+        break;
+      }
+
+      // Re-read scrollHeight each step — the page may have grown (e.g. an
+      // infinite feed appending content on scroll).
+      scrollHeight = await pg.evaluate(() => document.documentElement.scrollHeight);
     }
 
-    await pg.evaluate((y: number) => window.scrollTo(0, y), current);
-    if (clockInstalled) {
-      await pg.clock.runFor(dwellMs);
-    } else {
-      await pg.waitForTimeout(Math.min(dwellMs, 200));
+    // Lazy-image await at the bottom (or wherever the loop stopped). A phase
+    // timeout degrades gracefully (see awaitAllImagesLoadOrError) — it is a
+    // mutation-pending signal, not a step failure; the quiescence wait below
+    // observes any genuinely-late settling honestly.
+    const bottomImageAwait = await awaitAllImagesLoadOrError(pg);
+    if (bottomImageAwait.timedOut) {
+      log(
+        `[stabilizer] settle: image-await (bottom) phase timed out (pendingCount=${bottomImageAwait.pendingCount}); proceeding to quiescence`
+      );
     }
 
-    const scrollY = await pg.evaluate(() => window.scrollY);
-    scrollYSamples.push(scrollY);
-    if (scrollYSamples.length === 2 && scrollYSamples[0] === scrollYSamples[1]) {
-      scrollIneffective = true;
-      break;
+    // Return to top, re-await fonts (existing pattern), lazy-image await again.
+    await pg.evaluate(() => window.scrollTo(0, 0));
+    await withDeadline(pg.evaluate(() => document.fonts.ready), 10_000);
+    const topImageAwait = await awaitAllImagesLoadOrError(pg);
+    if (topImageAwait.timedOut) {
+      log(
+        `[stabilizer] settle: image-await (top) phase timed out (pendingCount=${topImageAwait.pendingCount}); proceeding to quiescence`
+      );
     }
 
-    // Re-read scrollHeight each step — the page may have grown (e.g. an
-    // infinite feed appending content on scroll).
-    scrollHeight = await pg.evaluate(() => document.documentElement.scrollHeight);
+    // Quiescence wait.
+    const quiescence = await waitForQuiescence(
+      pg,
+      clockInstalled,
+      [...hideSelectors, ...maskSelectors],
+      windowMs,
+      timeoutMs
+    );
+
+    return { scrollIneffective, growthCapped, quiescence };
+  } finally {
+    try {
+      await pg.evaluate(() => window.scrollTo(0, 0));
+    } catch (err) {
+      log(`[stabilizer] settle: failed to restore scroll position: ${err}`);
+    }
+    try {
+      await withDeadline(pg.evaluate(() => document.fonts.ready), 2_000);
+    } catch {
+      // Best-effort only — a stuck/slow fonts.ready here must not block the
+      // caller further. Scroll restoration (the hard requirement) has
+      // already been attempted above regardless of this outcome.
+    }
   }
-
-  // Lazy-image await at the bottom (or wherever the loop stopped).
-  await awaitAllImagesLoadOrError(pg);
-
-  // Return to top, re-await fonts (existing pattern), lazy-image await again.
-  await pg.evaluate(() => window.scrollTo(0, 0));
-  await withDeadline(pg.evaluate(() => document.fonts.ready), 10_000);
-  await awaitAllImagesLoadOrError(pg);
-
-  // Quiescence wait.
-  const quiescence = await waitForQuiescence(
-    pg,
-    clockInstalled,
-    [...hideSelectors, ...maskSelectors],
-    windowMs,
-    timeoutMs
-  );
-
-  return { scrollIneffective, growthCapped, quiescence };
 }
 
 /**
@@ -544,7 +628,7 @@ export async function stabilize(
       det.lazyLoadPass = "skipped";
       det.quiescence = "notRun";
       await step("settle", async () => {
-        const result = await runFullSettle(pg, clockIsInstalled, config, hideSelectors, maskSelectors);
+        const result = await runFullSettle(pg, clockIsInstalled, config, hideSelectors, maskSelectors, log);
         if (result.scrollIneffective) det.settleScrollIneffective = true;
         if (result.growthCapped) det.settleGrowthCapped = true;
         det.quiescence = result.quiescence;
