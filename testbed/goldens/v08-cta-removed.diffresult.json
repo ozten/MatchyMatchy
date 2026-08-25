@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_289f0009bd4c"
+      "issue_d66e11f3cf55"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_289f0009bd4c"
+        "issue_d66e11f3cf55"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_289f0009bd4c",
+      "id": "issue_d66e11f3cf55",
       "type": "missing_link",
       "category": "content",
       "severity": "error",

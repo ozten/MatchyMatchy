@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_b47aa904d464"
+      "issue_9c36be3a0c8c"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_b47aa904d464"
+        "issue_9c36be3a0c8c"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_b47aa904d464",
+      "id": "issue_9c36be3a0c8c",
       "type": "status_code_mismatch",
       "category": "technical",
       "severity": "critical",

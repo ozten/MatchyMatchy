@@ -1004,3 +1004,207 @@ re-record; it was intentionally **not run** for this change per the U2 brief.
 
 **golden-auditor verdict:** _not yet requested — this is a derivation-only change; the audit is
 deferred to U14 where the actual re-recorded goldens exist to audit against._
+
+**Update (2026-08-25, U14 attempt).** `testbed/migrate-golden-ids.py` (new) recomputes each of the
+21 existing goldens' issue ids under the derivation above, using only fields already present in
+the golden JSON (`type`, `viewport`, anchors minus `ordinalInLandmark`, the conditional
+`nearestHeading` rule, and `remediation.property` recovered as the `styleProperty` hash slot for
+style-category issues), and rewrites every id reference (`issues[].id`, `clusters[].issueIds`,
+`agentSummary.topFixes`, `suppressed.ids`, `regions[].memberIssueIds`) in place. Verified
+byte-exact against the pre-migration goldens (`apply_mapping(original, mapping) == migrated` for
+all 21 files — i.e. the migration is a pure id-substitution, zero other-field drift). All 1,418
+issue ids across the 21 goldens changed (expected: the derivation change is unconditional). Fresh
+builds were then captured for all 24 variants (v01–v24) and diffed by id (not array position, since
+final output order tie-breaks on id and therefore reorders) against this migrated baseline: **zero
+issue ids present in the golden and absent from the fresh run, and zero ids present in the fresh
+run and absent from the golden, on every one of the 21 variants** — i.e. the migration script's
+replication of `compute_issue_id`/`resolve_id_collisions` matches the real Rust derivation exactly,
+with no residual bug. This is the empirical confirmation the derivation fix intended. The full
+audited byte re-record itself did **not** proceed — see the BLOCKED entry immediately below; this
+update only closes out the id-stability half of U2.
+
+---
+
+## 2026-08-25 — U14 golden re-record: BLOCKED by a confidence-penalty regression (do not audit yet)
+
+**Status: goldens NOT re-recorded.** `testbed/goldens/*.diffresult.json` currently hold the
+id-migrated (previous entry) values only — same severities/scores/schema/fields as the pre-U1
+recordings, ids updated to the U2 derivation. Fresh builds were run for all 24 variants (v01–v24;
+`testbed/.runs/<variant>/diff-result.json`) to triage against this baseline per the port-parity
+plan's U14, and the triage surfaced a code regression that must not be baked into a golden. No
+`testbed/goldens/*.diffresult.json` file was overwritten with a fresh run's output; no
+`expected-issues.json` was modified.
+
+**The regression.** `packages/analyze/src/contract.rs::CaptureDeterminism::has_confidence_penalty()`
+(pre-existing, predates the port-parity plan) still keys unconditionally off the legacy
+`lazyLoadPass` determinism field:
+
+```rust
+pub fn has_confidence_penalty(&self) -> bool {
+    self.time_frozen != StepStatus::Ran
+        || self.lazy_load_pass != StepStatus::Ran
+        || self.fonts_ready != StepStatus::Ran
+}
+```
+
+U12 made the "full" settle stage (now the default) unconditionally report
+`lazyLoadPass: "skipped"` once `settle` takes over step 8 (`stabilizer.ts:628`) — a deliberate
+"legacy key kept for continuity" design, not a failure. `has_confidence_penalty()` was never
+updated to account for this. The result: on every capture with settle on (the default), every
+single issue of every type — not only `clickable_area_regressed`/pseudo issues on an actual settle
+failure, which was the intended scope of the settle↔confidence coupling per the port-parity plan's
+"Hit-test/pseudo confidence couples to settle outcome" decision — has its `confidence` multiplied
+by 0.8, unconditionally, even on a fully clean capture with `settle: "ran"` and
+`quiescence: "reached"` and zero warnings. Verified on `v01-identical` (a byte-static control):
+`determinism.old.lazyLoadPass = "skipped"`, `determinism.old.settle = "ran"`,
+`determinism.old.quiescence = "reached"`, `warnings: []` — no failure anywhere, yet every issue's
+`confidence` in every other variant comes back multiplied by 0.8 (`0.9→0.72`, `0.95→0.76`, etc.,
+confirmed across v06/v08/v09/v10/v11/v20/v21/v22/v23, spanning visual, content, style, hygiene,
+a11y, network, and the two new port-parity types). This is silent (no warning names it) and
+universal (every issue type, every variant, including the brand-new v22–v24 fixtures with no prior
+baseline). Confidence is a primary-contract field an LLM consumer reads directly; a blanket,
+undocumented 20% reduction defeats the signal-to-noise goal (spec, Problem Frame) and was not one
+of the plan's declared drift sources.
+
+**Disposition per CLAUDE.md golden discipline:** "the default response to a failing fixture is to
+FIX THE CODE, never to edit the expectation" and "never weaken an expectation merely because the
+current code can't meet it." Writing the current fresh-run confidence values into
+`testbed/goldens/*.diffresult.json` would bake this regression into the permanent baseline as if it
+were sanctioned drift. It is not sanctioned — it is not in the plan's expected-drift list
+(a)–(f), and it fails the U14 brief's own STOP criterion ("unexplained drift = STOP and report, do
+not bless"). The fix is a design decision (whether `has_confidence_penalty()` should key off
+`settle`/`quiescence` instead of/in addition to `lazy_load_pass`, whether `lazy_load_pass` should
+report an alias of `Ran` when superseded, or something else) that belongs to the orchestrator, not
+to this triage pass.
+
+**Everything else triaged clean — see the completion report's per-variant drift table.** With
+`confidence` excluded from the comparison, all other drift classes are individually explained:
+schema/`bySeverity` additive fields, the U3 built-in `letter-spacing`/`line-height` → `info`
+demotion (v03 only: 351/351 changes, all on those two properties, all `warning`→`info`; v04
+confirmed **zero** severity drift, matching the plan's expectation that `font-family` carries no
+built-in demotion), the resulting `scores.style` shift on v03 (info excluded from category scores,
+v1.1-class-6 precedent), settle/hit-test/quiescence determinism fields appearing, `lazyLoadPass`
+flipping to `skipped`, and bbox/ordinal/selector/crop/`styleSim`/`regionChangedRatio` numeric
+re-baselining on the variants with real style/visual diffing (v02, v03, v04, v05, v07, v12, v19) —
+attributable to the settle stage now loading lazy content more thoroughly before extraction (U12)
+and the larger style-property list shifting the `styleSim` pairing sub-signal (U4). No issue was
+added or removed anywhere (`only_in_golden_ids` / `only_in_fresh_ids` both empty on every variant),
+no `status` flipped, and v22–v24 fire exactly their intended detector and nothing else.
+
+**golden-auditor verdict:** _not requested — there is nothing to audit yet. Do not audit this
+entry or approve a re-record until the confidence-penalty fix lands and the re-record is redone._
+
+---
+
+## 2026-08-25 — DRAFT (blocked on the above): severity-default demotions batched into the re-record
+
+**Status: DRAFT, recording blocked.** Describes a real, already-shipped behavior change (U3,
+commit `68ca301`) that will be part of the eventual re-record once the confidence-penalty
+regression above is fixed and goldens are actually rewritten.
+
+**What changed.** Built-in, evidence-annotated severity demotions ship by default:
+`letter-spacing` and `line-height` style diffs demote from the profile's default `warning` to
+`info` (all channels: leaf, ancestor, and — once painted — pseudo). `clickable_area_regressed` is
+pinned to `error` regardless of profile (deny-listed from demotion in the other direction).
+
+**Why the old expectation was absent, not wrong.** The pre-U3 goldens simply predate per-property
+severity resolution; `docs/calibration-note.md` and issue #4's field-review evidence (hundreds of
+sub-pixel letter-spacing/line-height `style_changed` issues flooding a real port comparison) is the
+justification for demoting exactly these two properties by default, cited in the port-parity plan's
+Key Technical Decisions ("Severity mapping"). No other property demotes by default — confirmed
+empirically in the triage: `v04-font-family`'s issues (a `font-family` diff) show **zero** severity
+change, matching the plan's own expectation check.
+
+**Spec justification.** `docs/prds/page-pair-diff-spec.md` §9 (parity profiles) — profile category
+defaults remain the baseline; the built-in per-property table is a documented refinement layered
+underneath user `--severity-map` files, per the README's "Severity mapping" section (already
+landed).
+
+**Effect on goldens (observed on the fresh run, not yet recorded).** v03 (`letter-spacing`/
+`line-height` heavy): 351 of 776 issues demote `warning`→`info`; `scores.style` rises
+(0.00141→0.00280) because info-severity issues are excluded from category scores (v1.1 class-6
+precedent); `status` unchanged (`warn`). No other variant's severities change.
+
+**golden-auditor verdict:** PENDING golden-auditor — do not audit until the byte re-record actually
+happens.
+
+---
+
+## 2026-08-25 — DRAFT (blocked on the above): schemaVersion 1.3 batch (`bySeverity` + two new issue types)
+
+**Status: DRAFT, recording blocked.** Describes the U1 contract bump (commit `c3c4ca5`), already
+shipped in code; the goldens themselves have not been bumped.
+
+**What changed.** `DiffResult.schemaVersion` "1.2"→"1.3"; `agentSummary.bySeverity` becomes a
+required field (present, possibly `{}`, on every result); `clickable_area_regressed` and
+`pseudo_element_missing` join the `type` enum. Mirrors the v1.1→v1.2 precedent exactly: additive,
+forced re-record because `additionalProperties: false` means older documents no longer validate.
+
+**Why the old expectation was superseded.** The additive bump makes `bySeverity` unconditionally
+required per the new schema; 1.2 goldens no longer validate against `diff-result.schema.json`
+as-is. This is the same forcing mechanism as the 1.1→1.2 bump (region-rollup changelog entry
+above).
+
+**Spec justification.** `docs/prds/page-pair-diff-spec.md` §7 (added in U5's commit): `byType` and
+`bySeverity` are both counts over the identical post-baseline/post-scope kept set, always present,
+serialized empty rather than omitted.
+
+**Effect on goldens (observed on the fresh run, not yet recorded).** Every variant gains
+`schemaVersion: "1.3"` and `agentSummary.bySeverity`; no issue-level content changes from this
+class alone.
+
+**golden-auditor verdict:** PENDING golden-auditor — do not audit until the byte re-record actually
+happens.
+
+---
+
+## 2026-08-25 — DRAFT (blocked on the above): settle-stage default flip
+
+**Status: DRAFT, recording blocked.** Describes the U12/U13 default flip (commit `ae65b66`),
+already shipped in code; the goldens themselves have not been re-recorded.
+
+**What changed.** `settleMode` default flips from `"legacy"` to `"full"` (§4.2 amendment above).
+Every capture now runs the evolved settle stage (viewport-height scroll steps, quiescence wait,
+growth cap) instead of the original lazy-load pass.
+
+**Why the old expectation was superseded.** The port-parity plan's Key Technical Decision
+("Settle ships on by default") required verifying near-zero *structural* drift (no phantom
+new/removed issues) before flipping the default; that was checked on a 9-variant cross-section
+during U12 and, again here, confirmed across the full 21-variant set: **zero** issues appear or
+disappear on any of v01–v21 as a result of the flip (id sets identical). The flip does, however,
+shift numeric evidence (`bboxOld`/`bboxNew`, `cssSelectorOld`/`New`, `ordinalInLandmark`, crop
+artifacts, `regionChangedRatio`/`changedPixels`) on variants with lazy-loaded below-the-fold
+content (v02, v03, v04, v07, v12, v19) — the settle stage loads that content more completely
+before extraction than the legacy pass did, which is the point of the feature. This numeric
+re-baselining was not itemized field-by-field in the port-parity plan and needs explicit
+orchestrator confirmation (flagged, not blessed, in the completion report) before the auditor
+treats it as an approved class alongside the severity/schema classes above — it is plausible and
+directionally consistent with U12's stated purpose, but no prior unit's "verified ≈zero drift"
+claim was checked at this byte granularity.
+
+**Spec justification.** `docs/prds/page-pair-diff-spec.md` §4.2 (settle stage, added above).
+
+**golden-auditor verdict:** PENDING golden-auditor — do not audit until the byte re-record actually
+happens, and until the numeric-drift class above is either confirmed-expected or investigated
+further.
+
+---
+
+## 2026-08-25 — DRAFT (blocked on the above): first-time goldens v22–v24
+
+**Status: DRAFT, recording blocked.** `v22-cta-occluded`, `v23-pseudo-rule-removed`, and
+`v24-scroll-reveal` (commits `be0d3c4`, `6a93891`, `6a4824e`) have no prior golden — this is a new
+recording, not a re-record, so no prior expectation is being superseded.
+
+**What the fresh runs show.** `v22`: exactly one `clickable_area_regressed` (`error`), matching its
+`expected-issues.json` intent. `v23`: exactly three `pseudo_element_missing` (`warning`), matching
+its intent. `v24`: zero issues (the settle-pass acceptance case — the scroll-reveal content must
+not false-positive as missing content), matching its intent. All three carry the confidence-penalty
+regression described above (`confidence: 0.72` where the base is `0.9`), so their first golden
+recording is blocked on the same fix.
+
+**Spec justification.** §7.3 (taxonomy additions, above), §11 (clickable-area/pseudo-element diff
+notes, above).
+
+**golden-auditor verdict:** PENDING golden-auditor — do not audit until the byte re-record actually
+happens.

@@ -144,6 +144,23 @@ Useful flags:
 - `--profile strict-visual | content-structure` — what counts as a failure. The default `content-structure` profile treats content/structure/hygiene problems as failures and pixel-level differences as informational, which is what you want when the redesign is intentional.
 - `--fail-on info|warning|error|critical` — CI gate threshold.
 - `--self-check` — capture the old URL a second time and diff it against itself, writing the old-vs-old result to `self-check.json`. Any issues found there are capture volatility, not real differences: if the probe finds drift, a `volatile_capture` warning (with an issue count and breakdown by type) is added to the main result's `warnings[]`; if the probe itself fails for one or more viewports, a `self_check_failed` warning is added (both can appear when only some viewports fail). Either way, self-check never changes the exit code.
+- `--no-settle` — revert the settle stage to its legacy behavior (scroll-steps + clock-dwell + image-await, no quiescence wait, growth cap, or new determinism statuses). Reach for this when the full settle stage handles a specific page badly; it never captures worse than any previously-shipped version.
+
+### Settle stage
+
+Before extraction, matchy scrolls the page through in viewport-height steps (dwelling on each
+step via the same controlled clock used for time-freeze, so scroll-triggered/`rAF`-driven reveal
+animations still progress deterministically), awaits any lazy images to load-or-error — including
+ones inserted mid-scroll — returns to the top, and then waits for a quiescence window (no
+un-ignored DOM mutation) bounded by a hard timeout before extracting the page model. This is **on
+by default** and is what makes below-the-fold scroll-reveal content (e.g. IX2-style animations)
+show up in its settled state instead of flooding false `missing_text`/`missing_image` issues. A
+page whose growth is unbounded (an infinite feed) hits a deterministic step cap instead of
+scrolling forever; a page using transform-based scroll containers is recorded as
+`settleScrollIneffective` rather than falsely claiming a normal scroll ran. Every settle outcome
+(`settle`, `quiescence`, `settleScrollIneffective`, `settleGrowthCapped`) is recorded in
+`determinism`, and a timeout or failure promotes to a `warnings[]` entry — never a silent
+log-and-continue. Use `--no-settle` to fall back to the pre-existing lazy-load behavior.
 
 A config file mirrors all flags and adds tuning for matching thresholds, stabilization, visual thresholds, redaction, and egress.
 

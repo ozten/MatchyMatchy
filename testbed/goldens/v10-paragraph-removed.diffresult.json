@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_611e7a0eb54e"
+      "issue_8bd44dac0eb7"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_611e7a0eb54e"
+        "issue_8bd44dac0eb7"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_611e7a0eb54e",
+      "id": "issue_8bd44dac0eb7",
       "type": "missing_text",
       "category": "content",
       "severity": "error",

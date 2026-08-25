@@ -448,9 +448,19 @@ impl CaptureDeterminism {
     }
 
     /// Returns true if any of the confidence-relevant steps failed or were skipped.
+    ///
+    /// The lazy-load *function* is satisfied by EITHER path: the legacy
+    /// `lazyLoadPass` step (settle mode "legacy" / pre-settle bundles) or the
+    /// full settle stage (`settle: "ran"`, which subsumes it — the legacy key
+    /// then reads "skipped" by design and must not be treated as degradation;
+    /// see docs/golden-changelog.md, port-parity confidence-penalty finding).
+    /// Settle *outcome* coupling (quiescence timeout / settle failure) is
+    /// handled per-detector, not as a global penalty.
     pub fn has_confidence_penalty(&self) -> bool {
+        let lazy_load_satisfied =
+            self.lazy_load_pass == StepStatus::Ran || self.settle == Some(StepStatus::Ran);
         self.time_frozen != StepStatus::Ran
-            || self.lazy_load_pass != StepStatus::Ran
+            || !lazy_load_satisfied
             || self.fonts_ready != StepStatus::Ran
     }
 }
@@ -1483,6 +1493,37 @@ mod tests {
             retried_without_time_freeze: false,
             integrity: None,
         }
+    }
+
+    /// Full settle subsumes the legacy lazy-load pass: `settle: ran` with
+    /// `lazyLoadPass: skipped` is a clean capture, NOT a penalty. This pins
+    /// the port-parity confidence-penalty regression fix (every issue was
+    /// silently ×0.8 under the default settle mode before it).
+    #[test]
+    fn test_no_confidence_penalty_when_settle_subsumes_lazy_load() {
+        let mut det = make_det();
+        det.lazy_load_pass = StepStatus::Skipped;
+        det.settle = Some(StepStatus::Ran);
+        assert!(!det.has_confidence_penalty());
+    }
+
+    /// Pre-settle bundles (no settle field) keep the legacy rule: a skipped
+    /// lazyLoadPass is a degraded capture.
+    #[test]
+    fn test_confidence_penalty_legacy_lazy_load_skipped_without_settle() {
+        let mut det = make_det();
+        det.lazy_load_pass = StepStatus::Skipped;
+        det.settle = None;
+        assert!(det.has_confidence_penalty());
+    }
+
+    /// A failed settle does not satisfy the lazy-load function.
+    #[test]
+    fn test_confidence_penalty_when_settle_failed_and_lazy_load_skipped() {
+        let mut det = make_det();
+        det.lazy_load_pass = StepStatus::Skipped;
+        det.settle = Some(StepStatus::Failed);
+        assert!(det.has_confidence_penalty());
     }
 
     /// Build a minimal DiffResult with empty regions and region_count = 0.

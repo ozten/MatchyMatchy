@@ -16,9 +16,9 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_97d291f9bb0d",
-      "issue_bb5b728ea168",
-      "issue_eb914dfb7592"
+      "issue_00b00b042de5",
+      "issue_0fb07b0b4a75",
+      "issue_eed293f21634"
     ]
   },
   "scores": {
@@ -45,9 +45,9 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_bb5b728ea168",
-        "issue_97d291f9bb0d",
-        "issue_eb914dfb7592"
+        "issue_0fb07b0b4a75",
+        "issue_00b00b042de5",
+        "issue_eed293f21634"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -58,7 +58,7 @@
   ],
   "issues": [
     {
-      "id": "issue_97d291f9bb0d",
+      "id": "issue_00b00b042de5",
       "type": "broken_link",
       "category": "content",
       "severity": "error",
@@ -114,7 +114,7 @@
       }
     },
     {
-      "id": "issue_bb5b728ea168",
+      "id": "issue_0fb07b0b4a75",
       "type": "changed_link_target",
       "category": "content",
       "severity": "error",
@@ -184,7 +184,7 @@
       }
     },
     {
-      "id": "issue_eb914dfb7592",
+      "id": "issue_eed293f21634",
       "type": "url_protocol_downgrade",
       "category": "hygiene",
       "severity": "info",

@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_b19ad30951a8"
+      "issue_c878d8e195c2"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "warn",
       "issues": [
-        "issue_b19ad30951a8"
+        "issue_c878d8e195c2"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_b19ad30951a8",
+      "id": "issue_c878d8e195c2",
       "type": "console_error",
       "category": "technical",
       "severity": "warning",

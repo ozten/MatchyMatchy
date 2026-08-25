@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_bac5d61ccae1"
+      "issue_6dac7abd431f"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_bac5d61ccae1"
+        "issue_6dac7abd431f"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_bac5d61ccae1",
+      "id": "issue_6dac7abd431f",
       "type": "url_redirect_chain",
       "category": "hygiene",
       "severity": "error",

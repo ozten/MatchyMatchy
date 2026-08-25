@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_6b88aeb2436e"
+      "issue_68f6a5a1ea37"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_6b88aeb2436e"
+        "issue_68f6a5a1ea37"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_6b88aeb2436e",
+      "id": "issue_68f6a5a1ea37",
       "type": "changed_h1",
       "category": "content",
       "severity": "error",

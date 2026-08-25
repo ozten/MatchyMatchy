@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_e3d75bf136d1"
+      "issue_2df51fb69f7e"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_e3d75bf136d1"
+        "issue_2df51fb69f7e"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_e3d75bf136d1",
+      "id": "issue_2df51fb69f7e",
       "type": "locale_separator_invalid",
       "category": "hygiene",
       "severity": "error",

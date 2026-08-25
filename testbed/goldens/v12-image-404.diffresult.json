@@ -17,11 +17,11 @@
     "clusterCount": 2,
     "regionCount": 0,
     "topFixes": [
-      "issue_16e7cfbe3ecf",
-      "issue_f4fbff68cf48",
+      "issue_e0696eb00eb3",
+      "issue_e49ad0dd1381",
       "cluster_0bbbfc17db16",
       "cluster_ebe4318e14cf",
-      "issue_2c8595b75643"
+      "issue_0047159333f2"
     ]
   },
   "scores": {
@@ -64,43 +64,43 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_a3778c41a353",
-        "issue_a609a79ce17b",
-        "issue_a3778c41a353-2",
-        "issue_1b3672476467",
-        "issue_d69a80415fad",
-        "issue_04e3ea7c0b1a",
-        "issue_1b3672476467-2",
-        "issue_59a5ce5df1cf",
-        "issue_a609a79ce17b-2",
-        "issue_04e3ea7c0b1a-2",
-        "issue_ca9914c2fba8",
-        "issue_bd92e9f72101",
-        "issue_283c81bff95d",
-        "issue_283c81bff95d-2",
-        "issue_2bf212b3a7db",
-        "issue_a609a79ce17b-3",
-        "issue_c0ace9ed85bd",
-        "issue_ea51e4d2a2e3",
-        "issue_269538eec1b4",
-        "issue_beaa4c47b27b",
-        "issue_608b23b19271",
-        "issue_3f7dbfd55fa9",
-        "issue_5c72faffcc21",
-        "issue_9d99c1bdfb79",
-        "issue_4a6f399378c3",
-        "issue_f849d4d8e47d",
-        "issue_f8e533e1ae08",
-        "issue_4a6f399378c3-2",
-        "issue_cee306029e35",
-        "issue_77fb14aa331f",
-        "issue_3b2dc7c7905b",
-        "issue_ed2e21c87c16",
-        "issue_4788dc111883",
-        "issue_3b2dc7c7905b-2",
-        "issue_2c8595b75643",
-        "issue_16e7cfbe3ecf",
-        "issue_f4fbff68cf48"
+        "issue_4dcbe94b1667",
+        "issue_06602ef43981",
+        "issue_4dcbe94b1667-2",
+        "issue_2b293780b1ad",
+        "issue_23138bdca345",
+        "issue_8d90273d3972",
+        "issue_2b293780b1ad-2",
+        "issue_e6f5a9980ca6",
+        "issue_06602ef43981-2",
+        "issue_8d90273d3972-2",
+        "issue_569bc0b74375",
+        "issue_c3ecb768a5f9",
+        "issue_3dbc9beaa76d",
+        "issue_3dbc9beaa76d-2",
+        "issue_c91b4b82fc97",
+        "issue_06602ef43981-3",
+        "issue_5b9503c1415b",
+        "issue_c91b4b82fc97-2",
+        "issue_c91b4b82fc97-3",
+        "issue_c91b4b82fc97-4",
+        "issue_92f24b8a19b1",
+        "issue_9bc51b833e49",
+        "issue_a3f5a82d9224",
+        "issue_7798114f0b8b",
+        "issue_965cae007046",
+        "issue_05639cf45b8d",
+        "issue_14e1bf0158d1",
+        "issue_965cae007046-2",
+        "issue_84c66dcb3779",
+        "issue_8ac8572dc326",
+        "issue_0216393c7e55",
+        "issue_ea115236b80b",
+        "issue_6950d578c977",
+        "issue_0216393c7e55-2",
+        "issue_0047159333f2",
+        "issue_e0696eb00eb3",
+        "issue_e49ad0dd1381"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -111,7 +111,7 @@
   ],
   "issues": [
     {
-      "id": "issue_16e7cfbe3ecf",
+      "id": "issue_e0696eb00eb3",
       "type": "broken_image",
       "category": "content",
       "severity": "error",
@@ -185,7 +185,7 @@
       }
     },
     {
-      "id": "issue_f4fbff68cf48",
+      "id": "issue_e49ad0dd1381",
       "type": "network_error",
       "category": "technical",
       "severity": "error",
@@ -243,7 +243,7 @@
       }
     },
     {
-      "id": "issue_04e3ea7c0b1a",
+      "id": "issue_8d90273d3972",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -301,7 +301,7 @@
       "remediation": null
     },
     {
-      "id": "issue_04e3ea7c0b1a-2",
+      "id": "issue_8d90273d3972-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -359,7 +359,7 @@
       "remediation": null
     },
     {
-      "id": "issue_1b3672476467",
+      "id": "issue_2b293780b1ad",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -417,7 +417,7 @@
       "remediation": null
     },
     {
-      "id": "issue_1b3672476467-2",
+      "id": "issue_2b293780b1ad-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -475,7 +475,7 @@
       "remediation": null
     },
     {
-      "id": "issue_269538eec1b4",
+      "id": "issue_c91b4b82fc97-3",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -533,7 +533,7 @@
       "remediation": null
     },
     {
-      "id": "issue_283c81bff95d",
+      "id": "issue_3dbc9beaa76d",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -591,7 +591,7 @@
       "remediation": null
     },
     {
-      "id": "issue_283c81bff95d-2",
+      "id": "issue_3dbc9beaa76d-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -649,7 +649,7 @@
       "remediation": null
     },
     {
-      "id": "issue_2bf212b3a7db",
+      "id": "issue_c91b4b82fc97",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -707,7 +707,7 @@
       "remediation": null
     },
     {
-      "id": "issue_3b2dc7c7905b",
+      "id": "issue_0216393c7e55",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -765,7 +765,7 @@
       "remediation": null
     },
     {
-      "id": "issue_3b2dc7c7905b-2",
+      "id": "issue_0216393c7e55-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -823,7 +823,7 @@
       "remediation": null
     },
     {
-      "id": "issue_3f7dbfd55fa9",
+      "id": "issue_9bc51b833e49",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -881,7 +881,7 @@
       "remediation": null
     },
     {
-      "id": "issue_4788dc111883",
+      "id": "issue_6950d578c977",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -939,7 +939,7 @@
       "remediation": null
     },
     {
-      "id": "issue_4a6f399378c3",
+      "id": "issue_965cae007046",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -997,7 +997,7 @@
       "remediation": null
     },
     {
-      "id": "issue_4a6f399378c3-2",
+      "id": "issue_965cae007046-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1055,7 +1055,7 @@
       "remediation": null
     },
     {
-      "id": "issue_59a5ce5df1cf",
+      "id": "issue_e6f5a9980ca6",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1113,7 +1113,7 @@
       "remediation": null
     },
     {
-      "id": "issue_5c72faffcc21",
+      "id": "issue_a3f5a82d9224",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1171,7 +1171,7 @@
       "remediation": null
     },
     {
-      "id": "issue_608b23b19271",
+      "id": "issue_92f24b8a19b1",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1229,7 +1229,7 @@
       "remediation": null
     },
     {
-      "id": "issue_77fb14aa331f",
+      "id": "issue_8ac8572dc326",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1287,7 +1287,7 @@
       "remediation": null
     },
     {
-      "id": "issue_9d99c1bdfb79",
+      "id": "issue_7798114f0b8b",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1345,7 +1345,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a3778c41a353",
+      "id": "issue_4dcbe94b1667",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1403,7 +1403,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a3778c41a353-2",
+      "id": "issue_4dcbe94b1667-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1461,7 +1461,7 @@
       "remediation": null
     },
     {
-      "id": "issue_bd92e9f72101",
+      "id": "issue_c3ecb768a5f9",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1519,7 +1519,7 @@
       "remediation": null
     },
     {
-      "id": "issue_beaa4c47b27b",
+      "id": "issue_c91b4b82fc97-4",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1577,7 +1577,7 @@
       "remediation": null
     },
     {
-      "id": "issue_c0ace9ed85bd",
+      "id": "issue_5b9503c1415b",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1635,7 +1635,7 @@
       "remediation": null
     },
     {
-      "id": "issue_ca9914c2fba8",
+      "id": "issue_569bc0b74375",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1693,7 +1693,7 @@
       "remediation": null
     },
     {
-      "id": "issue_cee306029e35",
+      "id": "issue_84c66dcb3779",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1751,7 +1751,7 @@
       "remediation": null
     },
     {
-      "id": "issue_d69a80415fad",
+      "id": "issue_23138bdca345",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1809,7 +1809,7 @@
       "remediation": null
     },
     {
-      "id": "issue_ea51e4d2a2e3",
+      "id": "issue_c91b4b82fc97-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1867,7 +1867,7 @@
       "remediation": null
     },
     {
-      "id": "issue_ed2e21c87c16",
+      "id": "issue_ea115236b80b",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1925,7 +1925,7 @@
       "remediation": null
     },
     {
-      "id": "issue_f849d4d8e47d",
+      "id": "issue_05639cf45b8d",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1983,7 +1983,7 @@
       "remediation": null
     },
     {
-      "id": "issue_f8e533e1ae08",
+      "id": "issue_14e1bf0158d1",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -2041,7 +2041,7 @@
       "remediation": null
     },
     {
-      "id": "issue_2c8595b75643",
+      "id": "issue_0047159333f2",
       "type": "page_height_changed",
       "category": "visual",
       "severity": "info",
@@ -2100,7 +2100,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b",
+      "id": "issue_06602ef43981",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -2158,7 +2158,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b-2",
+      "id": "issue_06602ef43981-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -2216,7 +2216,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b-3",
+      "id": "issue_06602ef43981-3",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -2278,33 +2278,33 @@
     {
       "id": "cluster_ebe4318e14cf",
       "issueIds": [
-        "issue_04e3ea7c0b1a",
-        "issue_04e3ea7c0b1a-2",
-        "issue_1b3672476467",
-        "issue_1b3672476467-2",
-        "issue_269538eec1b4",
-        "issue_283c81bff95d",
-        "issue_283c81bff95d-2",
-        "issue_2bf212b3a7db",
-        "issue_3f7dbfd55fa9",
-        "issue_4a6f399378c3",
-        "issue_4a6f399378c3-2",
-        "issue_59a5ce5df1cf",
-        "issue_5c72faffcc21",
-        "issue_608b23b19271",
-        "issue_77fb14aa331f",
-        "issue_9d99c1bdfb79",
-        "issue_a3778c41a353",
-        "issue_a3778c41a353-2",
-        "issue_bd92e9f72101",
-        "issue_beaa4c47b27b",
-        "issue_c0ace9ed85bd",
-        "issue_ca9914c2fba8",
-        "issue_cee306029e35",
-        "issue_d69a80415fad",
-        "issue_ea51e4d2a2e3",
-        "issue_f849d4d8e47d",
-        "issue_f8e533e1ae08"
+        "issue_8d90273d3972",
+        "issue_8d90273d3972-2",
+        "issue_2b293780b1ad",
+        "issue_2b293780b1ad-2",
+        "issue_c91b4b82fc97-3",
+        "issue_3dbc9beaa76d",
+        "issue_3dbc9beaa76d-2",
+        "issue_c91b4b82fc97",
+        "issue_9bc51b833e49",
+        "issue_965cae007046",
+        "issue_965cae007046-2",
+        "issue_e6f5a9980ca6",
+        "issue_a3f5a82d9224",
+        "issue_92f24b8a19b1",
+        "issue_8ac8572dc326",
+        "issue_7798114f0b8b",
+        "issue_4dcbe94b1667",
+        "issue_4dcbe94b1667-2",
+        "issue_c3ecb768a5f9",
+        "issue_c91b4b82fc97-4",
+        "issue_5b9503c1415b",
+        "issue_569bc0b74375",
+        "issue_84c66dcb3779",
+        "issue_23138bdca345",
+        "issue_c91b4b82fc97-2",
+        "issue_05639cf45b8d",
+        "issue_14e1bf0158d1"
       ],
       "sharedProperty": null,
       "sharedLandmark": "main",
@@ -2313,10 +2313,10 @@
     {
       "id": "cluster_0bbbfc17db16",
       "issueIds": [
-        "issue_3b2dc7c7905b",
-        "issue_3b2dc7c7905b-2",
-        "issue_4788dc111883",
-        "issue_ed2e21c87c16"
+        "issue_0216393c7e55",
+        "issue_0216393c7e55-2",
+        "issue_6950d578c977",
+        "issue_ea115236b80b"
       ],
       "sharedProperty": null,
       "sharedLandmark": "contentinfo",

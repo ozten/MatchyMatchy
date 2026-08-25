@@ -43,21 +43,21 @@
       "name": "desktop",
       "status": "warn",
       "issues": [
-        "issue_e2df782ac189",
-        "issue_b7e0226b0dec",
-        "issue_5755c713d587",
-        "issue_b8d8c3430662",
-        "issue_cf49d21e71aa",
-        "issue_8d3e098810a8",
-        "issue_ac1565058303",
-        "issue_b486361e5f35",
-        "issue_31183bc76cc7",
-        "issue_4f53b68ad0b0",
-        "issue_13d7abe3f281",
-        "issue_38b968e4283a",
-        "issue_c07fdc2db56b",
-        "issue_1c1150bbae7f",
-        "issue_d9ac55d571e6"
+        "issue_0b39d312bfce-2",
+        "issue_9c2e1eee953e",
+        "issue_62d8f6a8d041",
+        "issue_0b39d312bfce",
+        "issue_9c2e1eee953e-2",
+        "issue_87e835cc4aa1-2",
+        "issue_3b15afaae631-2",
+        "issue_3f83c7b09ef0",
+        "issue_705989e837bd",
+        "issue_8f945e71cda5",
+        "issue_87e835cc4aa1",
+        "issue_3b15afaae631",
+        "issue_8677d15ef23f",
+        "issue_5d569dbc9da3",
+        "issue_a7b45e873d4f"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -68,7 +68,7 @@
   ],
   "issues": [
     {
-      "id": "issue_13d7abe3f281",
+      "id": "issue_87e835cc4aa1",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -137,7 +137,7 @@
       }
     },
     {
-      "id": "issue_1c1150bbae7f",
+      "id": "issue_5d569dbc9da3",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -206,7 +206,7 @@
       }
     },
     {
-      "id": "issue_31183bc76cc7",
+      "id": "issue_705989e837bd",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -275,7 +275,7 @@
       }
     },
     {
-      "id": "issue_38b968e4283a",
+      "id": "issue_3b15afaae631",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -344,7 +344,7 @@
       }
     },
     {
-      "id": "issue_4f53b68ad0b0",
+      "id": "issue_8f945e71cda5",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -413,7 +413,7 @@
       }
     },
     {
-      "id": "issue_5755c713d587",
+      "id": "issue_62d8f6a8d041",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -482,7 +482,7 @@
       }
     },
     {
-      "id": "issue_8d3e098810a8",
+      "id": "issue_87e835cc4aa1-2",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -551,7 +551,7 @@
       }
     },
     {
-      "id": "issue_ac1565058303",
+      "id": "issue_3b15afaae631-2",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -620,7 +620,7 @@
       }
     },
     {
-      "id": "issue_b486361e5f35",
+      "id": "issue_3f83c7b09ef0",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -689,7 +689,7 @@
       }
     },
     {
-      "id": "issue_b7e0226b0dec",
+      "id": "issue_9c2e1eee953e",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -758,7 +758,7 @@
       }
     },
     {
-      "id": "issue_b8d8c3430662",
+      "id": "issue_0b39d312bfce",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -827,7 +827,7 @@
       }
     },
     {
-      "id": "issue_c07fdc2db56b",
+      "id": "issue_8677d15ef23f",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -896,7 +896,7 @@
       }
     },
     {
-      "id": "issue_cf49d21e71aa",
+      "id": "issue_9c2e1eee953e-2",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -965,7 +965,7 @@
       }
     },
     {
-      "id": "issue_d9ac55d571e6",
+      "id": "issue_a7b45e873d4f",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -1034,7 +1034,7 @@
       }
     },
     {
-      "id": "issue_e2df782ac189",
+      "id": "issue_0b39d312bfce-2",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -1107,12 +1107,12 @@
     {
       "id": "cluster_986daf748f33",
       "issueIds": [
-        "issue_38b968e4283a",
-        "issue_4f53b68ad0b0",
-        "issue_ac1565058303",
-        "issue_b7e0226b0dec",
-        "issue_cf49d21e71aa",
-        "issue_d9ac55d571e6"
+        "issue_3b15afaae631",
+        "issue_8f945e71cda5",
+        "issue_3b15afaae631-2",
+        "issue_9c2e1eee953e",
+        "issue_9c2e1eee953e-2",
+        "issue_a7b45e873d4f"
       ],
       "sharedProperty": "padding-left",
       "sharedLandmark": null,
@@ -1121,12 +1121,12 @@
     {
       "id": "cluster_d91e361ac932",
       "issueIds": [
-        "issue_13d7abe3f281",
-        "issue_1c1150bbae7f",
-        "issue_31183bc76cc7",
-        "issue_8d3e098810a8",
-        "issue_b8d8c3430662",
-        "issue_e2df782ac189"
+        "issue_87e835cc4aa1",
+        "issue_5d569dbc9da3",
+        "issue_705989e837bd",
+        "issue_87e835cc4aa1-2",
+        "issue_0b39d312bfce",
+        "issue_0b39d312bfce-2"
       ],
       "sharedProperty": "padding-right",
       "sharedLandmark": null,
@@ -1135,9 +1135,9 @@
     {
       "id": "cluster_5d1089cefb78",
       "issueIds": [
-        "issue_5755c713d587",
-        "issue_b486361e5f35",
-        "issue_c07fdc2db56b"
+        "issue_62d8f6a8d041",
+        "issue_3f83c7b09ef0",
+        "issue_8677d15ef23f"
       ],
       "sharedProperty": "background-color",
       "sharedLandmark": null,

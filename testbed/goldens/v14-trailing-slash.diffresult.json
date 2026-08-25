@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_d1d813fa5b6b"
+      "issue_9eb2afcd07cf"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_d1d813fa5b6b"
+        "issue_9eb2afcd07cf"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_d1d813fa5b6b",
+      "id": "issue_9eb2afcd07cf",
       "type": "url_trailing_slash",
       "category": "hygiene",
       "severity": "error",

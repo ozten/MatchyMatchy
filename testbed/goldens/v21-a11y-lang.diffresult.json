@@ -14,7 +14,7 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_332ab0c6f379"
+      "issue_12eb7046062a"
     ]
   },
   "scores": {
@@ -41,7 +41,7 @@
       "name": "desktop",
       "status": "warn",
       "issues": [
-        "issue_332ab0c6f379"
+        "issue_12eb7046062a"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +52,7 @@
   ],
   "issues": [
     {
-      "id": "issue_332ab0c6f379",
+      "id": "issue_12eb7046062a",
       "type": "accessibility_regression",
       "category": "accessibility",
       "severity": "warning",
