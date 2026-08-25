@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-09-05Z",
+  "runId": "2026-08-25T18-39-35Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47018/products/connect/branded-call",
   "parityProfile": "content-structure",
@@ -10,6 +10,9 @@
     "fixableNow": 1,
     "byType": {
       "status_code_mismatch": 1
+    },
+    "bySeverity": {
+      "critical": 1
     },
     "clusterCount": 0,
     "regionCount": 0,
@@ -108,7 +111,24 @@
     "count": 0,
     "ids": []
   },
-  "warnings": [],
+  "warnings": [
+    {
+      "code": "capability_mismatch",
+      "message": "channel 'hitTests' is unavailable on the new capture; detector(s) relying on it are silently disabled for this run",
+      "context": {
+        "channel": "hitTests",
+        "missingOn": "new"
+      }
+    },
+    {
+      "code": "capability_mismatch",
+      "message": "channel 'pseudoElements' is unavailable on the new capture; detector(s) relying on it are silently disabled for this run",
+      "context": {
+        "channel": "pseudoElements",
+        "missingOn": "new"
+      }
+    }
+  ],
   "scopedTo": null,
   "outOfScope": {
     "count": 0,
@@ -122,8 +142,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -148,8 +171,12 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
+      "settleScrollIneffective": true,
       "clicked": [],
       "hidden": [],
       "masked": [],

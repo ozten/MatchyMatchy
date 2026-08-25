@@ -1,15 +1,15 @@
 {
   "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-08-25T18-31-02Z",
+  "runId": "2026-08-25T18-42-30Z",
   "oldUrl": "http://localhost:47000/",
-  "newUrl": "http://localhost:47008/",
+  "newUrl": "http://localhost:47022/",
   "parityProfile": "content-structure",
   "status": "fail",
   "agentSummary": {
     "fixableNow": 1,
     "byType": {
-      "missing_link": 1
+      "clickable_area_regressed": 1
     },
     "bySeverity": {
       "error": 1
@@ -17,12 +17,12 @@
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_d66e11f3cf55"
+      "issue_cb62c2eba182"
     ]
   },
   "scores": {
-    "visual": 0.9992956022168076,
-    "content": 0.5,
+    "visual": 0.9994848151864061,
+    "content": 1.0,
     "structure": 1.0,
     "style": 1.0,
     "accessibility": 1.0,
@@ -30,7 +30,7 @@
     "hygiene": 1.0,
     "byLandmark": {
       "main": {
-        "content": 0.5,
+        "content": 1.0,
         "structure": 1.0,
         "style": 1.0,
         "accessibility": 1.0,
@@ -44,7 +44,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_d66e11f3cf55"
+        "issue_cb62c2eba182"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -55,60 +55,66 @@
   ],
   "issues": [
     {
-      "id": "issue_d66e11f3cf55",
-      "type": "missing_link",
-      "category": "content",
+      "id": "issue_cb62c2eba182",
+      "type": "clickable_area_regressed",
+      "category": "visual",
       "severity": "error",
       "confidence": 0.9,
       "viewport": "desktop",
       "locale": "en-US",
-      "goal": "G2",
-      "message": "Link removed: 'Get a Demo'",
+      "goal": null,
+      "message": "Clickable area regressed near \"Reach more customers with Hiya's Branded Call\": 100% -> 0% of sampled points hit (top overlap: div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > img:nth-of-type(1))",
       "locator": {
         "anchors": {
-          "text": "Get a Demo",
+          "text": "See pricing and sign up",
           "role": "link",
-          "href": "https://www.hiya.com/get-a-demo",
+          "href": "http://localhost:47000/pricing.html",
           "alt": null,
           "ariaLabel": null,
           "nearestHeading": "Reach more customers with Hiya's Branded Call",
           "landmark": "main",
           "ordinalInLandmark": 1
         },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2)",
-        "cssSelectorNew": null,
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1)",
         "bboxOld": [
-          366,
+          120,
           583,
-          151,
+          230,
           48
         ],
-        "bboxNew": null,
-        "seqIndexOld": 21,
-        "seqIndexNew": null
+        "bboxNew": [
+          120,
+          583,
+          230,
+          48
+        ],
+        "seqIndexOld": 19,
+        "seqIndexNew": 19
       },
       "evidence": {
-        "match": {
-          "band": "unmatched",
-          "bestScore": 1.0,
-          "stage": "assignment"
+        "excludedPoints": "0",
+        "new": {
+          "hitFraction": "0.0000",
+          "missWinners": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > img:nth-of-type(1) (x25)",
+          "rawHits": "0/25"
         },
         "old": {
-          "href": "https://www.hiya.com/get-a-demo",
-          "text": "Get a Demo"
+          "hitFraction": "1.0000",
+          "rawHits": "25/25"
         }
       },
       "remediation": {
-        "action": "restore_content",
+        "action": "restore_clickable_area",
         "findBy": {
           "grep": [
-            "Get a Demo",
-            "https://www.hiya.com/get-a-demo"
+            "\"http://localhost:47000/pricing.html\"",
+            "See pricing and sign up",
+            "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > img:nth-of-type(1)"
           ],
           "near": "Reach more customers with Hiya's Branded Call"
         },
-        "from": null,
-        "to": "Get a Demo"
+        "note": "The element matching \"div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > img:nth-of-type(1)\" overlaps this target and is intercepting clicks. Check its position/size/z-index relative to the target. The tool does not name the source component — use the grep targets to locate it in source or CMS."
       }
     }
   ],
@@ -173,12 +179,12 @@
       "integrity": {
         "pre": {
           "headingCount": 10,
-          "imageCount": 103,
+          "imageCount": 104,
           "landmarkCount": 25
         },
         "post": {
           "headingCount": 10,
-          "imageCount": 103,
+          "imageCount": 104,
           "landmarkCount": 25
         }
       }

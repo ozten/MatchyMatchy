@@ -78,14 +78,14 @@ struct Cli {
     #[arg(long, global = false, default_value_t = false)]
     no_stub_random: bool,
 
-    /// Force the legacy settle stage (today's scroll-steps + clock dwell +
+    /// Force the legacy settle stage (scroll-steps + clock dwell +
     /// image-await lazyLoadPass — no quiescence wait, growth cap, or new
     /// determinism statuses) regardless of the built-in default. Port-parity
-    /// U12: this unit's built-in default is ALSO "legacy" (the flip to the
-    /// full settle stage is a separate later commit), so today `--no-settle`
-    /// is a no-op vs. omitting it — it exists so scripts can pin "legacy"
-    /// explicitly ahead of that flip. Full stage-skip (`settleMode: "off"`)
-    /// is config-file only; no CLI flag maps to it.
+    /// U12: the built-in default is now "full" (flipped in a dedicated commit
+    /// after this unit landed), so `--no-settle` reverts to the pre-flip
+    /// behavior described above — it is the flag to reach for when the full
+    /// settle stage handles a specific page badly. Full stage-skip
+    /// (`settleMode: "off"`) is config-file only; no CLI flag maps to it.
     #[arg(long, global = false, default_value_t = false)]
     no_settle: bool,
 

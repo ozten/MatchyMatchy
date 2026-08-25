@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-08-42Z",
+  "runId": "2026-08-25T18-36-04Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47014/products/connect/branded-call/",
   "parityProfile": "content-structure",
@@ -10,6 +10,9 @@
     "fixableNow": 1,
     "byType": {
       "url_trailing_slash": 1
+    },
+    "bySeverity": {
+      "error": 1
     },
     "clusterCount": 0,
     "regionCount": 0,
@@ -119,8 +122,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -145,8 +151,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],

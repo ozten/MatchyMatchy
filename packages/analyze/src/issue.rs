@@ -150,8 +150,8 @@ pub fn resolve_id_collisions(issues: &mut [Issue]) {
         if indices.len() <= 1 {
             continue;
         }
-        // Sort colliders by (bboxNew.y, bboxNew.x, bboxOld.y, bboxOld.x), None sorts last.
-        // Tie-break by issue id for total order.
+        // Sort colliders by document order: (seqIndexOld, seqIndexNew), None sorts last.
+        // Tie-break by issue id for total order. Never bbox pixels (U2 stability fix).
         indices.sort_by(|&a, &b| {
             let ia = &issues[a];
             let ib = &issues[b];

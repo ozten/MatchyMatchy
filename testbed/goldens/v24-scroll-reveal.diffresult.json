@@ -1,24 +1,18 @@
 {
   "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-08-25T18-36-57Z",
+  "runId": "2026-08-25T18-44-07Z",
   "oldUrl": "http://localhost:47000/",
-  "newUrl": "http://localhost:47015/es_MX/products/connect/branded-call",
+  "newUrl": "http://localhost:47024/",
   "parityProfile": "content-structure",
-  "status": "fail",
+  "status": "pass",
   "agentSummary": {
-    "fixableNow": 1,
-    "byType": {
-      "locale_separator_invalid": 1
-    },
-    "bySeverity": {
-      "error": 1
-    },
+    "fixableNow": 0,
+    "byType": {},
+    "bySeverity": {},
     "clusterCount": 0,
     "regionCount": 0,
-    "topFixes": [
-      "issue_2df51fb69f7e"
-    ]
+    "topFixes": []
   },
   "scores": {
     "visual": 1.0,
@@ -27,25 +21,14 @@
     "style": 1.0,
     "accessibility": 1.0,
     "technical": 1.0,
-    "hygiene": 0.5,
-    "byLandmark": {
-      "(none)": {
-        "content": 1.0,
-        "structure": 1.0,
-        "style": 1.0,
-        "accessibility": 1.0,
-        "technical": 1.0,
-        "hygiene": 0.5
-      }
-    }
+    "hygiene": 1.0,
+    "byLandmark": {}
   },
   "viewports": [
     {
       "name": "desktop",
-      "status": "fail",
-      "issues": [
-        "issue_2df51fb69f7e"
-      ],
+      "status": "pass",
+      "issues": [],
       "artifacts": {
         "old": "desktop/old.png",
         "new": "desktop/new.png",
@@ -53,55 +36,7 @@
       }
     }
   ],
-  "issues": [
-    {
-      "id": "issue_2df51fb69f7e",
-      "type": "locale_separator_invalid",
-      "category": "hygiene",
-      "severity": "error",
-      "confidence": 0.98,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G6",
-      "message": "Locale separator invalid in segment 'es_MX': use hyphen not underscore",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": null,
-          "href": "/es_MX/products/connect/branded-call",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": null,
-          "landmark": null,
-          "ordinalInLandmark": null
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": null,
-        "bboxOld": null,
-        "bboxNew": null,
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "new": {
-          "expected": "es-MX",
-          "localeSegment": "es_MX",
-          "url": "http://localhost:47015/es_MX/products/connect/branded-call"
-        }
-      },
-      "remediation": {
-        "action": "rewrite_url",
-        "findBy": {
-          "grep": [
-            "es_MX"
-          ]
-        },
-        "from": "/es_MX/products/connect/branded-call",
-        "note": "Locale separator should be a hyphen (-), not underscore (_). Update all references.",
-        "to": "/es-MX/products/connect/branded-call"
-      }
-    }
-  ],
+  "issues": [],
   "clusters": [],
   "regions": [],
   "suppressed": {

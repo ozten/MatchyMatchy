@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-09-21Z",
+  "runId": "2026-08-25T18-41-41Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47021/",
   "parityProfile": "content-structure",
@@ -10,6 +10,9 @@
     "fixableNow": 0,
     "byType": {
       "accessibility_regression": 1
+    },
+    "bySeverity": {
+      "warning": 1
     },
     "clusterCount": 0,
     "regionCount": 0,
@@ -133,8 +136,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -159,8 +165,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
