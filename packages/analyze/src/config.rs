@@ -446,12 +446,12 @@ pub const PSEUDO_SELECTOR_UNMATCHED_DEMOTION: f64 = 0.6;
 // ---------------------------------------------------------------------------
 
 /// Default `StabilizationConfig.settleMode` that `orchestrate::build_capture_config`
-/// sends when `--no-settle` is NOT passed. Frozen at `Legacy` for THIS unit
-/// (U12) — settle ships inert-then-flipped (plan §"Settle ships on by
-/// default"): the flip to `Full` is a dedicated, separately-triaged later
-/// commit. Change ONLY this constant to perform that flip; `--no-settle`
-/// always forces `Legacy` regardless of this constant's value.
-pub const DEFAULT_SETTLE_MODE: SettleMode = SettleMode::Legacy;
+/// sends when `--no-settle` is NOT passed. Landed at `Legacy` in U12 and
+/// flipped to `Full` in the dedicated default-flip commit (settle on by
+/// default per issue #4; plan §"Settle ships on by default", staged
+/// inert-then-flipped with its own drift triage). `--no-settle` always
+/// forces `Legacy` regardless of this constant's value.
+pub const DEFAULT_SETTLE_MODE: SettleMode = SettleMode::Full;
 
 // ---------------------------------------------------------------------------
 // Unit tests

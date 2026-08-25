@@ -978,7 +978,8 @@ mod tests {
     }
 
     /// `no_settle: false` sends the current default constant explicitly
-    /// (`config::DEFAULT_SETTLE_MODE`, frozen at `Legacy` in this unit).
+    /// (`config::DEFAULT_SETTLE_MODE`, flipped to `Full` in the dedicated
+    /// default-flip commit).
     #[test]
     fn test_build_capture_config_default_settle_mode_matches_constant() {
         let vp = default_vp();
@@ -999,10 +1000,11 @@ mod tests {
             config.stabilization.settle_mode,
             crate::config::DEFAULT_SETTLE_MODE
         );
-        // Locked to Legacy for THIS unit — the flip is a dedicated later commit.
+        // The dedicated flip commit moved the shipped default to Full
+        // (settle on by default per issue #4 / plan U12 staging).
         assert_eq!(
             config.stabilization.settle_mode,
-            crate::contract::SettleMode::Legacy
+            crate::contract::SettleMode::Full
         );
     }
 
