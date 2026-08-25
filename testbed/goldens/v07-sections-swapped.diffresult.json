@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-08-01Z",
+  "runId": "2026-08-25T18-30-10Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47007/",
   "parityProfile": "content-structure",
@@ -12,12 +12,16 @@
       "component_swapped": 1,
       "visual_region_changed": 5
     },
+    "bySeverity": {
+      "error": 1,
+      "info": 5
+    },
     "clusterCount": 1,
     "regionCount": 0,
     "topFixes": [
-      "issue_5b7b988e2998",
+      "issue_0288ad799ece",
       "cluster_ebe4318e14cf",
-      "issue_a609a79ce17b"
+      "issue_06602ef43981"
     ]
   },
   "scores": {
@@ -52,12 +56,12 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_a3778c41a353",
-        "issue_8e8483310c5c",
-        "issue_a609a79ce17b",
-        "issue_8e8483310c5c-2",
-        "issue_a3778c41a353-2",
-        "issue_5b7b988e2998"
+        "issue_4dcbe94b1667",
+        "issue_d6763e37fecb-2",
+        "issue_06602ef43981",
+        "issue_d6763e37fecb",
+        "issue_4dcbe94b1667-2",
+        "issue_0288ad799ece"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -68,7 +72,7 @@
   ],
   "issues": [
     {
-      "id": "issue_5b7b988e2998",
+      "id": "issue_0288ad799ece",
       "type": "component_swapped",
       "category": "structure",
       "severity": "error",
@@ -212,123 +216,7 @@
       }
     },
     {
-      "id": "issue_8e8483310c5c",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (121, 1832) 578x316",
-      "locator": {
-        "anchors": {
-          "text": "Display your company’s name, logo, and call reason on outbound calls",
-          "role": "heading",
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
-        "bboxOld": [
-          121,
-          1832,
-          578,
-          316
-        ],
-        "bboxNew": [
-          121,
-          1832,
-          578,
-          316
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 54
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_8e8483310c5c_diff.png",
-          "newCrop": "desktop/issues/issue_8e8483310c5c_new.png",
-          "oldCrop": "desktop/issues/issue_8e8483310c5c_old.png"
-        },
-        "visual": {
-          "changedPixels": 45851,
-          "pageChangedRatio": 0.045049209306769866,
-          "regionBbox": [
-            121,
-            1832,
-            578,
-            316
-          ],
-          "regionChangedRatio": 0.004563705349322377
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_8e8483310c5c-2",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (121, 2302) 578x363",
-      "locator": {
-        "anchors": {
-          "text": "Display your company’s name, logo, and call reason on outbound calls",
-          "role": "heading",
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
-        "cssSelectorNew": null,
-        "bboxOld": [
-          121,
-          2302,
-          578,
-          363
-        ],
-        "bboxNew": [
-          121,
-          2302,
-          578,
-          363
-        ],
-        "seqIndexOld": 58,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_8e8483310c5c-2_diff.png",
-          "newCrop": "desktop/issues/issue_8e8483310c5c-2_new.png",
-          "oldCrop": "desktop/issues/issue_8e8483310c5c-2_old.png"
-        },
-        "visual": {
-          "changedPixels": 47495,
-          "pageChangedRatio": 0.045049209306769866,
-          "regionBbox": [
-            121,
-            2302,
-            578,
-            363
-          ],
-          "regionChangedRatio": 0.0047273382383386684
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_a3778c41a353",
+      "id": "issue_4dcbe94b1667",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -367,9 +255,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a3778c41a353_diff.png",
-          "newCrop": "desktop/issues/issue_a3778c41a353_new.png",
-          "oldCrop": "desktop/issues/issue_a3778c41a353_old.png"
+          "diffCrop": "desktop/issues/issue_4dcbe94b1667_diff.png",
+          "newCrop": "desktop/issues/issue_4dcbe94b1667_new.png",
+          "oldCrop": "desktop/issues/issue_4dcbe94b1667_old.png"
         },
         "visual": {
           "changedPixels": 178720,
@@ -386,7 +274,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a3778c41a353-2",
+      "id": "issue_4dcbe94b1667-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -425,9 +313,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a3778c41a353-2_diff.png",
-          "newCrop": "desktop/issues/issue_a3778c41a353-2_new.png",
-          "oldCrop": "desktop/issues/issue_a3778c41a353-2_old.png"
+          "diffCrop": "desktop/issues/issue_4dcbe94b1667-2_diff.png",
+          "newCrop": "desktop/issues/issue_4dcbe94b1667-2_new.png",
+          "oldCrop": "desktop/issues/issue_4dcbe94b1667-2_old.png"
         },
         "visual": {
           "changedPixels": 178530,
@@ -444,7 +332,123 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b",
+      "id": "issue_d6763e37fecb",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (121, 2302) 578x363",
+      "locator": {
+        "anchors": {
+          "text": "Display your company’s name, logo, and call reason on outbound calls",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "cssSelectorNew": null,
+        "bboxOld": [
+          121,
+          2302,
+          578,
+          363
+        ],
+        "bboxNew": [
+          121,
+          2302,
+          578,
+          363
+        ],
+        "seqIndexOld": 58,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_d6763e37fecb_diff.png",
+          "newCrop": "desktop/issues/issue_d6763e37fecb_new.png",
+          "oldCrop": "desktop/issues/issue_d6763e37fecb_old.png"
+        },
+        "visual": {
+          "changedPixels": 47495,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            121,
+            2302,
+            578,
+            363
+          ],
+          "regionChangedRatio": 0.0047273382383386684
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_d6763e37fecb-2",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (121, 1832) 578x316",
+      "locator": {
+        "anchors": {
+          "text": "Display your company’s name, logo, and call reason on outbound calls",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Display your company’s name, logo, and call reason on outbound calls",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1)",
+        "bboxOld": [
+          121,
+          1832,
+          578,
+          316
+        ],
+        "bboxNew": [
+          121,
+          1832,
+          578,
+          316
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 54
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_d6763e37fecb-2_diff.png",
+          "newCrop": "desktop/issues/issue_d6763e37fecb-2_new.png",
+          "oldCrop": "desktop/issues/issue_d6763e37fecb-2_old.png"
+        },
+        "visual": {
+          "changedPixels": 45851,
+          "pageChangedRatio": 0.045049209306769866,
+          "regionBbox": [
+            121,
+            1832,
+            578,
+            316
+          ],
+          "regionChangedRatio": 0.004563705349322377
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_06602ef43981",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -483,9 +487,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b_old.png"
+          "diffCrop": "desktop/issues/issue_06602ef43981_diff.png",
+          "newCrop": "desktop/issues/issue_06602ef43981_new.png",
+          "oldCrop": "desktop/issues/issue_06602ef43981_old.png"
         },
         "visual": {
           "changedPixels": 1480,
@@ -506,10 +510,10 @@
     {
       "id": "cluster_ebe4318e14cf",
       "issueIds": [
-        "issue_8e8483310c5c",
-        "issue_8e8483310c5c-2",
-        "issue_a3778c41a353",
-        "issue_a3778c41a353-2"
+        "issue_4dcbe94b1667",
+        "issue_4dcbe94b1667-2",
+        "issue_d6763e37fecb",
+        "issue_d6763e37fecb-2"
       ],
       "sharedProperty": null,
       "sharedLandmark": "main",
@@ -535,8 +539,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -561,8 +568,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],

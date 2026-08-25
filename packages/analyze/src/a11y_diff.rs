@@ -13,7 +13,7 @@ use crate::contract::{
     Anchors, CaptureBundle, Issue, IssueCategory, IssueType, Locator, SemanticNode,
 };
 use crate::issue::compute_issue_id;
-use crate::scoring::{compute_confidence, ParityProfile};
+use crate::scoring::{compute_confidence, SeverityResolver};
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -101,7 +101,7 @@ pub fn a11y_issues(
     old_bundle: &CaptureBundle,
     new_bundle: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     env_mismatch: bool,
 ) -> Vec<Issue> {
     let old_det = &old_bundle.determinism;
@@ -358,6 +358,7 @@ mod tests {
         A11yInfo, CaptureDeterminism, Environment, NetworkInfo, PageModel, Screenshots, StepStatus,
         StyleCandidates, ViewportConfig,
     };
+    use crate::scoring::ParityProfile;
     use std::collections::BTreeMap;
 
     fn make_det() -> CaptureDeterminism {
@@ -370,6 +371,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -419,6 +425,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 
@@ -445,7 +454,7 @@ mod tests {
         let old_bundle = make_bundle("http://localhost:3000/", vec![]);
         let new_bundle = make_bundle("http://localhost:3001/", vec![html_has_lang_violation()]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = a11y_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 
         let regressions: Vec<_> = issues
@@ -484,7 +493,7 @@ mod tests {
         let old_bundle = make_bundle("http://localhost:3000/", vec![html_has_lang_violation()]);
         let new_bundle = make_bundle("http://localhost:3001/", vec![]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = a11y_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 
         let improvements: Vec<_> = issues
@@ -526,7 +535,7 @@ mod tests {
         let old_bundle = make_bundle("http://localhost:3000/", vec![v.clone()]);
         let new_bundle = make_bundle("http://localhost:3001/", vec![v]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = a11y_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         assert!(
             issues.is_empty(),
@@ -540,7 +549,7 @@ mod tests {
         let old_bundle = make_bundle("http://localhost:3000/", vec![]);
         let new_bundle = make_bundle("http://localhost:3001/", vec![html_has_lang_violation()]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues1 = a11y_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         let issues2 = a11y_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 

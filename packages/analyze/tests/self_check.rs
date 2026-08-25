@@ -663,8 +663,8 @@ fn self_check_missing_old_bundle_skips_probe_for_failed_viewport() {
 
     // Main diff-result.json has a load_error issue for the failed viewport.
     let dr_path = out.join("diff-result.json");
-    let dr: serde_json::Value = serde_json::from_slice(&fs::read(&dr_path).unwrap())
-        .expect("diff-result.json must parse");
+    let dr: serde_json::Value =
+        serde_json::from_slice(&fs::read(&dr_path).unwrap()).expect("diff-result.json must parse");
     let issues = dr["issues"]
         .as_array()
         .expect("diff-result.json must have an issues array");
@@ -889,7 +889,11 @@ fn self_check_stale_state_does_not_survive_a_second_run_in_the_same_out_dir() {
         &out,
         &["--self-check", "--viewport", "only=800x600"],
     );
-    assert_eq!(run1.code, 0, "run 1 should be clean; stderr:\n{}", run1.stderr);
+    assert_eq!(
+        run1.code, 0,
+        "run 1 should be clean; stderr:\n{}",
+        run1.stderr
+    );
     assert!(
         out.join("self-check.json").exists(),
         "run 1 should write self-check.json"

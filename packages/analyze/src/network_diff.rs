@@ -14,7 +14,7 @@ use crate::contract::{
     Anchors, CaptureBundle, Issue, IssueCategory, IssueType, Locator, SemanticNode,
 };
 use crate::issue::compute_issue_id;
-use crate::scoring::{compute_confidence, ParityProfile};
+use crate::scoring::{compute_confidence, SeverityResolver};
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -138,7 +138,7 @@ pub fn network_console_issues(
     old_bundle: &CaptureBundle,
     new_bundle: &CaptureBundle,
     viewport: &str,
-    profile: &ParityProfile,
+    profile: &SeverityResolver,
     env_mismatch: bool,
 ) -> Vec<Issue> {
     let old_det = &old_bundle.determinism;
@@ -396,6 +396,7 @@ mod tests {
         NodeAnchors, PageModel, Screenshots, SemanticNode, StepStatus, StyleCandidates,
         ViewportConfig,
     };
+    use crate::scoring::ParityProfile;
     use std::collections::BTreeMap;
 
     fn make_det() -> CaptureDeterminism {
@@ -408,6 +409,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -462,6 +468,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 
@@ -493,6 +502,7 @@ mod tests {
             natural_height: None,
             loaded: Some(false),
             heading_level: None,
+            has_onclick: None,
         }
     }
 
@@ -528,7 +538,7 @@ mod tests {
             vec![img_node],
         );
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 
         let net_issues: Vec<_> = issues
@@ -579,7 +589,7 @@ mod tests {
             vec![],
         );
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         let net_issues: Vec<_> = issues
             .iter()
@@ -608,7 +618,7 @@ mod tests {
         );
         let old_bundle = make_bundle("http://localhost:3000/", vec![], vec![], vec![]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         let net_issues: Vec<_> = issues
             .iter()
@@ -638,7 +648,7 @@ mod tests {
             vec![],
         );
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 
         let console_issues: Vec<_> = issues
@@ -674,7 +684,7 @@ mod tests {
             vec![],
         );
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         let console_issues: Vec<_> = issues
             .iter()
@@ -702,7 +712,7 @@ mod tests {
         );
         let new_bundle = make_bundle("http://localhost:3001/", vec![], vec![entry], vec![]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         let console_issues: Vec<_> = issues
             .iter()
@@ -741,7 +751,7 @@ mod tests {
         let old_bundle = make_bundle("http://localhost:3000/", vec![], vec![], vec![]);
         let new_bundle = make_bundle("http://localhost:3001/", new_requests, vec![], vec![]);
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues1 = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
         let issues2 = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 
@@ -817,6 +827,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -866,6 +881,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         };
 
         let new_bundle = CaptureBundle {
@@ -910,9 +928,12 @@ mod tests {
                 viewport: "desktop/new-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         };
 
-        let profile = ParityProfile::ContentStructure;
+        let profile = SeverityResolver::from_profile(ParityProfile::ContentStructure);
         let issues = network_console_issues(&old_bundle, &new_bundle, "desktop", &profile, false);
 
         let net_issues: Vec<_> = issues

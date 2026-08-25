@@ -1,0 +1,55 @@
+{
+  "status": "pass",
+  "required": [],
+  "forbidden": [
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Stand out, build trust" },
+      "note": "Section starts opacity:0/translateY(40px); the settle pass's scroll-through + quiescence wait must reveal it before capture, so its heading/text must never be reported missing."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Branded Call performance analytics" },
+      "note": "Second scroll-reveal section (carries a below-fold loading=\"lazy\" <img>); must be fully revealed and its lazy image loaded before capture."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Secure Branding: Your Brand, Only on Verified Calls" },
+      "note": "Third scroll-reveal section (carries a below-fold loading=\"lazy\" <img> and the 'Talk to sales' CTA); must be fully revealed before capture."
+    },
+    {
+      "type": "missing_image",
+      "note": "No <img> element was removed or altered anywhere on the page; the two reveal sections that carry images use plain vendored src (no srcset) loading=\"lazy\" tags already present in golden."
+    },
+    {
+      "type": "missing_button",
+      "note": "No button/CTA removed."
+    },
+    {
+      "type": "missing_link",
+      "anchors": { "textContains": "Talk to sales" },
+      "note": "The 'Talk to sales' CTA inside the third reveal section is untouched; once revealed it matches golden 1:1 and must never be reported missing."
+    },
+    {
+      "type": "visual_region_changed",
+      "note": "Once settle's scroll-through crosses each section's reveal threshold, the '.is-revealed' class flips opacity:1/transform:none permanently (one-way latch) -- by the time screenshots are taken (after settle returns to top), the rendered page must be pixel-equivalent to golden's static sections. Any visual diff here means settle failed to reveal before capture (pre-animation state leaked into the screenshot)."
+    },
+    {
+      "type": "style_changed",
+      "anchors": { "textContains": "Branded Call performance analytics" },
+      "note": "Post-reveal computed opacity/transform on this section's owner nodes must equal golden's (opacity 1, no transform) -- a style_changed here would mean the reveal class never latched before capture."
+    },
+    {
+      "type": "style_changed",
+      "anchors": { "textContains": "Secure Branding: Your Brand, Only on Verified Calls" },
+      "note": "Same post-reveal computed-style guarantee for the third section."
+    },
+    {
+      "type": "clickable_area_regressed",
+      "anchors": { "textContains": "Talk to sales" },
+      "note": "The CTA sits inside a section that is translateY(40px) + opacity:0 until revealed; once settle reveals it (before the hit-test probe, which runs after screenshots per the capture pipeline order), its hit-test grid must be full, exactly like golden's untouched CTA."
+    }
+  ],
+  "maxIssues": 0,
+  "notes": "U13 (issue #4 R3 motivating fixture, port-parity plan): three below-the-fold `<section class=\"section-zero\" data-scroll-reveal=\"\">` elements ('Stand out, build trust, and...', 'Branded Call performance analytics', 'Secure Branding: Your Brand, Only on Verified Calls') start at opacity:0/translateY(40px). Redesigned per orchestrator direction to match the real IX2 mechanism: on `window.scrollY` threshold crossing, a `requestAnimationFrame` loop drives a 2000ms interpolation keyed on `performance.now()` (opacity 0->1, translateY 40px->0px, written as inline style each frame, overriding the CSS starting rule), finalizing to a one-way latch ('.is-revealed' marker, never reverts). No `Date`/`setTimeout`/wall-clock use anywhere in the script -- rAF + performance.now are both driven by matchy's page.clock virtual clock during capture, so the animation is deterministic by construction. Two of the three sections carry a below-fold, plain-src (no srcset), loading=\"lazy\" <img> already vendored in golden. OBSERVED on a full run with settle default-on (testbed/.runs/v24-scroll-reveal/diff-result.json, re-verified after the rAF redesign): status=pass, 0 issues, 0 warnings; both sides' bundles record determinism.settle=\"ran\" and determinism.quiescence=\"reached\" (no timeout) -- the deserved outcome, mirroring v13-render-equivalent's clean-pair shape (status pass, maxIssues 0, forbidden missing_*/visual_region_changed/style_changed/clickable_area_regressed). Full settle's quiescence wait (up to 5000ms, resets on every un-ignored mutation, including each per-frame inline-style write) comfortably outlasts the 2000ms animation plus its own quiet window, so every reveal completes before the screenshot. NEGATIVE CONTROL NOW WORKS (manual run, not wired into CI, per instructions -- observed in /tmp/claude-1000/v24-nosettle/diff-result.json): `--no-settle` forces `settleMode=legacy` (determinism.settle=\"skipped\", quiescence=\"notRun\", lazyLoadPass=\"ran\" on both sides) -- legacy's coarser scroll-through (~100ms dwell/step, 250ms at the end) crosses the reveal thresholds late enough that the rAF animation is still mid-flight when the screenshot is taken. Result: status=warn, 10 issues -- 3 `style_changed` (warning, property=opacity, from=0.485 to=1, i.e. frozen ~48.5% into the 2000ms animation) + 7 `visual_region_changed` (info; 5 anchored to the three hidden sections' text -- 'THE SOLUTION'/'Identify patterns in call outcomes...' under the first two reveal sections, 'Display your brand only on verified calls'/'Secure Branding: Your Brand, Only on Verified Calls' under the third -- plus 2 unanchored region-level diffs). This is exactly the settle-earns-its-keep proof the fixture is meant to demonstrate; the earlier scrollY-latch-only design (superseded) could not produce this because legacy's own scroll-through was already sufficient to satisfy an instant, non-animated threshold latch."
+}

@@ -7,7 +7,12 @@
 
 use std::collections::BTreeMap;
 
-use crate::contract::{CaptureBundle, SemanticNode};
+use crate::contract::{
+    CaptureBundle, HitTestEntry, HitTestOutcome, HitTestPoint, HitTestStatus, PseudoElementEntry,
+    SemanticNode,
+};
+use crate::hit_test_diff::{format_miss_winners, tally_points};
+use crate::pseudo_diff::{pseudo_style_map, PseudoSlot};
 
 // ---------------------------------------------------------------------------
 // Public API types
@@ -62,6 +67,36 @@ pub struct SideResult {
     pub computed_styles: BTreeMap<String, String>,
     /// Bbox as four synthetic props: bbox.x, bbox.y, bbox.w, bbox.h
     pub bbox: Option<[i32; 4]>,
+    /// Port-parity U7: the resolved node's raw hit-test entry, if the bundle
+    /// carries the `hitTests` channel for this node. `None` when the node
+    /// wasn't resolved or the channel is absent for it.
+    pub hit_test: Option<HitTestEntry>,
+    /// Port-parity U10: `"::before"`/`"::after"` labels this resolved node
+    /// owns a painted pseudo-element for (tier "node" only — the only tier
+    /// reachable via a plain `--anchor`/`--node` node locator), sorted.
+    /// Empty for the ordinary case (no owned pseudos) and always empty on the
+    /// pseudo-locator path (`explain_pseudo`) itself.
+    pub owned_pseudo_slots: Vec<String>,
+}
+
+/// One side's hit-test view for the `explain` output (port-parity U7).
+#[derive(Debug, Clone)]
+pub struct HitTestSideExplain {
+    /// Adjusted (or, single-sided, raw) hit fraction, round4-formatted (e.g. "1.0000").
+    pub fraction: String,
+    /// "hits/denominator" over the same denominator used for `fraction`.
+    pub raw_hits: String,
+    /// Top-3 miss winners for this side, "sel (xN); sel2 (xM)" (empty when none).
+    pub miss_winners: String,
+}
+
+/// The hit-test section of an `explain` report: present iff at least one side
+/// has sampled hit-test data for the located node. Each side is `None` when
+/// that side has no comparable data — rendered as `<absent>`.
+#[derive(Debug, Clone)]
+pub struct HitTestExplain {
+    pub old: Option<HitTestSideExplain>,
+    pub new: Option<HitTestSideExplain>,
 }
 
 /// One property row in the explain output.
@@ -82,6 +117,9 @@ pub struct ExplainReport {
     pub rows: Vec<PropRow>,
     /// Human-readable asymmetry description when only one side resolved.
     pub asymmetry_message: Option<String>,
+    /// Port-parity U7: hit-test section, present iff either side has sampled
+    /// hit-test data for the located node.
+    pub hit_test: Option<HitTestExplain>,
 }
 
 // ---------------------------------------------------------------------------
@@ -121,11 +159,147 @@ pub fn explain(
         _ => None,
     };
 
+    let hit_test = build_hit_test_section(old_side.hit_test.as_ref(), new_side.hit_test.as_ref());
+
     ExplainReport {
         old: old_side,
         new: new_side,
         rows,
         asymmetry_message,
+        hit_test,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pseudo-element locator (port-parity U10)
+// ---------------------------------------------------------------------------
+
+/// Detect and strip a trailing `::before`/`::after` suffix from a
+/// `--selector` locator string. Returns `(owner_part, slot)` — `owner_part`
+/// is the selector with the suffix removed, passed straight to
+/// `resolve_pseudo_owner`. `None` when the string carries neither suffix
+/// (the ordinary node-selector path applies).
+pub fn parse_pseudo_selector(s: &str) -> Option<(String, PseudoSlot)> {
+    if let Some(owner) = s.strip_suffix("::before") {
+        return Some((owner.to_string(), PseudoSlot::Before));
+    }
+    s.strip_suffix("::after")
+        .map(|owner| (owner.to_string(), PseudoSlot::After))
+}
+
+/// Resolve a pseudo owner within one bundle by the (suffix-stripped) selector
+/// string, per the design brief: try an exact `pseudoElements` map-key match
+/// first (covers tier-"ancestor" `anc_N` keys and a node id typed directly),
+/// then an exact `ownerSelector` match (covers tier-"ancestor"/tier-"selector"
+/// owners, whose map key carries a landmark prefix the bare CSS selector does
+/// not), then fall back to the existing node-selector locator (covers
+/// tier-"node" owners typed as their own CSS selector) followed by a
+/// pseudo-entry lookup keyed on the resolved node id.
+fn resolve_pseudo_owner<'a>(
+    bundle: &'a CaptureBundle,
+    owner_part: &str,
+) -> Option<(&'a str, &'a PseudoElementEntry)> {
+    let pseudo = bundle.pseudo_elements.as_ref()?;
+
+    // (1) exact ownerKey (map key) match.
+    if let Some((k, v)) = pseudo.get_key_value(owner_part) {
+        return Some((k.as_str(), v));
+    }
+
+    // (2) exact ownerSelector match — BTreeMap iteration order (sorted keys)
+    // for determinism on the (hypothetical) case of more than one owner
+    // sharing a selector string.
+    for (k, v) in pseudo.iter() {
+        if v.owner_selector.as_deref() == Some(owner_part) {
+            return Some((k.as_str(), v));
+        }
+    }
+
+    // (3) fall back to the existing node-selector locator, then this node's
+    // own pseudo entry (tier "node").
+    let node = find_node(
+        &bundle.page.nodes,
+        &Locator::Selector(owner_part.to_string()),
+    )?;
+    pseudo
+        .get_key_value(node.id.as_str())
+        .map(|(k, v)| (k.as_str(), v))
+}
+
+fn pseudo_to_side_result(
+    owner: Option<(&str, &PseudoElementEntry)>,
+    slot: PseudoSlot,
+) -> SideResult {
+    let style = owner.and_then(|(_, e)| slot.style(e));
+    match style {
+        None => SideResult {
+            status: ResolutionStatus::NotFound,
+            node_id: None,
+            computed_styles: BTreeMap::new(),
+            bbox: None,
+            hit_test: None,
+            owned_pseudo_slots: Vec::new(),
+        },
+        Some(s) => SideResult {
+            status: ResolutionStatus::Resolved,
+            node_id: owner.map(|(k, _)| k.to_string()),
+            computed_styles: pseudo_style_map(s),
+            bbox: s.bbox.map(|b| {
+                [
+                    b[0].round() as i32,
+                    b[1].round() as i32,
+                    b[2].round() as i32,
+                    b[3].round() as i32,
+                ]
+            }),
+            hit_test: None,
+            owned_pseudo_slots: Vec::new(),
+        },
+    }
+}
+
+/// `explain --selector "...::before"` / `"...::after"` (port-parity U10):
+/// locate the pseudo's OWNER independently on each side
+/// (`resolve_pseudo_owner`), then diff the requested slot's captured style
+/// map with the same diff-only default + `--props` filtering the node path
+/// uses (`build_rows` / `diff_prop_rows` — shared, not a second
+/// implementation). One-side-present is not an error (asymmetry reported;
+/// the CLI layer still exits 0, same convention as the node path).
+pub fn explain_pseudo(
+    old_bundle: &CaptureBundle,
+    new_bundle: &CaptureBundle,
+    owner_part: &str,
+    slot: PseudoSlot,
+    props: Option<&[String]>,
+) -> ExplainReport {
+    let old_owner = resolve_pseudo_owner(old_bundle, owner_part);
+    let new_owner = resolve_pseudo_owner(new_bundle, owner_part);
+
+    let old_side = pseudo_to_side_result(old_owner, slot);
+    let new_side = pseudo_to_side_result(new_owner, slot);
+
+    let rows = build_rows(&old_side, &new_side, props);
+
+    let asymmetry_message = match (&old_side.status, &new_side.status) {
+        (ResolutionStatus::Resolved, ResolutionStatus::NotFound) => Some(format!(
+            "pseudo {} present in OLD only (owner: {}) — element/rule may have been removed in new",
+            slot.label(),
+            old_side.node_id.as_deref().unwrap_or("?")
+        )),
+        (ResolutionStatus::NotFound, ResolutionStatus::Resolved) => Some(format!(
+            "pseudo {} present in NEW only (owner: {}) — element/rule may have been added in new",
+            slot.label(),
+            new_side.node_id.as_deref().unwrap_or("?")
+        )),
+        _ => None,
+    };
+
+    ExplainReport {
+        old: old_side,
+        new: new_side,
+        rows,
+        asymmetry_message,
+        hit_test: None,
     }
 }
 
@@ -143,6 +317,8 @@ fn resolve_side(bundle: &CaptureBundle, locator: &Locator) -> SideResult {
             node_id: None,
             computed_styles: BTreeMap::new(),
             bbox: None,
+            hit_test: None,
+            owned_pseudo_slots: Vec::new(),
         },
         Some(n) => {
             let computed_styles = bundle
@@ -151,23 +327,162 @@ fn resolve_side(bundle: &CaptureBundle, locator: &Locator) -> SideResult {
                 .cloned()
                 .unwrap_or_default();
             let bbox = Some(n.bbox);
+            let hit_test = bundle
+                .hit_tests
+                .as_ref()
+                .and_then(|m| m.get(&n.id))
+                .cloned();
+            let owned_pseudo_slots = owned_pseudo_slots_for_node(bundle, &n.id);
             SideResult {
                 status: ResolutionStatus::Resolved,
                 node_id: Some(n.id.clone()),
                 computed_styles,
                 bbox,
+                hit_test,
+                owned_pseudo_slots,
             }
         }
+    }
+}
+
+/// Port-parity U10: `"::before"`/`"::after"` labels (sorted) a tier-"node"
+/// pseudo owner keyed on `node_id` paints, if any. Only tier "node" is
+/// reachable via a plain `--anchor`/`--node` node locator — tier
+/// "ancestor"/"selector" owners are not `SemanticNode`s and have no bearing
+/// here.
+fn owned_pseudo_slots_for_node(bundle: &CaptureBundle, node_id: &str) -> Vec<String> {
+    bundle
+        .pseudo_elements
+        .as_ref()
+        .and_then(|m| m.get(node_id))
+        .map(|entry| {
+            let mut v = Vec::new();
+            if entry.before.is_some() {
+                v.push(PseudoSlot::Before.label().to_string());
+            }
+            if entry.after.is_some() {
+                v.push(PseudoSlot::After.label().to_string());
+            }
+            v
+        })
+        .unwrap_or_default()
+}
+
+/// A side's hit-test entry, restricted to the case `explain` can render:
+/// `status == Sampled` with a non-empty points array.
+fn sampled_points(entry: Option<&HitTestEntry>) -> Option<&[HitTestPoint]> {
+    entry
+        .filter(|e| e.status == HitTestStatus::Sampled)
+        .and_then(|e| e.points.as_deref())
+        .filter(|p| !p.is_empty())
+}
+
+/// Independent (no partner side) per-point tally: excludes `clipped`/`offViewport`
+/// but cannot apply the joint both-side-miss drop (there's no partner to compare
+/// against), so the "adjusted" fraction here is simply the raw fraction over the
+/// excluded-aware denominator.
+fn raw_side_explain(points: &[HitTestPoint]) -> HitTestSideExplain {
+    let mut hits = 0u32;
+    let mut denom = 0u32;
+    let mut winners: BTreeMap<String, u32> = BTreeMap::new();
+    for p in points {
+        match p.o {
+            HitTestOutcome::Hit => {
+                hits += 1;
+                denom += 1;
+            }
+            HitTestOutcome::Miss => {
+                denom += 1;
+                if let Some(w) = &p.winner {
+                    *winners.entry(w.clone()).or_insert(0) += 1;
+                }
+            }
+            HitTestOutcome::Clipped | HitTestOutcome::OffViewport => {}
+        }
+    }
+    let fraction = if denom == 0 {
+        0.0
+    } else {
+        hits as f64 / denom as f64
+    };
+    HitTestSideExplain {
+        fraction: format!("{:.4}", round4(fraction)),
+        raw_hits: format!("{}/{}", hits, denom),
+        miss_winners: format_miss_winners(&winners),
+    }
+}
+
+fn round4(v: f64) -> f64 {
+    (v * 10000.0).round() / 10000.0
+}
+
+/// Build the hit-test section: joint (adjusted, exclusion-aware) when both
+/// sides have comparable sampled data; independent raw view when only one
+/// side does; `None` (no section at all) when neither side has any.
+fn build_hit_test_section(
+    old_entry: Option<&HitTestEntry>,
+    new_entry: Option<&HitTestEntry>,
+) -> Option<HitTestExplain> {
+    let old_points = sampled_points(old_entry);
+    let new_points = sampled_points(new_entry);
+
+    if old_points.is_none() && new_points.is_none() {
+        return None;
+    }
+
+    match (old_points, new_points) {
+        (Some(op), Some(np)) => match tally_points(op, np) {
+            Some(tally) => Some(HitTestExplain {
+                old: Some(HitTestSideExplain {
+                    fraction: format!(
+                        "{:.4}",
+                        round4(if tally.denominator == 0 {
+                            0.0
+                        } else {
+                            tally.hits_old as f64 / tally.denominator as f64
+                        })
+                    ),
+                    raw_hits: format!("{}/{}", tally.hits_old, tally.denominator),
+                    miss_winners: format_miss_winners(&tally.old_miss_winners),
+                }),
+                new: Some(HitTestSideExplain {
+                    fraction: format!(
+                        "{:.4}",
+                        round4(if tally.denominator == 0 {
+                            0.0
+                        } else {
+                            tally.hits_new as f64 / tally.denominator as f64
+                        })
+                    ),
+                    raw_hits: format!("{}/{}", tally.hits_new, tally.denominator),
+                    miss_winners: format_miss_winners(&tally.new_miss_winners),
+                }),
+            }),
+            // Grid-size mismatch between sides (never emitted by capture, but
+            // explain must never panic on hand-built/adversarial bundles) —
+            // fall back to independent raw views for both.
+            None => Some(HitTestExplain {
+                old: Some(raw_side_explain(op)),
+                new: Some(raw_side_explain(np)),
+            }),
+        },
+        (Some(op), None) => Some(HitTestExplain {
+            old: Some(raw_side_explain(op)),
+            new: None,
+        }),
+        (None, Some(np)) => Some(HitTestExplain {
+            old: None,
+            new: Some(raw_side_explain(np)),
+        }),
+        (None, None) => unreachable!("checked above"),
     }
 }
 
 /// Find a node in `nodes` matching the locator.
 /// When multiple nodes match, pick the one with the lowest (seq_index, id) — total order.
 fn find_node<'a>(nodes: &'a [SemanticNode], locator: &Locator) -> Option<&'a SemanticNode> {
-    let mut candidates: Vec<&SemanticNode> = nodes
-        .iter()
-        .filter(|n| node_matches(n, locator))
-        .collect();
+    let mut candidates: Vec<&SemanticNode> =
+        nodes.iter().filter(|n| node_matches(n, locator)).collect();
 
     if candidates.is_empty() {
         return None;
@@ -223,62 +538,83 @@ fn node_matches(node: &SemanticNode, locator: &Locator) -> bool {
 }
 
 /// Build the sorted property rows from the two resolved sides.
-fn build_rows(old_side: &SideResult, new_side: &SideResult, props: Option<&[String]>) -> Vec<PropRow> {
+fn build_rows(
+    old_side: &SideResult,
+    new_side: &SideResult,
+    props: Option<&[String]>,
+) -> Vec<PropRow> {
+    let old_map = side_style_map(old_side);
+    let new_map = side_style_map(new_side);
+    diff_prop_rows(
+        &old_map,
+        &new_map,
+        &["bbox.x", "bbox.y", "bbox.w", "bbox.h"],
+        props,
+    )
+}
+
+/// Materialize a node `SideResult`'s computed styles + bbox pseudo-props
+/// (`bbox.x`/`bbox.y`/`bbox.w`/`bbox.h`) into one flat string map, so both the
+/// node path and the pseudo path (`explain_pseudo`, port-parity U10) can share
+/// the SAME diff/`--props` logic (`diff_prop_rows`) — never a second
+/// implementation.
+fn side_style_map(side: &SideResult) -> BTreeMap<String, String> {
+    let mut m = side.computed_styles.clone();
+    if let Some(bbox) = side.bbox {
+        m.insert("bbox.x".to_string(), bbox[0].to_string());
+        m.insert("bbox.y".to_string(), bbox[1].to_string());
+        m.insert("bbox.w".to_string(), bbox[2].to_string());
+        m.insert("bbox.h".to_string(), bbox[3].to_string());
+    }
+    m
+}
+
+/// Build property rows from two already-materialized `{property: value}`
+/// maps — shared by the node path (`build_rows`, via `side_style_map`) and
+/// the pseudo `--selector "...::before"`/`"...::after"` path
+/// (`explain_pseudo`, port-parity U10). Diff-only default when `props` is
+/// `None` (union of both maps' keys plus `extra_diff_candidates`, filtered to
+/// differing values); explicit sorted list otherwise. Absent key -> `<absent>`.
+fn diff_prop_rows(
+    old_map: &BTreeMap<String, String>,
+    new_map: &BTreeMap<String, String>,
+    extra_diff_candidates: &[&str],
+    props: Option<&[String]>,
+) -> Vec<PropRow> {
     const ABSENT: &str = "<absent>";
 
-    // Helper: get a value from a SideResult's computed_styles, or bbox pseudo-props.
-    let get_val = |side: &SideResult, prop: &str| -> String {
-        // Handle bbox pseudo-props first.
-        if let Some(bbox) = side.bbox {
-            match prop {
-                "bbox.x" => return bbox[0].to_string(),
-                "bbox.y" => return bbox[1].to_string(),
-                "bbox.w" => return bbox[2].to_string(),
-                "bbox.h" => return bbox[3].to_string(),
-                _ => {}
-            }
-        }
-        side.computed_styles
-            .get(prop)
-            .cloned()
-            .unwrap_or_else(|| ABSENT.to_string())
+    let get_val = |map: &BTreeMap<String, String>, prop: &str| -> String {
+        map.get(prop).cloned().unwrap_or_else(|| ABSENT.to_string())
     };
 
-    // Build the key set to show.
     let keys: Vec<String> = if let Some(explicit) = props {
         // Explicit --props: always show these in order (sorted for determinism).
         let mut sorted = explicit.to_vec();
         sorted.sort();
         sorted
     } else {
-        // Diff-only default: union of both sides' computed-style keys + bbox pseudo-props,
+        // Diff-only default: union of both sides' keys + extra candidates,
         // filtered to those that differ.
         let mut all_keys: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-
-        // Add bbox pseudo-props.
-        for k in &["bbox.x", "bbox.y", "bbox.w", "bbox.h"] {
+        for k in extra_diff_candidates {
             all_keys.insert(k.to_string());
         }
-
-        // Add computed-style keys from both sides.
-        for k in old_side.computed_styles.keys() {
+        for k in old_map.keys() {
             all_keys.insert(k.clone());
         }
-        for k in new_side.computed_styles.keys() {
+        for k in new_map.keys() {
             all_keys.insert(k.clone());
         }
-
-        // Keep only differing keys.
         all_keys
             .into_iter()
-            .filter(|k| get_val(old_side, k) != get_val(new_side, k))
+            .filter(|k| get_val(old_map, k) != get_val(new_map, k))
             .collect()
     };
 
     keys.into_iter()
         .map(|prop| {
-            let old_value = get_val(old_side, &prop);
-            let new_value = get_val(new_side, &prop);
+            let old_value = get_val(old_map, &prop);
+            let new_value = get_val(new_map, &prop);
             let changed = old_value != new_value;
             PropRow {
                 property: prop,
@@ -311,16 +647,19 @@ pub fn format_report(report: &ExplainReport, locator_str: &str) -> String {
                 "old: resolved  node={}\n",
                 report.old.node_id.as_deref().unwrap_or("?")
             ));
+            push_owned_pseudo_note(&mut out, &report.old);
             out.push_str(&format!(
                 "new: resolved  node={}\n",
                 report.new.node_id.as_deref().unwrap_or("?")
             ));
+            push_owned_pseudo_note(&mut out, &report.new);
         }
         (ResolutionStatus::Resolved, ResolutionStatus::NotFound) => {
             out.push_str(&format!(
                 "old: resolved  node={}\n",
                 report.old.node_id.as_deref().unwrap_or("?")
             ));
+            push_owned_pseudo_note(&mut out, &report.old);
             out.push_str("new: NOT FOUND\n");
         }
         (ResolutionStatus::NotFound, ResolutionStatus::Resolved) => {
@@ -329,6 +668,7 @@ pub fn format_report(report: &ExplainReport, locator_str: &str) -> String {
                 "new: resolved  node={}\n",
                 report.new.node_id.as_deref().unwrap_or("?")
             ));
+            push_owned_pseudo_note(&mut out, &report.new);
         }
         (ResolutionStatus::NotFound, ResolutionStatus::NotFound) => {
             out.push_str("old: NOT FOUND\n");
@@ -342,6 +682,8 @@ pub fn format_report(report: &ExplainReport, locator_str: &str) -> String {
     }
 
     out.push('\n');
+
+    push_hit_test_section(&mut out, report.hit_test.as_ref());
 
     if report.rows.is_empty() {
         out.push_str("(no properties to display)\n");
@@ -410,6 +752,48 @@ pub fn format_report(report: &ExplainReport, locator_str: &str) -> String {
     out
 }
 
+/// Port-parity U10: when a resolved node owns painted pseudo-elements, append
+/// a short note line so users know to re-query with `--selector
+/// "...::before"` / `"...::after"` — deliberately NOT a dump of their styles
+/// by default.
+fn push_owned_pseudo_note(out: &mut String, side: &SideResult) {
+    if side.owned_pseudo_slots.is_empty() {
+        return;
+    }
+    out.push_str(&format!(
+        "    pseudo-elements: {}\n",
+        side.owned_pseudo_slots.join(", ")
+    ));
+}
+
+/// Append the hit-test (clickable-area) section, when present. Deterministic
+/// formatting: fixed field order, `<absent>` for a side with no comparable data.
+fn push_hit_test_section(out: &mut String, hit_test: Option<&HitTestExplain>) {
+    let Some(ht) = hit_test else { return };
+
+    out.push_str("hit-test (clickable-area):\n");
+    push_hit_test_side(out, "old", ht.old.as_ref());
+    push_hit_test_side(out, "new", ht.new.as_ref());
+    out.push('\n');
+}
+
+fn push_hit_test_side(out: &mut String, side: &str, view: Option<&HitTestSideExplain>) {
+    match view {
+        None => out.push_str(&format!("  {}: <absent>\n", side)),
+        Some(v) => {
+            let winners = if v.miss_winners.is_empty() {
+                "(none)"
+            } else {
+                v.miss_winners.as_str()
+            };
+            out.push_str(&format!(
+                "  {}: fraction={} rawHits={} missWinners={}\n",
+                side, v.fraction, v.raw_hits, winners
+            ));
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Unit tests
 // ---------------------------------------------------------------------------
@@ -433,6 +817,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -478,6 +867,7 @@ mod tests {
             natural_height: None,
             loaded: None,
             heading_level: None,
+            has_onclick: None,
         }
     }
 
@@ -526,6 +916,9 @@ mod tests {
                 viewport: "desktop/old-vp.png".to_string(),
             },
             style_candidates: StyleCandidates::default(),
+            hit_tests: None,
+            pseudo_elements: None,
+            pseudo_truncated: None,
         }
     }
 
@@ -586,11 +979,7 @@ mod tests {
             vec![other_old, cta_old],
             old_styles,
         );
-        let new_bundle = make_bundle(
-            "http://new.example.com/",
-            vec![cta_new],
-            new_styles,
-        );
+        let new_bundle = make_bundle("http://new.example.com/", vec![cta_new], new_styles);
 
         (old_bundle, new_bundle)
     }
@@ -643,7 +1032,11 @@ mod tests {
         // All rows in diff-only mode must be changed
         for row in &report.rows {
             // bbox props may differ too (different nodes) - that's expected
-            assert!(row.changed, "diff-only must only include changed rows, got unchanged: {}", row.property);
+            assert!(
+                row.changed,
+                "diff-only must only include changed rows, got unchanged: {}",
+                row.property
+            );
         }
     }
 
@@ -670,7 +1063,10 @@ mod tests {
         );
         let prop_names: Vec<&str> = report.rows.iter().map(|r| r.property.as_str()).collect();
         assert!(prop_names.contains(&"color"), "color must be present");
-        assert!(prop_names.contains(&"font-family"), "font-family must be present");
+        assert!(
+            prop_names.contains(&"font-family"),
+            "font-family must be present"
+        );
 
         // background-image must NOT appear (not in --props)
         assert!(
@@ -680,7 +1076,11 @@ mod tests {
 
         // Both must be marked NOT changed
         for row in &report.rows {
-            assert!(!row.changed, "color/font-family must not be changed; got changed=true for {}", row.property);
+            assert!(
+                !row.changed,
+                "color/font-family must not be changed; got changed=true for {}",
+                row.property
+            );
         }
     }
 
@@ -738,7 +1138,10 @@ mod tests {
         // Asymmetry message must be present
         assert!(report.asymmetry_message.is_some());
         let msg = report.asymmetry_message.as_deref().unwrap();
-        assert!(msg.contains("NEW only"), "asymmetry message must mention NEW only");
+        assert!(
+            msg.contains("NEW only"),
+            "asymmetry message must mention NEW only"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -776,7 +1179,7 @@ mod tests {
     fn test_tie_break_determinism() {
         // Two nodes both with text="Get started"; lower seq_index wins.
         let node_a = make_node(
-            "node_b",  // id sorts after node_a but seq_index is higher
+            "node_b", // id sorts after node_a but seq_index is higher
             Some("Get started"),
             None,
             None,
@@ -786,20 +1189,16 @@ mod tests {
             5,
         );
         let node_b = make_node(
-            "node_a",  // id sorts first
+            "node_a", // id sorts first
             Some("Get started"),
             None,
             None,
             None,
             None,
             [0, 100, 100, 40],
-            2,  // lower seq_index → wins
+            2, // lower seq_index → wins
         );
-        let bundle = make_bundle(
-            "http://example.com/",
-            vec![node_a, node_b],
-            BTreeMap::new(),
-        );
+        let bundle = make_bundle("http://example.com/", vec![node_a, node_b], BTreeMap::new());
 
         let locator = Locator::parse_anchor("text=Get started").unwrap();
         let side = resolve_side(&bundle, &locator);
@@ -830,6 +1229,392 @@ mod tests {
 
         // Must mark the background-image row as CHANGED
         assert!(out1.contains("CHANGED"), "must mark changed rows");
-        assert!(out1.contains("background-image"), "must show background-image");
+        assert!(
+            out1.contains("background-image"),
+            "must show background-image"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // port-parity U7: hit-test section
+    // -------------------------------------------------------------------------
+
+    fn hit_pt(o: HitTestOutcome, winner: Option<&str>) -> HitTestPoint {
+        HitTestPoint {
+            o,
+            winner: winner.map(str::to_string),
+        }
+    }
+
+    fn sampled_entry(points: Vec<HitTestPoint>) -> HitTestEntry {
+        HitTestEntry {
+            status: HitTestStatus::Sampled,
+            skip_reason: None,
+            grid_size: Some(5),
+            points: Some(points),
+        }
+    }
+
+    fn make_bundle_with_hit_tests(
+        url: &str,
+        nodes: Vec<SemanticNode>,
+        hit_tests: BTreeMap<String, HitTestEntry>,
+    ) -> CaptureBundle {
+        let mut bundle = make_bundle(url, nodes, BTreeMap::new());
+        bundle.hit_tests = Some(hit_tests);
+        bundle
+    }
+
+    /// Both sides have comparable sampled data -> the joint (adjusted) view is
+    /// used, including winners on both old and new sides.
+    #[test]
+    fn test_hit_test_section_joint_view_both_sides() {
+        let node_old = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+        let node_new = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+
+        let old_points = (0..25)
+            .map(|_| hit_pt(HitTestOutcome::Hit, None))
+            .collect::<Vec<_>>();
+        let mut new_points = (0..3)
+            .map(|_| hit_pt(HitTestOutcome::Hit, None))
+            .collect::<Vec<_>>();
+        new_points.extend((0..22).map(|_| hit_pt(HitTestOutcome::Miss, Some("img.overlay"))));
+
+        let mut old_ht = BTreeMap::new();
+        old_ht.insert("n_cta".to_string(), sampled_entry(old_points));
+        let mut new_ht = BTreeMap::new();
+        new_ht.insert("n_cta".to_string(), sampled_entry(new_points));
+
+        let old_bundle =
+            make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
+        let new_bundle =
+            make_bundle_with_hit_tests("http://new.example.com/", vec![node_new], new_ht);
+
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+
+        let ht = report
+            .hit_test
+            .clone()
+            .expect("hit_test section must be present");
+        let old_view = ht.old.expect("old side present");
+        let new_view = ht.new.expect("new side present");
+        assert_eq!(old_view.fraction, "1.0000");
+        assert_eq!(old_view.raw_hits, "25/25");
+        assert_eq!(new_view.fraction, "0.1200");
+        assert_eq!(new_view.raw_hits, "3/25");
+        assert_eq!(new_view.miss_winners, "img.overlay (x22)");
+
+        let out = format_report(&report, "text=Get started");
+        assert!(out.contains("hit-test (clickable-area):"));
+        assert!(out.contains("fraction=1.0000"));
+        assert!(out.contains("fraction=0.1200"));
+        assert!(out.contains("img.overlay (x22)"));
+    }
+
+    /// Only one side has hit-test data -> the other side prints `<absent>`,
+    /// and the present side's fraction is the raw (unpaired) fraction.
+    #[test]
+    fn test_hit_test_section_one_side_absent() {
+        let node_old = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+        let node_new = make_node(
+            "n_cta_new",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+
+        let old_points = (0..25)
+            .map(|_| hit_pt(HitTestOutcome::Hit, None))
+            .collect::<Vec<_>>();
+        let mut old_ht = BTreeMap::new();
+        old_ht.insert("n_cta".to_string(), sampled_entry(old_points));
+
+        let old_bundle =
+            make_bundle_with_hit_tests("http://old.example.com/", vec![node_old], old_ht);
+        // New bundle has no hitTests channel at all.
+        let new_bundle = make_bundle("http://new.example.com/", vec![node_new], BTreeMap::new());
+
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+
+        let ht = report
+            .hit_test
+            .clone()
+            .expect("hit_test section must be present");
+        assert!(ht.old.is_some());
+        assert!(ht.new.is_none());
+        assert_eq!(ht.old.unwrap().raw_hits, "25/25");
+
+        let out = format_report(&report, "text=Get started");
+        assert!(out.contains("new: <absent>"));
+    }
+
+    /// Neither side has hit-test data -> no section at all (no panic, no
+    /// spurious header).
+    #[test]
+    fn test_hit_test_section_absent_on_both_no_section() {
+        let (old_bundle, new_bundle) = make_cta_bundles();
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+
+        assert!(report.hit_test.is_none());
+        let out = format_report(&report, "text=Get started");
+        assert!(!out.contains("hit-test (clickable-area):"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Pseudo-element locator (port-parity U10)
+    // -------------------------------------------------------------------------
+
+    use crate::contract::{PseudoElementEntry, PseudoOwnerTier, PseudoStyles};
+
+    fn make_bundle_with_pseudo(
+        url: &str,
+        nodes: Vec<SemanticNode>,
+        pseudo_elements: BTreeMap<String, PseudoElementEntry>,
+    ) -> CaptureBundle {
+        let mut bundle = make_bundle(url, nodes, BTreeMap::new());
+        bundle.pseudo_elements = Some(pseudo_elements);
+        bundle
+    }
+
+    fn tick_style(background_color: &str) -> PseudoStyles {
+        PseudoStyles {
+            content: "\"\"".to_string(),
+            position: Some("absolute".to_string()),
+            width: Some("10px".to_string()),
+            height: Some("10px".to_string()),
+            background_color: Some(background_color.to_string()),
+            background_image: None,
+            border: None,
+            border_radius: None,
+            top: Some("0px".to_string()),
+            right: None,
+            bottom: None,
+            left: Some("0px".to_string()),
+            z_index: None,
+            display: Some("block".to_string()),
+            opacity: Some("1".to_string()),
+            bbox: Some([10.0, 20.0, 10.0, 10.0]),
+        }
+    }
+
+    fn selector_entry(selector: &str, before: Option<PseudoStyles>) -> PseudoElementEntry {
+        selector_entry_full(selector, before, None)
+    }
+
+    fn selector_entry_full(
+        selector: &str,
+        before: Option<PseudoStyles>,
+        after: Option<PseudoStyles>,
+    ) -> PseudoElementEntry {
+        PseudoElementEntry {
+            owner_tier: PseudoOwnerTier::Selector,
+            owner_node_id: None,
+            owner_selector: Some(selector.to_string()),
+            landmark: Some("main".to_string()),
+            before,
+            after,
+        }
+    }
+
+    /// `--selector '[section-style="overlap"]::after'`-style locator resolves
+    /// via the exact `ownerSelector` match (tier "selector") — the acceptance
+    /// case for the golden-page owner key, which carries a landmark prefix the
+    /// bare selector does not.
+    #[test]
+    fn test_explain_pseudo_resolves_via_owner_selector_match() {
+        let sel = "[section-style=\"overlap\"]";
+        let key = format!("main::{}", sel);
+
+        let mut old_pseudo = BTreeMap::new();
+        old_pseudo.insert(
+            key.clone(),
+            selector_entry_full(sel, None, Some(tick_style("rgb(255, 0, 0)"))),
+        );
+        let mut new_pseudo = BTreeMap::new();
+        new_pseudo.insert(
+            key,
+            selector_entry_full(sel, None, Some(tick_style("rgb(0, 0, 255)"))),
+        );
+
+        let old_bundle = make_bundle_with_pseudo("http://old.example.com/", vec![], old_pseudo);
+        let new_bundle = make_bundle_with_pseudo("http://new.example.com/", vec![], new_pseudo);
+
+        let (owner_part, slot) =
+            parse_pseudo_selector(&format!("{}::after", sel)).expect("::after suffix must parse");
+        let report = explain_pseudo(&old_bundle, &new_bundle, &owner_part, slot, None);
+
+        assert_eq!(report.old.status, ResolutionStatus::Resolved);
+        assert_eq!(report.new.status, ResolutionStatus::Resolved);
+        assert_eq!(report.asymmetry_message, None);
+        let row = report
+            .rows
+            .iter()
+            .find(|r| r.property == "background-color")
+            .expect("background-color row present (diff-only default)");
+        assert_eq!(row.old_value, "rgb(255, 0, 0)");
+        assert_eq!(row.new_value, "rgb(0, 0, 255)");
+        assert!(row.changed);
+    }
+
+    /// One-side-present (old painted, new absent) is not an error: exit-0
+    /// convention preserved, asymmetry reported.
+    #[test]
+    fn test_explain_pseudo_one_side_present_asymmetry_reported() {
+        let sel = "[data-hr-corner-top]";
+        let key = format!("main::{}", sel);
+
+        let mut old_pseudo = BTreeMap::new();
+        old_pseudo.insert(
+            key.clone(),
+            selector_entry(sel, Some(tick_style("rgb(255, 0, 0)"))),
+        );
+        let mut new_pseudo = BTreeMap::new();
+        new_pseudo.insert(key, selector_entry(sel, None));
+
+        let old_bundle = make_bundle_with_pseudo("http://old.example.com/", vec![], old_pseudo);
+        let new_bundle = make_bundle_with_pseudo("http://new.example.com/", vec![], new_pseudo);
+
+        let (owner_part, slot) =
+            parse_pseudo_selector(&format!("{}::before", sel)).expect("::before suffix must parse");
+        let report = explain_pseudo(&old_bundle, &new_bundle, &owner_part, slot, None);
+
+        assert_eq!(report.old.status, ResolutionStatus::Resolved);
+        assert_eq!(report.new.status, ResolutionStatus::NotFound);
+        let msg = report.asymmetry_message.expect("asymmetry message present");
+        assert!(msg.contains("::before"));
+        assert!(msg.contains("OLD only"));
+
+        // Exit-0 convention: both_not_found is false here, mirroring the
+        // node-locator path's contract.
+        let both_not_found = report.old.status == ResolutionStatus::NotFound
+            && report.new.status == ResolutionStatus::NotFound;
+        assert!(!both_not_found);
+    }
+
+    /// `--props` filtering applies on the pseudo path too.
+    #[test]
+    fn test_explain_pseudo_props_filter() {
+        let sel = "[data-hr-corner-top]";
+        let key = format!("main::{}", sel);
+        let mut old_pseudo = BTreeMap::new();
+        old_pseudo.insert(
+            key.clone(),
+            selector_entry(sel, Some(tick_style("rgb(255, 0, 0)"))),
+        );
+        let mut new_pseudo = BTreeMap::new();
+        new_pseudo.insert(key, selector_entry(sel, Some(tick_style("rgb(255, 0, 0)"))));
+
+        let old_bundle = make_bundle_with_pseudo("http://old.example.com/", vec![], old_pseudo);
+        let new_bundle = make_bundle_with_pseudo("http://new.example.com/", vec![], new_pseudo);
+
+        let (owner_part, slot) =
+            parse_pseudo_selector(&format!("{}::before", sel)).expect("::before suffix must parse");
+        let props = vec!["content".to_string(), "width".to_string()];
+        let report = explain_pseudo(&old_bundle, &new_bundle, &owner_part, slot, Some(&props));
+
+        let props_shown: Vec<&str> = report.rows.iter().map(|r| r.property.as_str()).collect();
+        assert_eq!(props_shown, vec!["content", "width"]);
+    }
+
+    /// A node that owns pseudos gets a short note line on the ordinary
+    /// `--anchor`/`--node` path — not a dump of their styles by default.
+    #[test]
+    fn test_node_locator_appends_owned_pseudo_note() {
+        let node_old = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+        let node_new = make_node(
+            "n_cta",
+            Some("Get started"),
+            None,
+            None,
+            None,
+            None,
+            [0, 0, 100, 40],
+            0,
+        );
+        let mut pseudo = BTreeMap::new();
+        pseudo.insert(
+            "n_cta".to_string(),
+            PseudoElementEntry {
+                owner_tier: PseudoOwnerTier::Node,
+                owner_node_id: Some("n_cta".to_string()),
+                owner_selector: None,
+                landmark: Some("main".to_string()),
+                before: Some(tick_style("rgb(255, 0, 0)")),
+                after: Some(tick_style("rgb(0, 0, 255)")),
+            },
+        );
+
+        let old_bundle = make_bundle_with_pseudo("http://old.example.com/", vec![node_old], pseudo);
+        let new_bundle = make_bundle("http://new.example.com/", vec![node_new], BTreeMap::new());
+
+        let locator = Locator::parse_anchor("text=Get started").unwrap();
+        let report = explain(&old_bundle, &new_bundle, &locator, None);
+        assert_eq!(
+            report.old.owned_pseudo_slots,
+            vec!["::before".to_string(), "::after".to_string()]
+        );
+        assert!(report.new.owned_pseudo_slots.is_empty());
+
+        let out = format_report(&report, "text=Get started");
+        assert!(out.contains("pseudo-elements: ::before, ::after"));
+        // Not a dump: the pseudo styles themselves must not appear as rows.
+        assert!(!out.contains("background-color"));
+    }
+
+    /// `parse_pseudo_selector` round-trips and leaves ordinary selectors alone.
+    #[test]
+    fn test_parse_pseudo_selector() {
+        assert_eq!(
+            parse_pseudo_selector("#hr-corner::before"),
+            Some(("#hr-corner".to_string(), PseudoSlot::Before))
+        );
+        assert_eq!(
+            parse_pseudo_selector("#hr-corner::after"),
+            Some(("#hr-corner".to_string(), PseudoSlot::After))
+        );
+        assert_eq!(parse_pseudo_selector("#hr-corner"), None);
     }
 }

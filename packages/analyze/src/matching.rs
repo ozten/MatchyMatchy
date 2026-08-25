@@ -1316,6 +1316,7 @@ mod tests {
             natural_height,
             loaded,
             heading_level,
+            has_onclick: None,
         }
     }
 

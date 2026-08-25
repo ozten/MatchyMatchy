@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-07-54Z",
+  "runId": "2026-08-25T18-29-20Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47006/",
   "parityProfile": "content-structure",
@@ -11,10 +11,13 @@
     "byType": {
       "background_gradient_lost": 1
     },
+    "bySeverity": {
+      "warning": 1
+    },
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_7114fb31c5c9"
+      "issue_4abe5fef4ef2"
     ]
   },
   "scores": {
@@ -41,7 +44,7 @@
       "name": "desktop",
       "status": "warn",
       "issues": [
-        "issue_7114fb31c5c9"
+        "issue_4abe5fef4ef2"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +55,7 @@
   ],
   "issues": [
     {
-      "id": "issue_7114fb31c5c9",
+      "id": "issue_4abe5fef4ef2",
       "type": "background_gradient_lost",
       "category": "style",
       "severity": "warning",
@@ -113,7 +116,7 @@
           "score": 1.0,
           "signals": {
             "descendantSet": 1.0,
-            "styleSim": 0.9643,
+            "styleSim": 0.9688,
             "tagBonus": 0.05
           },
           "stage": "ancestor"
@@ -160,8 +163,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -186,8 +192,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],

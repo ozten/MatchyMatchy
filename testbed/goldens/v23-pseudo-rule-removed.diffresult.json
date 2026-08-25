@@ -1,0 +1,386 @@
+{
+  "schemaVersion": "1.3",
+  "toolVersion": "0.1.0",
+  "runId": "2026-08-25T18-43-18Z",
+  "oldUrl": "http://localhost:47000/",
+  "newUrl": "http://localhost:47023/",
+  "parityProfile": "content-structure",
+  "status": "warn",
+  "agentSummary": {
+    "fixableNow": 3,
+    "byType": {
+      "pseudo_element_missing": 3
+    },
+    "bySeverity": {
+      "warning": 3
+    },
+    "clusterCount": 1,
+    "regionCount": 0,
+    "topFixes": [
+      "cluster_ce49f6eea630"
+    ]
+  },
+  "scores": {
+    "visual": 0.9999500342394853,
+    "content": 1.0,
+    "structure": 1.0,
+    "style": 0.25,
+    "accessibility": 1.0,
+    "technical": 1.0,
+    "hygiene": 1.0,
+    "byLandmark": {
+      "main": {
+        "content": 1.0,
+        "structure": 1.0,
+        "style": 0.25,
+        "accessibility": 1.0,
+        "technical": 1.0,
+        "hygiene": 1.0
+      }
+    }
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "status": "warn",
+      "issues": [
+        "issue_c542cb600a8b",
+        "issue_d14716824518",
+        "issue_85628996161e"
+      ],
+      "artifacts": {
+        "old": "desktop/old.png",
+        "new": "desktop/new.png",
+        "diff": "desktop/diff.png"
+      }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_85628996161e",
+      "type": "pseudo_element_missing",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G4",
+      "message": "::before pseudo-element is missing near \"Who we work for\"",
+      "locator": {
+        "anchors": {
+          "text": "Customer service & contact centers Deliver higher customer satisfaction with fewer missed calls and faster resolution times.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Who we work for",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(3)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(3)",
+        "bboxOld": [
+          751,
+          4193,
+          2,
+          130
+        ],
+        "bboxNew": [
+          739,
+          4191,
+          580,
+          130
+        ],
+        "seqIndexOld": 85,
+        "seqIndexNew": 85
+      },
+      "evidence": {
+        "new": {},
+        "old": {
+          "background-color": "rgb(236, 220, 255)",
+          "background-image": "none",
+          "bbox": [
+            751.0,
+            4193.0,
+            2.0,
+            130.0
+          ],
+          "border": "0px none rgb(80, 93, 111)",
+          "border-radius": "0px",
+          "bottom": "-1.25px",
+          "content": "\"\"",
+          "display": "block",
+          "height": "130px",
+          "left": "11.25px",
+          "opacity": "1",
+          "position": "absolute",
+          "right": "567.25px",
+          "top": "1.25px",
+          "width": "1.5px",
+          "z-index": "-1"
+        },
+        "ownerTier": "node",
+        "pseudo": "::before"
+      },
+      "remediation": {
+        "action": "restore_pseudo_element",
+        "findBy": {
+          "grep": [
+            "Customer service & contact centers Deliver higher customer satisfaction with fewer missed calls and faster resolution times.",
+            "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(3)"
+          ],
+          "near": "Who we work for"
+        },
+        "note": "The tool does not name the source component. Use the grep targets to locate the owning selector/rule in source or CMS.",
+        "pseudo": "::before"
+      }
+    },
+    {
+      "id": "issue_c542cb600a8b",
+      "type": "pseudo_element_missing",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G4",
+      "message": "::before pseudo-element is missing near \"Who we work for\"",
+      "locator": {
+        "anchors": {
+          "text": "Sales teams Drive conversions with faster follow-ups.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Who we work for",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(1)",
+        "bboxOld": [
+          751,
+          3995,
+          2,
+          100
+        ],
+        "bboxNew": [
+          739,
+          3994,
+          580,
+          100
+        ],
+        "seqIndexOld": 81,
+        "seqIndexNew": 81
+      },
+      "evidence": {
+        "new": {},
+        "old": {
+          "background-color": "rgb(236, 220, 255)",
+          "background-image": "none",
+          "bbox": [
+            751.0,
+            3995.0,
+            2.0,
+            100.0
+          ],
+          "border": "0px none rgb(80, 93, 111)",
+          "border-radius": "0px",
+          "bottom": "-1.25px",
+          "content": "\"\"",
+          "display": "block",
+          "height": "100px",
+          "left": "11.25px",
+          "opacity": "1",
+          "position": "absolute",
+          "right": "567.25px",
+          "top": "1.25px",
+          "width": "1.5px",
+          "z-index": "-1"
+        },
+        "ownerTier": "node",
+        "pseudo": "::before"
+      },
+      "remediation": {
+        "action": "restore_pseudo_element",
+        "findBy": {
+          "grep": [
+            "Sales teams Drive conversions with faster follow-ups.",
+            "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(1)"
+          ],
+          "near": "Who we work for"
+        },
+        "note": "The tool does not name the source component. Use the grep targets to locate the owning selector/rule in source or CMS.",
+        "pseudo": "::before"
+      }
+    },
+    {
+      "id": "issue_d14716824518",
+      "type": "pseudo_element_missing",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G4",
+      "message": "::before pseudo-element is missing near \"Who we work for\"",
+      "locator": {
+        "anchors": {
+          "text": "Marketing teams Improved brand awareness and campaign efficiency.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Who we work for",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(2)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(2)",
+        "bboxOld": [
+          751,
+          4094,
+          2,
+          100
+        ],
+        "bboxNew": [
+          739,
+          4092,
+          580,
+          100
+        ],
+        "seqIndexOld": 83,
+        "seqIndexNew": 83
+      },
+      "evidence": {
+        "new": {},
+        "old": {
+          "background-color": "rgb(236, 220, 255)",
+          "background-image": "none",
+          "bbox": [
+            751.0,
+            4094.0,
+            2.0,
+            100.0
+          ],
+          "border": "0px none rgb(80, 93, 111)",
+          "border-radius": "0px",
+          "bottom": "-1.25px",
+          "content": "\"\"",
+          "display": "block",
+          "height": "100px",
+          "left": "11.25px",
+          "opacity": "1",
+          "position": "absolute",
+          "right": "567.25px",
+          "top": "1.25px",
+          "width": "1.5px",
+          "z-index": "-1"
+        },
+        "ownerTier": "node",
+        "pseudo": "::before"
+      },
+      "remediation": {
+        "action": "restore_pseudo_element",
+        "findBy": {
+          "grep": [
+            "Marketing teams Improved brand awareness and campaign efficiency.",
+            "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > ul:nth-of-type(1) > li:nth-of-type(2)"
+          ],
+          "near": "Who we work for"
+        },
+        "note": "The tool does not name the source component. Use the grep targets to locate the owning selector/rule in source or CMS.",
+        "pseudo": "::before"
+      }
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cluster_ce49f6eea630",
+      "issueIds": [
+        "issue_85628996161e",
+        "issue_c542cb600a8b",
+        "issue_d14716824518"
+      ],
+      "sharedProperty": null,
+      "sharedLandmark": "main",
+      "summary": "3 pseudo_element_missing issues in main"
+    }
+  ],
+  "regions": [],
+  "suppressed": {
+    "count": 0,
+    "ids": []
+  },
+  "warnings": [],
+  "scopedTo": null,
+  "outOfScope": {
+    "count": 0,
+    "ids": []
+  },
+  "determinism": {
+    "old": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "skipped",
+      "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
+    },
+    "new": {
+      "animationsDisabled": "ran",
+      "reducedMotion": "ran",
+      "timeFrozen": "ran",
+      "randomStubbed": "ran",
+      "fontsReady": "ran",
+      "imagesDecoded": "ran",
+      "lazyLoadPass": "skipped",
+      "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
+      "clicked": [],
+      "hidden": [],
+      "masked": [],
+      "retriedWithoutTimeFreeze": false,
+      "integrity": {
+        "pre": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        },
+        "post": {
+          "headingCount": 10,
+          "imageCount": 103,
+          "landmarkCount": 25
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "old": "desktop/old.png",
+    "new": "desktop/new.png",
+    "diff": "desktop/diff.png"
+  }
+}

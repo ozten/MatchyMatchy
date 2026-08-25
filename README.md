@@ -144,13 +144,83 @@ Useful flags:
 - `--profile strict-visual | content-structure` — what counts as a failure. The default `content-structure` profile treats content/structure/hygiene problems as failures and pixel-level differences as informational, which is what you want when the redesign is intentional.
 - `--fail-on info|warning|error|critical` — CI gate threshold.
 - `--self-check` — capture the old URL a second time and diff it against itself, writing the old-vs-old result to `self-check.json`. Any issues found there are capture volatility, not real differences: if the probe finds drift, a `volatile_capture` warning (with an issue count and breakdown by type) is added to the main result's `warnings[]`; if the probe itself fails for one or more viewports, a `self_check_failed` warning is added (both can appear when only some viewports fail). Either way, self-check never changes the exit code.
+- `--no-settle` — revert the settle stage to its legacy behavior (scroll-steps + clock-dwell + image-await, no quiescence wait, growth cap, or new determinism statuses). Reach for this when the full settle stage handles a specific page badly; it never captures worse than any previously-shipped version.
+
+### Settle stage
+
+Before extraction, matchy scrolls the page through in viewport-height steps (dwelling on each
+step via the same controlled clock used for time-freeze, so scroll-triggered/`rAF`-driven reveal
+animations still progress deterministically), awaits any lazy images to load-or-error — including
+ones inserted mid-scroll — returns to the top, and then waits for a quiescence window (no
+un-ignored DOM mutation) bounded by a hard timeout before extracting the page model. This is **on
+by default** and is what makes below-the-fold scroll-reveal content (e.g. IX2-style animations)
+show up in its settled state instead of flooding false `missing_text`/`missing_image` issues. A
+page whose growth is unbounded (an infinite feed) hits a deterministic step cap instead of
+scrolling forever; a page using transform-based scroll containers is recorded as
+`settleScrollIneffective` rather than falsely claiming a normal scroll ran. Every settle outcome
+(`settle`, `quiescence`, `settleScrollIneffective`, `settleGrowthCapped`) is recorded in
+`determinism`, and a timeout or failure promotes to a `warnings[]` entry — never a silent
+log-and-continue. Use `--no-settle` to fall back to the pre-existing lazy-load behavior.
 
 A config file mirrors all flags and adds tuning for matching thresholds, stabilization, visual thresholds, redaction, and egress.
+
+### Severity mapping
+
+`--severity-map <path>` points at a JSON file that overrides how issues are scored, on top of the built-in defaults:
+
+```json
+{
+  "types": { "pseudo_element_missing": "error" },
+  "properties": { "letter-spacing": "info", "line-height": "info" }
+}
+```
+
+- `types` keys are wire issue-type names (the same strings that appear in `issues[].type`, e.g. `style_changed`, `missing_link`).
+- `properties` keys are CSS property names, and apply to property-carrying style issues (`style_changed` and the gradient types) on any style channel — keyed on the issue's own `remediation.property`, not its type.
+- Values are one of `info` / `warning` / `error` / `critical`.
+- An unrecognized type or property key, or a malformed file, is a hard error: `matchy` exits `2` and names the bad key on stderr.
+
+**Resolution order**, most general to most specific:
+
+1. **Profile category default** — the `--profile`'s category → severity table (e.g. `style` is `warning` under `content-structure`, `error` under `strict-visual`), including four fixed overrides regardless of profile: `accessibility_improved` → info, `console_error` → warning, `load_error` / `status_code_mismatch` → critical, `missing_form` → critical.
+2. **Built-in overrides** — shipped opinionated defaults that fire before any user map: `clickable_area_regressed` is always `error` (never silently demoted to info by the visual category), and `letter-spacing` / `line-height` style diffs are demoted to `info` (these two properties dominate the flood of low-signal, sub-pixel/leading style noise a real port produces).
+3. **Your `--severity-map`** — overrides both of the above. Within both layer 2 and layer 3, a `properties` match beats a `types` match for the same issue (more specific wins).
+4. **Deny-list (always wins)** — `load_error`, `status_code_mismatch`, and `missing_form` can never be demoted below `critical`, even by your map. An attempted demotion is silently *ignored* (never applied) and reported as a `severity_map_denied` warning in `warnings[]`, naming the type and the attempted severity.
+
+The resolved overrides your map actually contributed (denied entries excluded) are echoed back on the result as `severityMap`, so two runs compared with different maps are never silently incomparable:
+
+```jsonc
+"severityMap": {
+  "source": "file",
+  "overrides": {
+    "types": { "pseudo_element_missing": "error" },
+    "properties": { "letter-spacing": "info", "line-height": "info" }
+  }
+}
+```
+
+`severityMap` is `null` when `--severity-map` isn't passed.
+
+Info-severity issues are excluded from that category's `scores.*` value (see [The DiffResult contract](#the-diffresult-contract)), so demoting a noisy property or type with `--severity-map` legitimately raises the corresponding score — that's the intended lever for tuning signal-to-noise without touching the underlying detectors.
+
+### Gating on issues
+
+`agentSummary.byType` and `agentSummary.bySeverity` are counts over the exact same kept set: after `--baseline` suppression and `--scope` partitioning have both been applied. Suppressed issues (in `suppressed.ids`) and out-of-scope issues (in `outOfScope.ids`) are excluded from both maps. Both maps are always present — an empty object `{}` when nothing survives, never absent — so a gate can read them directly without re-deriving counts from `issues[]`:
+
+```bash
+matchy --old https://old.example.com --new https://new.example.com \
+       --out ./report --scope main --baseline ledger.json --json
+
+jq -e '(.agentSummary.bySeverity.error // 0) == 0 and (.agentSummary.bySeverity.critical // 0) == 0' \
+   ./report/diff-result.json
+```
+
+That asserts "no unaccepted error-or-worse issues remain in the `main` landmark" without walking `issues[]`. The same guarantee makes `byType` usable the same way, e.g. `jq -e '(.agentSummary.byType.missing_form // 0) == 0'` to gate on one issue type specifically.
 
 ### Other commands
 
 - **`matchy doctor`** — verify Node.js, Playwright, and Chromium are present and print the exact fix for anything missing.
-- **`matchy analyze --old-bundle <path> --new-bundle <path> --out <dir>`** — re-run analysis offline from two previously-saved `CaptureBundle` JSON files, with no browser, network, or Playwright. Produces a byte-deterministic `DiffResult`. Honors the global `--profile`, `--baseline`, `--scope`, and `--fail-on` flags and the same `0`/`1`/`2` exit codes as a full run (`--viewport` is irrelevant — the bundle carries its own).
+- **`matchy analyze --old-bundle <path> --new-bundle <path> --out <dir>`** — re-run analysis offline from two previously-saved `CaptureBundle` JSON files, with no browser, network, or Playwright. Produces a byte-deterministic `DiffResult`. Honors the global `--profile`, `--baseline`, `--severity-map`, `--scope`, and `--fail-on` flags and the same `0`/`1`/`2` exit codes as a full run (`--viewport` is irrelevant — the bundle carries its own).
 - **`matchy explain --old-bundle <path> --new-bundle <path> --anchor "text=…"`** — read-only triage probe. Locates one element across the two bundles — by `--anchor "<key>=<value>"` (key ∈ `text`/`role`/`href`/`nearestHeading`), `--node <id>`, or `--selector "<css>"` — and prints its per-side computed-style + bbox values, diff-only by default (or restricted with `--props color,gap,…`). Use it to fact-check why an issue was or wasn't flagged. Hermetic: no browser or network.
 
 The full CLI reference (flags, exit codes, screenshot resolution) lives in [`docs/prds/page-pair-diff-spec.md`](docs/prds/page-pair-diff-spec.md) §14.

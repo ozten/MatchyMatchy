@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-08-53Z",
+  "runId": "2026-08-25T18-37-47Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47016/es-mx/products/connect/branded-call",
   "parityProfile": "content-structure",
@@ -11,10 +11,13 @@
     "byType": {
       "locale_case_invalid": 1
     },
+    "bySeverity": {
+      "error": 1
+    },
     "clusterCount": 0,
     "regionCount": 0,
     "topFixes": [
-      "issue_e277e04591d3"
+      "issue_f710f1cb0b7c"
     ]
   },
   "scores": {
@@ -41,7 +44,7 @@
       "name": "desktop",
       "status": "fail",
       "issues": [
-        "issue_e277e04591d3"
+        "issue_f710f1cb0b7c"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -52,7 +55,7 @@
   ],
   "issues": [
     {
-      "id": "issue_e277e04591d3",
+      "id": "issue_f710f1cb0b7c",
       "type": "locale_case_invalid",
       "category": "hygiene",
       "severity": "error",
@@ -119,8 +122,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -145,8 +151,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],

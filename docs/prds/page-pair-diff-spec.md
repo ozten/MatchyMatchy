@@ -196,6 +196,34 @@ Each stub has a per-flag escape hatch (`--no-freeze-time`, `--no-stub-random`) b
 
 A capture is only valid if the determinism steps completed (or were explicitly skipped); record the status of **every step** — ran / failed / skipped — in `CaptureBundle.determinism`.
 
+**The settle stage (port-parity R3/U12).** Step 8 of stabilization ("lazy-load pass" above)
+is a `settleMode`-gated stage with three modes: `"off"` (skip step 8 entirely; config-file
+only, no CLI flag), `"legacy"` (today's behavior — scroll-steps in fixed `lazyScrollStepPx`
+increments with `clock.runFor` dwell, then back to top, then re-wait for fonts/images; no
+quiescence wait, growth cap, or new determinism statuses), and `"full"` (the evolved settle
+stage, **on by default**). `"full"` runs: viewport-height scroll steps with a fixed per-step
+dwell (advanced via the same controlled clock as time-freeze, so rAF/timer-driven animation
+progresses deterministically even under a frozen wall-clock) and a per-step re-read of
+`scrollHeight` bounded by a growth cap (`min(ceil(3 × initialScrollHeight / viewportHeight),
+maxSettleSteps)` — an infinite-feed page hits the cap deterministically instead of scrolling
+forever); lazy images (including ones inserted mid-scroll) awaited to load-or-error; return to
+top; then a quiescence wait — no un-ignored DOM mutation for a fixed no-mutation window
+(mutations under `hideSelectors`/`maskSelectors` subtrees are ignored), bounded by a hard
+timeout. `CaptureBundle.determinism` records `settle` (ran/failed/skipped), `quiescence`
+(reached/timeout/notRun), and booleans for `settleScrollIneffective` (scrollY never moved —
+transform-based scroll containers) and `settleGrowthCapped`, distinctly from each other so a
+persistent-animator timeout is never confused with a transform-scroll site or a capped feed.
+The legacy `lazyLoadPass` determinism key is kept for continuity but reports `skipped` once
+`settle` (not `lazyLoadPass`) owns step 8 — see the confidence-computation caveat below.
+
+`--no-settle` forces `settleMode = "legacy"` regardless of the built-in default, reverting
+step 8 to the original scroll-steps + clock-dwell + image-await behavior with no quiescence
+wait, growth cap, or new statuses — it is the flag to reach for when debugging a page the full
+settle stage handles badly; it must never produce a worse capture than any previously-shipped
+version. Any settle-stage failure (a step throwing under the frozen clock, or a quiescence
+timeout) joins the existing retry-without-freeze trigger set and promotes to a `warnings[]`
+entry (e.g. `settle_quiescence_timeout`) — never a silent log-and-continue.
+
 ### 4.3 Page model extraction (in-browser, post-stabilization)
 Extract **rendered, visible** content. Visible = non-empty bbox, not `display:none`/`visibility:hidden`, not fully transparent, within page bounds. Capture screen-reader-only labels separately for a11y.
 
@@ -236,8 +264,25 @@ border, border-radius, box-shadow,
 font-family, font-size, font-weight, line-height, letter-spacing, text-align,
 padding(-*), margin(-*),
 display, position, opacity,
-flex-direction, justify-content, align-items, gap, grid-template-columns
+flex-direction, justify-content, align-items, gap, grid-template-columns,
+text-decoration-line, z-index, max-width, pointer-events            # port-parity R4b (U4)
 ```
+
+`text-decoration-line` is captured instead of the `text-decoration` shorthand: the computed
+shorthand embeds color (`none solid rgb(0,0,0)`), which would be a noise source unrelated to
+the decoration itself. `pointer-events` is captured specifically so a `pointer-events: none`
+regression on an interactive node is caught by the style channel even when the clickable-area
+hit-test's ancestor-exclusion rule (§11) would otherwise mask it. `z-index`/`max-width` route
+through the same canonicalization ladder as every other property (`z-index: auto` and
+`max-width: none` normalize like any other equivalence class; numeric epsilon applies to
+`max-width` lengths).
+
+The curated pseudo-element property set (port-parity R2/U9 — `::before`/`::after` only, see
+§7.3) is a related but separate, smaller list: `content`, `position`, `width`, `height`,
+`background-color`, `background-image`, `border`, `border-radius`, `top`/`right`/`bottom`/`left`,
+`z-index` (plus `display`/`opacity`, read only to judge visibility, not diffed as properties).
+It is not merged into the main computed-style candidate list above — pseudo entries are keyed by
+owner + which-pseudo and live in their own `pseudoElements` bundle section (§4.5).
 
 For **gradients (G4)**: from `background-image`, detect and parse `linear-gradient`/`radial-gradient`/`conic-gradient` into `{kind, angle, stops[]}`. Presence/absence and stop deltas are first-class.
 
@@ -246,7 +291,7 @@ Normalize colors to a canonical form (e.g. `rgb()`/`rgba()` lowercased) so `#fff
 ### 4.5 `CaptureBundle` (the seam)
 ```jsonc
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "capturedAt": "2026-06-10T…Z",
   "viewport": { "name": "desktop", "width": 1440, "height": 1000, "dsf": 1 },
   "environment": {                      // fingerprint — see §3.3
@@ -254,14 +299,28 @@ Normalize colors to a canonical form (e.g. `rgb()`/`rgba()` lowercased) so `#fff
   },
   "determinism": {
     "animationsDisabled": "ran", "timeFrozen": "ran", "randomStubbed": "ran",
-    "fontsReady": "ran", "lazyLoadPass": "ran", "clicked": ["button.accept"]
+    "fontsReady": "ran", "lazyLoadPass": "ran", "clicked": ["button.accept"],
+    "settle": "ran", "quiescence": "reached",                 // port-parity U12, optional
+    "hitTestProbe": "ran"                                      // port-parity U6, optional
     // every step: "ran" | "failed" | "skipped"
   },
   "page": { /* page model from 4.3 */ },
-  "computedStyles": { "node_42": { /* curated props */ } },
+  "computedStyles": { "node_42": { /* curated props, §4.4 */ } },
+  "hitTests": {                          // port-parity R1/U6, optional, keyed by SemanticNode id
+    "node_42": { "status": "sampled", "gridSize": 25,
+                 "points": [ { "o": "hit" }, { "o": "miss", "winner": "img.decorative" }, /* …25 total */ ] }
+  },
+  "pseudoElements": {                    // port-parity R2/U9, optional, keyed by owner
+    "node_17": { "ownerTier": "node", "landmark": "main",
+                 "after": { "content": "\"\"", "position": "absolute", /* curated props, §4.4 */ } }
+  },
   "screenshots": { "fullPage": "desktop/old.png", "viewport": "desktop/old-vp.png" }
 }
 ```
+`hitTests`/`pseudoElements` are optional maps, absent on bundles captured before 1.1; analyze
+emits a `capability_mismatch` warning per channel whenever it is unavailable on either or both
+sides rather than silently never firing the corresponding detector (§11).
+
 The analyze layer receives **two** bundles (old, new) per viewport.
 
 ---
@@ -403,6 +462,14 @@ This is the product. Optimize it for an agent that will fix the issues.
 }
 ```
 
+`agentSummary.byType` and `agentSummary.bySeverity` (port-parity U5/R4d) are counts over the
+exact same kept set: after `--baseline` suppression (7.4) and `--scope` partitioning (14) have
+both been applied, so suppressed and out-of-scope issues are excluded from both maps — this is a
+contract guarantee, not an implementation detail. Both maps are always present, serialized as an
+empty object when nothing survives, never omitted. `bySeverity` exists specifically so a gate can
+assert directly against it (e.g. "no error-or-worse issues remain") without re-deriving counts
+from `issues[]`.
+
 ### 7.1 `Issue` (every field exists to reduce agent work)
 ```jsonc
 {
@@ -448,11 +515,49 @@ This is the product. Optimize it for an agent that will fix the issues.
 ```
 hash( type
     + viewport
-    + anchors{ text, role, href, alt, ariaLabel, nearestHeading, landmark, ordinalInLandmark }
-    + styleProperty )            // the CSS property name, style-category issues only
+    + anchors{ text, role, href, alt, ariaLabel, landmark }
+    + nearestHeading             // ONLY when text, href, alt, AND ariaLabel are all
+                                  // absent/empty for this issue — see below
+    + styleProperty )            // the CSS property name (style-category issues), or the
+                                  // which-pseudo slot ("::before" / "::before.<property>")
+                                  // for pseudo-element issues — same hash slot, shared
 ```
 
-Explicitly **excluded** from the hash: bboxes, CSS selectors, match scores, artifact paths, timestamps, and any other field that jitters between re-captures of a live page. This is what makes the migration loop work: fix `issue_004`, re-run against the live pages, and `issue_004` is verifiably gone while every still-unfixed issue keeps its ID. The `--baseline` accept-list (7.4) depends on this property.
+Explicitly **excluded** from the hash: bboxes, CSS selectors, match scores, artifact paths,
+timestamps, `ordinalInLandmark`, and any other field that jitters between re-captures of a
+live page.
+
+`ordinalInLandmark` is **unconditionally** excluded: it shifts whenever an unrelated
+sibling is inserted or removed near a surviving defect, so it never contributes to the
+hash, in any issue type.
+
+`nearestHeading` is **conditionally** excluded: on live pages it is computed from "first
+visible heading," which itself shifts with load/visibility state between re-captures — a
+second, independently documented capture-volatility source (only 2 of 129 issue ids
+survived a real re-capture on the `p01` regression pair while both `ordinalInLandmark`
+and `nearestHeading` were hashed unconditionally). It is identity-grade — included in the
+hash — **only** when `text`, `href`, `alt`, and `ariaLabel` are all absent/empty for that
+issue: a bare decorative element (no text, no link, no alt, no aria-label) has no other
+identity signal, so without `nearestHeading` its hash would collapse to near-empty and
+every such element would collide. Whenever any of those four anchors is present,
+`nearestHeading` contributes **nothing** to the hash even if it changes between captures.
+
+This is what makes the migration loop work: fix `issue_004`, re-run against the live
+pages, and `issue_004` is verifiably gone while every still-unfixed issue keeps its ID.
+The `--baseline` accept-list (7.4) depends on this property.
+
+**Collision suffixing (document order, not bbox).** Issues whose inputs above hash
+identically (content-identical repeats — e.g. three visually indistinguishable "Read
+more" links) collide deliberately. The first keeps the base id; the rest are suffixed
+`-2`, `-3`, … in **document order** within the colliding set: `seqIndexOld` ascending
+(`None` sorts last), then `seqIndexNew` ascending (`None` sorts last), then an
+insertion-stable tie-break. Bbox pixels are never used — they jitter between re-captures
+(viewport reflow, ad-block noise) independently of whether the defect still exists in the
+same document position. **Residual limitation:** inserting or removing an unrelated
+sibling no longer shifts any collision suffix, but adding or removing one of the
+colliding twins themselves still shifts only that twin's position in the suffix
+ordering — collision suffixes are not a substitute for identity when a defect type
+genuinely has no distinguishing anchors.
 
 ### 7.2 Issue ordering (fix value)
 `issues` array is sorted by descending **fix value** = `severityWeight × confidence × localityBonus`, where `localityBonus` is the numeric anchor-strength value from Section 5 (**high = 1.0, medium = 0.7, low = 0.4**) — strong/greppable anchors are cheap to find in source, so they sort above diffuse visual regions with weak anchors. The HTML report may re-sort; the JSON order is the agent's recommended work queue.
@@ -460,7 +565,7 @@ Explicitly **excluded** from the hash: bboxes, CSS selectors, match scores, arti
 ### 7.3 Issue taxonomy (stable strings)
 ```
 # visual
-visual_region_changed  page_height_changed
+visual_region_changed  page_height_changed  clickable_area_regressed
 # content (G2, G7)
 missing_title changed_title missing_meta_description changed_meta_description
 missing_h1 changed_h1 heading_structure_changed
@@ -471,7 +576,7 @@ missing_form changed_form missing_form_field changed_required_field missing_subm
 # structure (G3)
 component_reordered component_swapped
 # style (G1, G4)
-style_changed background_gradient_lost background_gradient_changed
+style_changed background_gradient_lost background_gradient_changed  pseudo_element_missing
 # accessibility (G8)
 accessibility_regression accessibility_improved
 # technical
@@ -481,7 +586,38 @@ url_trailing_slash url_redirect_chain url_protocol_downgrade canonical_mismatch
 locale_case_invalid locale_separator_invalid locale_unknown
 ```
 
-Reserved for post-v1 (do not emit in v1): `missing_capability`, `nonfunctional_capability`, `changed_capability`, `capability_added`, `locale_parity_missing`.
+**`clickable_area_regressed`** (visual, port-parity R1/U6–U8) — the hit-test grid over an
+interactive node's rendered rect shows the old side was cleanly clickable
+(parity-adjusted fraction ≥ `CLICKABLE_OLD_FLOOR` = 0.9) and the new side dropped by more than
+`CLICKABLE_DELTA` = 0.1, after excluding `clipped` (winner is an ancestor — smaller/rounder
+rendering, not occlusion) and `offViewport` points on both sides and dropping points that miss
+on both sides from the denominator (a below-`MIN_HIT_DENOMINATOR` = 9 surviving sample skips the
+node rather than reporting a low-confidence 0). Severity is a fixed `error` (deny-listed from the
+visual category's normal severity table; never silently demoted). Confidence is multiplied by
+`CLICKABLE_SETTLE_DEMOTION` = 0.7 when either bundle's `quiescence` timed out or `settle`
+failed/was skipped (absent settle fields — pre-1.1 bundles — are not themselves a red flag and do
+not trigger the demotion).
+
+**`pseudo_element_missing`** (style, port-parity R2/U9–U10) — an old-side owner (a semantic node,
+an ancestor, or a landmark-scoped decorative leaf identified by `id`/`data-*`) painted a
+`::before`/`::after` with `content ≠ none/normal`, the owner aligns to a new-side owner (or, for a
+decorative leaf with no semantic/ancestor fallback, fails to align by owner key — the port dropped
+the identifying attribute along with the rule, the most common real form of this defect), and the
+new side has no painted pseudo of the same which-pseudo (`::before` and `::after` are tracked and
+aligned independently). Default severity `warning`; `error` under the `strict-visual` profile.
+Aligned `::before`/`::after` pairs that both survive diff through the same canonicalization ladder
+as any other style property and emit ordinary `style_changed` issues (which-pseudo occupies the
+`styleProperty` hash slot, e.g. `"::after"` or `"::after.background-color"` — §7.1). **Scope:**
+only `::before`/`::after` with rendered content are in play; `::marker`, `::placeholder`,
+`::selection`, and other non-`before`/`after` pseudos are out of scope for this feature — a future
+defect round would need to reopen the design, not extend this one. **Asymmetry (deliberate,
+deferred):** a pseudo painted only on the *new* side (aligned owner, old absent) emits nothing in
+this version — `pseudo_element_added` is a follow-up type, deferred because the missing-direction
+is the actual port-defect class this feature targets (a port dropping a rule) while the
+added-direction has no motivating case yet and is also a candidate signal for the hit-test
+occluder set, better designed together with real data.
+
+Reserved for post-v1 (do not emit in v1): `missing_capability`, `nonfunctional_capability`, `changed_capability`, `capability_added`, `locale_parity_missing`, `pseudo_element_added`.
 
 `load_error` = a page failed to produce a usable render at all (browser-level navigation/timeout failure) where the other page succeeded; both pages failing is exit code 2, not a diff.
 
@@ -576,6 +712,8 @@ The tool issues network requests to URLs it did not receive from the operator (e
 - **Semantic diff (G2, G7):** title/meta/canonical/lang, headings + hierarchy, text blocks (grouped, normalized — see normalization rules), links, images (+alt, dimensions, load status), forms (+fields, labels, required, submit). Weight **main-content** over repeated chrome (header/footer nav classified separately).
 - **A11y diff (G8):** `axe-core/playwright` on both; diff violation sets → `accessibility_regression` (new) / `accessibility_improved` (fixed); also changed accessible names on important controls, missing landmarks/labels, heading-hierarchy regressions.
 - **Network/console:** failed requests, 4xx/5xx assets, CORS, mixed content, uncaught exceptions. New-only failures are issues; failures on both are noted but not scored against the new page.
+- **Clickable-area diff (R1, port-parity U6–U8):** consumes each bundle's optional `hitTests` map (§4.5). When both sides carry hit data for a matched interactive pair, see §7.3's `clickable_area_regressed` for the exact parity rule. When the channel is unavailable on either or both sides, analyze emits one `capability_mismatch` warning per channel (naming which side(s) lack it) instead of silently never firing the detector — this covers both a mixed-vintage comparison (one 1.0, one 1.1 bundle) and a frozen Tier-3 pair replay where neither side ever carried the channel.
+- **Pseudo-element diff (R2, port-parity U9–U10):** consumes each bundle's optional `pseudoElements` map (§4.5); see §7.3's `pseudo_element_missing` for the alignment and emission rule. Same `capability_mismatch` warning behavior as the clickable-area diff when the channel is unavailable on either side.
 
 (The **capability diff** — detection of nav/menu/search/accordion/tab/carousel and interactive click-probes — is deferred to post-v1 in its entirety. When it returns it must run in the capture layer *after* screenshots and page-model extraction so probe interactions cannot pollute captured state, transport its results in a dedicated `CaptureBundle.capabilities` field, and ship written probe-safety criteria.)
 
@@ -767,7 +905,7 @@ Mirrors flags and adds `matching` (`identityFloor`, `tieMargin`, `matchFloor`, `
 
 - [ ] `DiffResult` validates against `/contract/diff-result.schema.json`; serialized Rust and TS output are both validated against the schema in CI over shared fixtures; a mismatch fails the build.
 - [ ] Every issue has a `locator` with an agent-facing **anchor set**, and where actionable a structured `remediation` with grep targets. The tool never names a source component.
-- [ ] Issue IDs are content-addressed over the **stable subset** defined in §7.1 (type + viewport + anchors + style property) — never over bboxes, selectors, scores, or paths — so they survive re-captures and the same defect keeps the same ID across the fix→re-run loop.
+- [ ] Issue IDs are content-addressed over the **stable subset** defined in §7.1 (type + viewport + anchors{text, role, href, alt, ariaLabel, landmark} + nearestHeading *only* when text/href/alt/ariaLabel are all absent + style property / which-pseudo slot) — never over bboxes, selectors, scores, paths, or `ordinalInLandmark` — so they survive re-captures and the same defect keeps the same ID across the fix→re-run loop. Collision suffixes (for content-identical repeats) are assigned by document order (`seqIndex`), never bbox.
 - [ ] **Analysis is byte-deterministic:** no map-iteration-order dependence, total-ordered tie-breaks, fixed-order float reductions; identical bundles → identical `DiffResult` (modulo timestamps). Verified by the byte-exact analysis golden suite (§13.3).
 - [ ] Matching is **identity-first** with confidence bands (`identityFloor`, `matchFloor`/`noMatchCeil`), not a single hard cutoff; position never vetoes a strong identity match; per-signal sub-scores and deciding stage are written to `evidence.match`.
 - [ ] Capture determinism is **machine-scoped** (no Docker): environment fingerprint recorded in every bundle; pixel baselines never compared across mismatched fingerprints; uncontrollable page nondeterminism is masked or flagged low-confidence, never silently varied.

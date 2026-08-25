@@ -1,0 +1,43 @@
+{
+  "status": "warn",
+  "required": [
+    {
+      "type": "pseudo_element_missing",
+      "anchors": { "textContains": "Sales teams" },
+      "evidence": { "property": "content" },
+      "minSeverity": "warning",
+      "note": "First of three timeline-connector <li> owners painted by the deleted rule."
+    },
+    {
+      "type": "pseudo_element_missing",
+      "anchors": { "textContains": "Marketing teams" },
+      "evidence": { "property": "content" },
+      "minSeverity": "warning",
+      "note": "Second of three timeline-connector <li> owners painted by the deleted rule."
+    },
+    {
+      "type": "pseudo_element_missing",
+      "anchors": { "textContains": "Customer service" },
+      "evidence": { "property": "content" },
+      "minSeverity": "warning",
+      "note": "Third of three timeline-connector <li> owners painted by the deleted rule."
+    }
+  ],
+  "forbidden": [
+    {
+      "type": "missing_text",
+      "note": "No text node was removed; only a CSS painting rule for a decorative pseudo was deleted."
+    },
+    {
+      "type": "missing_image",
+      "note": "No <img> element was removed or altered anywhere on the page."
+    },
+    {
+      "type": "pseudo_element_missing",
+      "anchors": { "textContains": "IT & Operations teams" },
+      "note": "This is the timeline's LAST <li> (`li:not(:last-child)` deliberately excludes it) -- it never had a connector line painted on golden either, so it must never be reported missing."
+    }
+  ],
+  "maxIssues": 3,
+  "notes": "U11 (issue #4 R2 motivating defect, port-parity plan): the golden page's only literal `[section-style=\"overlap\"]` CSS rule (originally targeted per the plan) turned out to be DEAD CSS on this captured page -- grep confirms no element in golden/site/index.html carries a `section-style=\"overlap\"` attribute (8 elements carry `section-style=\"\"` instead), so U9's pseudo scan would never produce an old-side pseudoElements entry for it. Per the fixture-builder brief step 5, tried the suggested fallback `.nav-main .w-icon-dropdown-toggle::before` (line ~694) and, before committing to it, its footer sibling `.lang-element-wrapper .w-icon-dropdown-toggle::before` (line 962, a single-occurrence tier-'selector' owner) -- built and RAN that variant first. Empirically it did NOT produce pseudo_element_missing: hiya-shared.min.css ships a page-wide Webflow base rule `.w-icon-dropdown-toggle:before{content:'\\ue603'}` (icon-font glyph, legacy single-colon syntax) with lower specificity than the custom override. Deleting the custom override rule does not silence the pseudo -- the base rule still paints it (just a different glyph/position), so the observed run correctly emitted 9 `style_changed` issues (::before.content/position/top/left/width/height/bottom/right/display) and zero pseudo_element_missing, confirmed via testbed/.runs output before reverting. Both the nav (4 occurrences) and footer (1 occurrence) `.w-icon-dropdown-toggle` chevrons share this same unavoidable Webflow fallback and are therefore unusable for a pure 'nothing painted' proof via CSS-only deletion. Re-scanned every `::before`/`::after`/`:before`/`:after` rule in golden/site/index.html's inline <style> blocks AND golden/site/assets/css/hiya-shared.min.css: the table[data-table=\"stack\"]::before rule is also dead (no <table> exists on the page); `.nav-main .w-nav-button::before/::after` (mobile hamburger) is `display:none` at the 1440x1000 desktop viewport this harness tests, so its owner never enters either side's pseudoElements map (no signal either way); every content-bearing pseudo rule in hiya-shared.min.css is a generic Webflow framework clearfix/icon default (`.w-container`, `.w-richtext`, `.w-row`, `.w-embed`, `.w-nav`, `.w-tabs`, `.w-clearfix`, icon glyphs, lightbox, twitter-widget-shim) reused across many elements, not a clean single-owner target. The one bespoke, fallback-free, visible-at-desktop candidate found is `.bullets-rich-text-timeline li:not(:last-child):before` (golden/site/index.html lines 923-932): a custom vertical timeline-connector tick (content:\"\"; absolute-positioned; background-color #ecdcff) with no competing base rule anywhere in the vendored CSS. `li:not(:last-child)` matches the FIRST THREE of the four `<li>` items in the one `.bullets-rich-text-timeline` list on the page ('Sales teams', 'Marketing teams', 'Customer service & contact centers' -- deliberately NOT the fourth/last, 'IT & Operations teams', which never had a connector). Each `<li>` carries real text content, so each is captured as a semantic-node owner (tier 'node'), giving strong textContains anchors -- deleting the rule correctly produces THREE pseudo_element_missing issues (Rule 1 of pseudo_diff.rs: old painted + owner aligned by existing node matching + new absent), not one, because the single rule paints three owners simultaneously; this multiplicity is the deliberate, observed, single-edit knock-on (see manifest), not noise -- `maxIssues: 3` and the last-child forbidden entry pin exactly this shape. The sibling `padding-bottom` rule (unrelated declaration, no `content`) and the nested `@media (min-width: 480px)` `left`-only override for the SAME selector are left byte-identical (dead but harmless, same pattern used for other rules on this page), preserving single-rule-deletion discipline."
+}

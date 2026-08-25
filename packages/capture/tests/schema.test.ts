@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { CaptureBundleSchema, CaptureConfigSchema } from "../src/schema.js";
+import {
+  CaptureBundleSchema,
+  CaptureConfigSchema,
+  StabilizationConfigSchema,
+  SettleModeSchema,
+  HitTestEntrySchema,
+  PseudoElementEntrySchema,
+} from "../src/schema.js";
 
 /**
  * A minimal known-good CaptureConfig sample (capture mode) for testing schema
@@ -24,7 +31,7 @@ const EXPECTED_RUST_PREFIXES = ["old", "new", "old-selfcheck"] as const;
  * A minimal known-good CaptureBundle sample for testing schema validation.
  */
 const KNOWN_GOOD_BUNDLE = {
-  schemaVersion: "1.0" as const,
+  schemaVersion: "1.1" as const,
   capturedAt: "2026-01-01T00:00:00.000Z",
   viewport: {
     name: "desktop",
@@ -153,6 +160,12 @@ describe("CaptureBundleSchema", () => {
 
   it("rejects a bundle with wrong schemaVersion", () => {
     const bundle = { ...KNOWN_GOOD_BUNDLE, schemaVersion: "2.0" };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a pre-1.1 bundle pinned to schemaVersion 1.0", () => {
+    const bundle = { ...KNOWN_GOOD_BUNDLE, schemaVersion: "1.0" };
     const result = CaptureBundleSchema.safeParse(bundle);
     expect(result.success).toBe(false);
   });
@@ -876,5 +889,227 @@ describe("CaptureConfigSchema", () => {
     if (!result.success) {
       expect(result.error.issues[0].path).toEqual(["prefix"]);
     }
+  });
+});
+
+// ─── M9: settleMode vocabulary guard ────────────────────────────────────────
+//
+// Self-check lesson: cross-layer vocabulary drift (Rust-emitted values vs
+// capture zod enums) is not covered by contract CI. The Rust orchestrator
+// (packages/analyze/src/orchestrate.rs) emits these exact strings for
+// StabilizationConfig.settleMode; any new value requires extending both the
+// Rust side and this enum + this test together.
+const EXPECTED_SETTLE_MODES = ["full", "legacy", "off"] as const;
+
+describe("StabilizationConfigSchema settleMode vocabulary", () => {
+  it("accepts every settleMode value the Rust runner may emit", () => {
+    for (const settleMode of EXPECTED_SETTLE_MODES) {
+      const result = StabilizationConfigSchema.safeParse({ settleMode });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.settleMode).toBe(settleMode);
+      }
+    }
+  });
+
+  it("defaults settleMode to 'legacy' when omitted (current behavior; flips later)", () => {
+    const result = StabilizationConfigSchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.settleMode).toBe("legacy");
+    }
+  });
+
+  it("rejects an unknown settleMode value", () => {
+    const result = StabilizationConfigSchema.safeParse({ settleMode: "aggressive" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["settleMode"]);
+    }
+  });
+
+  it("validates the SettleModeSchema enum directly", () => {
+    expect(SettleModeSchema.safeParse("full").success).toBe(true);
+    expect(SettleModeSchema.safeParse("legacy").success).toBe(true);
+    expect(SettleModeSchema.safeParse("off").success).toBe(true);
+    expect(SettleModeSchema.safeParse("unknown").success).toBe(false);
+  });
+});
+
+// ─── M9: hitTests / pseudoElements (bundle 1.1) ─────────────────────────────
+
+describe("CaptureBundleSchema M9 additions", () => {
+  it("accepts a bundle without hitTests/pseudoElements (both optional)", () => {
+    const result = CaptureBundleSchema.safeParse(KNOWN_GOOD_BUNDLE);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a sampled hitTests entry with 25 points", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      hitTests: {
+        node_0: {
+          status: "sampled" as const,
+          gridSize: 5,
+          points: Array.from({ length: 25 }, () => ({ o: "hit" as const })),
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a skipped hitTests entry with skipReason", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      hitTests: {
+        node_0: { status: "skipped" as const, skipReason: "tooSmall" as const },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a skipped hitTests entry missing skipReason", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      hitTests: { node_0: { status: "skipped" as const } },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a sampled hitTests entry missing points", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      hitTests: { node_0: { status: "sampled" as const, gridSize: 5 } },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a miss point missing winner", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      hitTests: {
+        node_0: {
+          status: "sampled" as const,
+          gridSize: 5,
+          points: [
+            { o: "miss" as const },
+            ...Array.from({ length: 24 }, () => ({ o: "hit" as const })),
+          ],
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a node-tier pseudoElements entry", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      pseudoElements: {
+        node_0: {
+          ownerTier: "node" as const,
+          ownerNodeId: "node_0",
+          landmark: "main",
+          after: { content: '""', "background-color": "rgb(0, 0, 0)" },
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a selector-tier pseudoElements entry with null landmark", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      pseudoElements: {
+        "[data-hr-corner-top]": {
+          ownerTier: "selector" as const,
+          ownerSelector: "[data-hr-corner-top]",
+          landmark: null,
+          before: { content: '""' },
+        },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a node-tier pseudoElements entry missing ownerNodeId", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      pseudoElements: {
+        node_0: { ownerTier: "node" as const, landmark: "main" },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an ancestor-tier pseudoElements entry missing ownerSelector", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      pseudoElements: {
+        anc_0: { ownerTier: "ancestor" as const, landmark: "main" },
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts pseudoTruncated when present", () => {
+    const bundle = { ...KNOWN_GOOD_BUNDLE, pseudoTruncated: { droppedCount: 12 } };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("validates HitTestEntrySchema and PseudoElementEntrySchema directly", () => {
+    expect(
+      HitTestEntrySchema.safeParse({ status: "skipped", skipReason: "detached" }).success
+    ).toBe(true);
+    expect(
+      PseudoElementEntrySchema.safeParse({
+        ownerTier: "node",
+        ownerNodeId: "node_1",
+        landmark: null,
+      }).success
+    ).toBe(true);
+  });
+});
+
+// ─── M9: determinism settle/quiescence additions ────────────────────────────
+
+describe("DeterminismRecordSchema M9 additions", () => {
+  it("accepts determinism record with settle/hitTestProbe/quiescence populated", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      determinism: {
+        ...KNOWN_GOOD_BUNDLE.determinism,
+        settle: "ran" as const,
+        hitTestProbe: "ran" as const,
+        quiescence: "reached" as const,
+        settleScrollIneffective: false,
+        settleGrowthCapped: false,
+      },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts determinism record without the M9 additions (all optional)", () => {
+    const result = CaptureBundleSchema.safeParse(KNOWN_GOOD_BUNDLE);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid quiescence value", () => {
+    const bundle = {
+      ...KNOWN_GOOD_BUNDLE,
+      determinism: { ...KNOWN_GOOD_BUNDLE.determinism, quiescence: "unknown_value" },
+    };
+    const result = CaptureBundleSchema.safeParse(bundle);
+    expect(result.success).toBe(false);
   });
 });

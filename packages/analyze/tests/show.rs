@@ -34,6 +34,11 @@ fn make_default_det() -> matchy_analyze::contract::CaptureDeterminism {
         images_decoded: StepStatus::Ran,
         lazy_load_pass: StepStatus::Ran,
         settled: StepStatus::Ran,
+        settle: None,
+        hit_test_probe: None,
+        quiescence: None,
+        settle_scroll_ineffective: None,
+        settle_growth_capped: None,
         clicked: vec![],
         hidden: vec![],
         masked: vec![],
@@ -93,10 +98,12 @@ fn make_empty_result() -> DiffResult {
         old_url: "https://example.com/old".to_string(),
         new_url: "https://example.com/new".to_string(),
         parity_profile: "content-structure".to_string(),
+        severity_map: None,
         status: Status::Fail,
         agent_summary: AgentSummary {
             fixable_now: 2,
             by_type,
+            by_severity: BTreeMap::new(),
             cluster_count: 0,
             region_count: 0,
             top_fixes: vec![],
@@ -212,7 +219,12 @@ fn test_show_region_expands_members_exit0() {
 
     write_diff_result(&dir, &result);
 
-    let out = run_show(&["--region", "contentinfo", "--out", dir.path().to_str().unwrap()]);
+    let out = run_show(&[
+        "--region",
+        "contentinfo",
+        "--out",
+        dir.path().to_str().unwrap(),
+    ]);
 
     assert_eq!(
         out.status.code(),
@@ -643,7 +655,12 @@ fn test_show_malformed_schema_version() {
     result.schema_version = "abc".to_string();
     write_diff_result(&dir, &result);
 
-    let out = run_show(&["--region", "contentinfo", "--out", dir.path().to_str().unwrap()]);
+    let out = run_show(&[
+        "--region",
+        "contentinfo",
+        "--out",
+        dir.path().to_str().unwrap(),
+    ]);
 
     assert_eq!(
         out.status.code(),

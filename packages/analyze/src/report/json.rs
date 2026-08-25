@@ -7,9 +7,10 @@ use anyhow::Context;
 use chrono::Utc;
 
 use crate::contract::{
-    AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult, Issue,
-    IssueCategory, IntegrityInventory, IssueSeverity, IssueType, LandmarkScores, OutOfScope,
-    RunWarning, Scores, Status, StepStatus, Suppressed, ViewportResult,
+    AgentSummary, Artifacts, CaptureDeterminism, Cluster, DeterminismSummary, DiffResult,
+    IntegrityInventory, Issue, IssueCategory, IssueSeverity, IssueType, LandmarkScores, OutOfScope,
+    QuiescenceStatus, RunWarning, Scores, SeverityMapEcho, Status, StepStatus, Suppressed,
+    ViewportResult,
 };
 use crate::scoring::{compute_status, count_fixable_now, fix_value, ParityProfile};
 
@@ -22,18 +23,18 @@ pub struct ViewportAnalysis {
     pub old_det: CaptureDeterminism,
     pub new_det: CaptureDeterminism,
     pub old_landmark_node_counts: std::collections::BTreeMap<String, u32>,
+    /// Port-parity U7: `capability_mismatch` warnings computed from this
+    /// viewport's bundle pair (`orchestrate::capability_mismatch_warnings`).
+    /// Empty when both bundles carry every channel, or when there was no
+    /// bundle pair to compute from (e.g. a `load_error` placeholder).
+    pub capability_warnings: Vec<RunWarning>,
 }
 
 /// Scope options passed to assemble_diff_result.
+#[derive(Default)]
 pub struct ScopeOptions {
     /// Landmark roles to include. Empty = no scoping (include everything).
     pub scope: Vec<String>,
-}
-
-impl Default for ScopeOptions {
-    fn default() -> Self {
-        ScopeOptions { scope: vec![] }
-    }
 }
 
 /// Assemble a DiffResult from per-viewport analyses.
@@ -48,6 +49,7 @@ impl Default for ScopeOptions {
 /// - byType uses BTreeMap.
 /// - Multi-viewport: scores = min per category; determinism = worst per step.
 /// - No HashMap or serde_json::Map iteration for ordering anywhere.
+#[allow(clippy::too_many_arguments)]
 pub fn assemble_diff_result(
     run_id: &str,
     old_url: &str,
@@ -57,6 +59,10 @@ pub fn assemble_diff_result(
     baseline: &crate::baseline::Baseline,
     scope_opts: &ScopeOptions,
     extra_warnings: Vec<RunWarning>,
+    // Port-parity U3: resolved `--severity-map` echo, or `None` when the flag
+    // wasn't supplied. Populated by the caller (mirrors how `baseline` /
+    // `profile` are already caller-resolved before assembly).
+    severity_map: Option<SeverityMapEcho>,
 ) -> DiffResult {
     // ------------------------------------------------------------------
     // 1. Merge issues from all viewports.
@@ -176,12 +182,17 @@ pub fn assemble_diff_result(
     // (id_to_cluster is available for future use; cluster membership tested via clustered_ids)
 
     // ------------------------------------------------------------------
-    // 5. byType over kept.
+    // 5. byType + bySeverity over kept (port-parity U5: same kept set,
+    //    post-baseline, post-scope, as documented on AgentSummary).
     // ------------------------------------------------------------------
     let mut by_type: BTreeMap<String, u32> = BTreeMap::new();
+    let mut by_severity: BTreeMap<String, u64> = BTreeMap::new();
     for issue in &kept {
         *by_type
             .entry(issue.issue_type.as_str().to_string())
+            .or_insert(0) += 1;
+        *by_severity
+            .entry(issue.severity.as_str().to_string())
             .or_insert(0) += 1;
     }
 
@@ -236,8 +247,7 @@ pub fn assemble_diff_result(
     for issue in &kept {
         let claimed = region_claimed_ids.contains(issue.id.as_str());
         let unclustered_unclaimed = !clustered_ids.contains(issue.id.as_str()) && !claimed;
-        let critical_member =
-            claimed && issue.severity == crate::contract::IssueSeverity::Critical;
+        let critical_member = claimed && issue.severity == crate::contract::IssueSeverity::Critical;
         if unclustered_unclaimed || critical_member {
             let fv = fix_value(
                 &issue.severity,
@@ -359,28 +369,37 @@ pub fn assemble_diff_result(
     //   1. capture_step_failed (old then new, fixed field order)
     //   2. capture_integrity_delta (old then new)
     //   3. capture_retried_without_time_freeze (old then new)
-    //   4. baseline_stale_ids
-    //   5. extra_warnings (appended last, in the fixed relative order the caller
+    //   4. settle_quiescence_timeout (port-parity U12: old then new)
+    //   5. settle_growth_capped (port-parity U12: old then new)
+    //   6. baseline_stale_ids
+    //   7. capability_mismatch (port-parity U7: one per channel — hitTests,
+    //      pseudoElements, settle, in that fixed order — deduped across
+    //      viewports; the first viewport (in caller order) to report a given
+    //      channel wins, mirroring the "artifacts: first viewport's" convention)
+    //   8. extra_warnings (appended last, in the fixed relative order the caller
     //      built them in — currently `--self-check`'s `run_self_check` produces, at
     //      most, `volatile_capture` followed by `self_check_failed`)
     // ------------------------------------------------------------------
     let mut warnings = build_warnings(&old_det, &new_det, baseline, &suppressed.ids);
+    warnings.extend(dedupe_capability_warnings(&viewports));
     warnings.extend(extra_warnings);
 
     // ------------------------------------------------------------------
     // 15. Assemble.
     // ------------------------------------------------------------------
     DiffResult {
-        schema_version: "1.2".to_string(),
+        schema_version: "1.3".to_string(),
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
         run_id: run_id.to_string(),
         old_url: old_url.to_string(),
         new_url: new_url.to_string(),
         parity_profile: profile.as_str().to_string(),
+        severity_map,
         status: overall_status,
         agent_summary: AgentSummary {
             fixable_now,
             by_type,
+            by_severity,
             cluster_count,
             region_count,
             top_fixes,
@@ -527,7 +546,9 @@ fn emit_integrity_delta(
 /// 1. capture_step_failed: old then new, fixed field order.
 /// 2. capture_integrity_delta: old then new.
 /// 3. capture_retried_without_time_freeze: old then new.
-/// 4. baseline_stale_ids.
+/// 4. settle_quiescence_timeout (port-parity U12): old then new.
+/// 5. settle_growth_capped (port-parity U12): old then new.
+/// 6. baseline_stale_ids.
 ///
 /// (extra_warnings appended by caller after this function returns.)
 fn build_warnings(
@@ -591,6 +612,46 @@ fn build_warnings(
         });
     }
 
+    // Port-parity U12: settle_quiescence_timeout — old then new. Fires when the
+    // settle stage's MutationObserver quiescence wait hit its hard timeout
+    // (never observed `quiescenceWindowMs` of silence before `quiescenceTimeoutMs`
+    // ran out) — a persistent-animator page (rAF marquee, etc.), not itself a
+    // capture failure (the pipeline continues; `determinism.settle` may still be
+    // `ran`).
+    if old_det.quiescence == Some(QuiescenceStatus::Timeout) {
+        warnings.push(RunWarning {
+            code: "settle_quiescence_timeout".to_string(),
+            message: "old capture: the settle stage's quiescence wait hit its hard timeout without observing a stable DOM; the page may still have been mutating at capture time".to_string(),
+            context: Some(serde_json::json!({ "side": "old" })),
+        });
+    }
+    if new_det.quiescence == Some(QuiescenceStatus::Timeout) {
+        warnings.push(RunWarning {
+            code: "settle_quiescence_timeout".to_string(),
+            message: "new capture: the settle stage's quiescence wait hit its hard timeout without observing a stable DOM; the page may still have been mutating at capture time".to_string(),
+            context: Some(serde_json::json!({ "side": "new" })),
+        });
+    }
+
+    // Port-parity U12: settle_growth_capped — old then new. Fires when the
+    // settle stage's viewport-height scroll-through hit its page-growth cap
+    // (e.g. an infinite feed that keeps appending content while scrolling) —
+    // the capture may not include content past the cap.
+    if old_det.settle_growth_capped == Some(true) {
+        warnings.push(RunWarning {
+            code: "settle_growth_capped".to_string(),
+            message: "old capture: the settle stage's scroll-through hit its page-growth cap; the page kept growing under scroll and was not fully captured".to_string(),
+            context: Some(serde_json::json!({ "side": "old" })),
+        });
+    }
+    if new_det.settle_growth_capped == Some(true) {
+        warnings.push(RunWarning {
+            code: "settle_growth_capped".to_string(),
+            message: "new capture: the settle stage's scroll-through hit its page-growth cap; the page kept growing under scroll and was not fully captured".to_string(),
+            context: Some(serde_json::json!({ "side": "new" })),
+        });
+    }
+
     // Baseline staleness: baseline ids that matched no issue in this run.
     // stale = baseline ids minus suppressed ids (i.e. those that did NOT suppress anything).
     if !baseline.is_empty() {
@@ -637,6 +698,56 @@ fn build_warnings(
     warnings
 }
 
+/// Merge per-viewport `capability_mismatch` warnings (port-parity U7) into a
+/// single run-level list: at most one warning per channel, in the fixed
+/// channel order `hitTests`, `pseudoElements`, `settle`. When more than one
+/// viewport reports a channel (almost always identical, since channel
+/// availability is a tool-version property, not a per-viewport one), the
+/// first viewport in caller order wins — same convention as "artifacts:
+/// first viewport's artifacts" above.
+///
+/// Port-parity U10: `ViewportAnalysis.capability_warnings` is also the bucket
+/// `analyze_viewport`'s own detector-level warnings (currently just
+/// `pseudo_budget_truncated`) get merged into at the call site — any code
+/// OTHER than `capability_mismatch` is deduped by `code` instead of by
+/// `channel` (it carries no `channel` context field), first viewport in
+/// caller order wins, emitted after the channel-ordered warnings sorted by
+/// code for determinism. Inert for every pre-U10 caller (they only ever push
+/// `capability_mismatch`-coded entries here), so no existing golden output
+/// changes.
+fn dedupe_capability_warnings(viewports: &[ViewportAnalysis]) -> Vec<RunWarning> {
+    const CHANNEL_ORDER: &[&str] = &["hitTests", "pseudoElements", "settle"];
+
+    let mut by_channel: BTreeMap<&'static str, RunWarning> = BTreeMap::new();
+    let mut by_other_code: BTreeMap<String, RunWarning> = BTreeMap::new();
+    for vp in viewports {
+        for w in &vp.capability_warnings {
+            if w.code != "capability_mismatch" {
+                by_other_code
+                    .entry(w.code.clone())
+                    .or_insert_with(|| w.clone());
+                continue;
+            }
+            let channel = w
+                .context
+                .as_ref()
+                .and_then(|c| c.get("channel"))
+                .and_then(|c| c.as_str())
+                .unwrap_or("");
+            if let Some(known) = CHANNEL_ORDER.iter().copied().find(|c| *c == channel) {
+                by_channel.entry(known).or_insert_with(|| w.clone());
+            }
+        }
+    }
+
+    let mut out: Vec<RunWarning> = CHANNEL_ORDER
+        .iter()
+        .filter_map(|c| by_channel.get(c).cloned())
+        .collect();
+    out.extend(by_other_code.into_values());
+    out
+}
+
 /// Write DiffResult as pretty JSON (with trailing newline) to out_dir/diff-result.json.
 pub fn write_diff_result(result: &DiffResult, out_dir: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(out_dir)
@@ -664,6 +775,11 @@ fn make_default_determinism() -> CaptureDeterminism {
         images_decoded: StepStatus::Skipped,
         lazy_load_pass: StepStatus::Skipped,
         settled: StepStatus::Skipped,
+        settle: None,
+        hit_test_probe: None,
+        quiescence: None,
+        settle_scroll_ineffective: None,
+        settle_growth_capped: None,
         clicked: vec![],
         hidden: vec![],
         masked: vec![],
@@ -702,6 +818,11 @@ mod tests {
             images_decoded: StepStatus::Ran,
             lazy_load_pass: StepStatus::Ran,
             settled: StepStatus::Ran,
+            settle: None,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
             clicked: vec![],
             hidden: vec![],
             masked: vec![],
@@ -864,6 +985,91 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
+    // Port-parity U12: settle_quiescence_timeout / settle_growth_capped warnings
+    // -----------------------------------------------------------------------
+
+    /// `quiescence == Timeout` on the old side alone emits exactly one
+    /// `settle_quiescence_timeout` warning with `side: "old"`.
+    #[test]
+    fn test_warnings_settle_quiescence_timeout_old() {
+        let mut old_det = det_all_ran();
+        old_det.quiescence = Some(crate::contract::QuiescenceStatus::Timeout);
+        let warnings = build_warnings(&old_det, &det_all_ran(), &Baseline::default(), &[]);
+        let matches: Vec<&RunWarning> = warnings
+            .iter()
+            .filter(|w| w.code == "settle_quiescence_timeout")
+            .collect();
+        assert_eq!(matches.len(), 1);
+        assert_eq!(
+            matches[0].context.as_ref().unwrap()["side"],
+            serde_json::json!("old")
+        );
+    }
+
+    /// `quiescence == Timeout` on both sides emits two warnings, old before new.
+    #[test]
+    fn test_warnings_settle_quiescence_timeout_both_sides_ordered() {
+        let mut old_det = det_all_ran();
+        old_det.quiescence = Some(crate::contract::QuiescenceStatus::Timeout);
+        let mut new_det = det_all_ran();
+        new_det.quiescence = Some(crate::contract::QuiescenceStatus::Timeout);
+        let warnings = build_warnings(&old_det, &new_det, &Baseline::default(), &[]);
+        let matches: Vec<&RunWarning> = warnings
+            .iter()
+            .filter(|w| w.code == "settle_quiescence_timeout")
+            .collect();
+        assert_eq!(matches.len(), 2);
+        assert_eq!(
+            matches[0].context.as_ref().unwrap()["side"],
+            serde_json::json!("old")
+        );
+        assert_eq!(
+            matches[1].context.as_ref().unwrap()["side"],
+            serde_json::json!("new")
+        );
+    }
+
+    /// `quiescence == Reached` (or `NotRun`) never emits the timeout warning.
+    #[test]
+    fn test_warnings_no_quiescence_timeout_warning_when_reached() {
+        let mut old_det = det_all_ran();
+        old_det.quiescence = Some(crate::contract::QuiescenceStatus::Reached);
+        let mut new_det = det_all_ran();
+        new_det.quiescence = Some(crate::contract::QuiescenceStatus::NotRun);
+        let warnings = build_warnings(&old_det, &new_det, &Baseline::default(), &[]);
+        assert!(warnings
+            .iter()
+            .all(|w| w.code != "settle_quiescence_timeout"));
+    }
+
+    /// `settleGrowthCapped == true` on the new side alone emits exactly one
+    /// `settle_growth_capped` warning with `side: "new"`.
+    #[test]
+    fn test_warnings_settle_growth_capped_new() {
+        let mut new_det = det_all_ran();
+        new_det.settle_growth_capped = Some(true);
+        let warnings = build_warnings(&det_all_ran(), &new_det, &Baseline::default(), &[]);
+        let matches: Vec<&RunWarning> = warnings
+            .iter()
+            .filter(|w| w.code == "settle_growth_capped")
+            .collect();
+        assert_eq!(matches.len(), 1);
+        assert_eq!(
+            matches[0].context.as_ref().unwrap()["side"],
+            serde_json::json!("new")
+        );
+    }
+
+    /// `settleGrowthCapped` absent or `false` never emits the warning.
+    #[test]
+    fn test_warnings_no_growth_capped_warning_when_absent_or_false() {
+        let mut old_det = det_all_ran();
+        old_det.settle_growth_capped = Some(false);
+        let warnings = build_warnings(&old_det, &det_all_ran(), &Baseline::default(), &[]);
+        assert!(warnings.iter().all(|w| w.code != "settle_growth_capped"));
+    }
+
+    // -----------------------------------------------------------------------
     // WP-E: --scope partition — outOfScope ids
     // -----------------------------------------------------------------------
 
@@ -902,6 +1108,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -912,6 +1119,7 @@ mod tests {
             &Baseline::default(),
             &scope_opts,
             vec![],
+            None,
         );
         assert_eq!(
             result.out_of_scope.count, 1,
@@ -955,6 +1163,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -965,6 +1174,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
         assert_eq!(result.out_of_scope.count, 0);
         assert!(result.out_of_scope.ids.is_empty());
@@ -1016,6 +1226,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1026,6 +1237,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
         let by_lm = &result.scores.by_landmark;
         // "main" must appear
@@ -1072,6 +1284,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1082,6 +1295,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
         let by_lm = &result.scores.by_landmark;
         let aside = by_lm
@@ -1139,7 +1353,11 @@ mod tests {
             .iter()
             .filter(|w| w.code == "capture_integrity_delta")
             .collect();
-        assert_eq!(integrity_warnings.len(), 1, "heading delta should fire once");
+        assert_eq!(
+            integrity_warnings.len(),
+            1,
+            "heading delta should fire once"
+        );
         let ctx = integrity_warnings[0].context.as_ref().unwrap();
         assert_eq!(ctx["side"], serde_json::json!("old"));
         assert!(
@@ -1187,9 +1405,7 @@ mod tests {
         let baseline = Baseline::default();
         let warnings = build_warnings(&det_all_ran(), &det_all_ran(), &baseline, &[]);
         assert!(
-            warnings
-                .iter()
-                .all(|w| w.code != "capture_integrity_delta"),
+            warnings.iter().all(|w| w.code != "capture_integrity_delta"),
             "no integrity warning when integrity is None"
         );
     }
@@ -1210,10 +1426,15 @@ mod tests {
         // step_failed must appear before integrity_delta.
         let step_pos = codes.iter().position(|&c| c == "capture_step_failed");
         let integrity_pos = codes.iter().position(|&c| c == "capture_integrity_delta");
-        let retried_pos = codes.iter().position(|&c| c == "capture_retried_without_time_freeze");
+        let retried_pos = codes
+            .iter()
+            .position(|&c| c == "capture_retried_without_time_freeze");
 
         assert!(step_pos.is_some(), "step_failed warning must be present");
-        assert!(integrity_pos.is_some(), "integrity_delta warning must be present");
+        assert!(
+            integrity_pos.is_some(),
+            "integrity_delta warning must be present"
+        );
         assert!(retried_pos.is_some(), "retried warning must be present");
 
         assert!(
@@ -1239,14 +1460,35 @@ mod tests {
 
         let codes: Vec<&str> = warnings.iter().map(|w| w.code.as_str()).collect();
 
-        let step_pos = codes.iter().position(|&c| c == "capture_step_failed").unwrap();
-        let integrity_pos = codes.iter().position(|&c| c == "capture_integrity_delta").unwrap();
-        let retried_pos = codes.iter().position(|&c| c == "capture_retried_without_time_freeze").unwrap();
-        let stale_pos = codes.iter().position(|&c| c == "baseline_stale_ids").unwrap();
+        let step_pos = codes
+            .iter()
+            .position(|&c| c == "capture_step_failed")
+            .unwrap();
+        let integrity_pos = codes
+            .iter()
+            .position(|&c| c == "capture_integrity_delta")
+            .unwrap();
+        let retried_pos = codes
+            .iter()
+            .position(|&c| c == "capture_retried_without_time_freeze")
+            .unwrap();
+        let stale_pos = codes
+            .iter()
+            .position(|&c| c == "baseline_stale_ids")
+            .unwrap();
 
-        assert!(step_pos < integrity_pos, "step_failed must precede integrity_delta");
-        assert!(integrity_pos < retried_pos, "integrity_delta must precede retried");
-        assert!(retried_pos < stale_pos, "retried must precede baseline_stale_ids");
+        assert!(
+            step_pos < integrity_pos,
+            "step_failed must precede integrity_delta"
+        );
+        assert!(
+            integrity_pos < retried_pos,
+            "integrity_delta must precede retried"
+        );
+        assert!(
+            retried_pos < stale_pos,
+            "retried must precede baseline_stale_ids"
+        );
     }
 
     /// extra_warnings are appended after all generated warnings.
@@ -1275,6 +1517,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
         };
         let result = assemble_diff_result(
             "run-test",
@@ -1285,6 +1528,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             extra,
+            None,
         );
         // Both extra warnings must be appended after any generated warnings, and in
         // the relative order they were passed in: volatile_capture then
@@ -1317,8 +1561,7 @@ mod tests {
         landmark: Option<&str>,
         remediation_property: Option<&str>,
     ) -> Issue {
-        let remediation = remediation_property
-            .map(|p| serde_json::json!({ "property": p }));
+        let remediation = remediation_property.map(|p| serde_json::json!({ "property": p }));
         Issue {
             id: id.to_string(),
             issue_type,
@@ -1414,6 +1657,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1425,10 +1669,15 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         // Exactly one region: contentinfo
-        assert_eq!(result.regions.len(), 1, "exactly one region must be emitted");
+        assert_eq!(
+            result.regions.len(),
+            1,
+            "exactly one region must be emitted"
+        );
         let region = &result.regions[0];
         assert_eq!(region.landmark, "contentinfo");
 
@@ -1514,6 +1763,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1525,10 +1775,17 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
-        assert!(result.regions.is_empty(), "regions must be empty when nothing saturates");
-        assert_eq!(result.agent_summary.region_count, 0, "region_count must be 0");
+        assert!(
+            result.regions.is_empty(),
+            "regions must be empty when nothing saturates"
+        );
+        assert_eq!(
+            result.agent_summary.region_count, 0,
+            "region_count must be 0"
+        );
         // clusters and top_fixes are non-empty (the color cluster should form)
         assert!(
             !result.clusters.is_empty(),
@@ -1564,6 +1821,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1575,11 +1833,15 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert!(result.regions.is_empty(), "main must not saturate");
         assert!(
-            result.agent_summary.top_fixes.contains(&"main_bl_0000".to_string()),
+            result
+                .agent_summary
+                .top_fixes
+                .contains(&"main_bl_0000".to_string()),
             "unclaimed BrokenLink must appear in top_fixes"
         );
     }
@@ -1631,6 +1893,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1642,6 +1905,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert_eq!(result.regions.len(), 1, "contentinfo must saturate");
@@ -1649,17 +1913,25 @@ mod tests {
 
         // critical member is in region.member_issue_ids
         assert!(
-            region.member_issue_ids.contains(&"ci_form_0000".to_string()),
+            region
+                .member_issue_ids
+                .contains(&"ci_form_0000".to_string()),
             "critical member must be in region.member_issue_ids"
         );
         // critical member is ALSO in top_fixes (dual-surfaced)
         assert!(
-            result.agent_summary.top_fixes.contains(&"ci_form_0000".to_string()),
+            result
+                .agent_summary
+                .top_fixes
+                .contains(&"ci_form_0000".to_string()),
             "critical member must be dual-surfaced in top_fixes"
         );
         // error member is NOT in top_fixes as its own entry
         assert!(
-            !result.agent_summary.top_fixes.contains(&"ci_link_0000".to_string()),
+            !result
+                .agent_summary
+                .top_fixes
+                .contains(&"ci_link_0000".to_string()),
             "error-severity member must NOT be dual-surfaced in top_fixes"
         );
         // The region id itself appears in top_fixes
@@ -1707,6 +1979,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1718,6 +1991,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert_eq!(result.regions.len(), 1, "contentinfo must saturate");
@@ -1725,12 +1999,17 @@ mod tests {
 
         // warning member is in region.member_issue_ids
         assert!(
-            region.member_issue_ids.contains(&"ci_warn_0000".to_string()),
+            region
+                .member_issue_ids
+                .contains(&"ci_warn_0000".to_string()),
             "warning member must be in region.member_issue_ids"
         );
         // warning member is NOT dual-surfaced in top_fixes
         assert!(
-            !result.agent_summary.top_fixes.contains(&"ci_warn_0000".to_string()),
+            !result
+                .agent_summary
+                .top_fixes
+                .contains(&"ci_warn_0000".to_string()),
             "warning-severity member must NOT be dual-surfaced in top_fixes"
         );
         // The region id itself appears in top_fixes
@@ -1767,6 +2046,7 @@ mod tests {
             old_det: det_all_ran(),
             new_det: det_all_ran(),
             old_landmark_node_counts: old_counts,
+            capability_warnings: vec![],
         };
 
         let result = assemble_diff_result(
@@ -1778,6 +2058,7 @@ mod tests {
             &Baseline::default(),
             &ScopeOptions::default(),
             vec![],
+            None,
         );
 
         assert_eq!(result.regions.len(), 1, "exactly one region");
@@ -1790,6 +2071,498 @@ mod tests {
             result.agent_summary.top_fixes.contains(region_id),
             "region id must appear in top_fixes"
         );
-        assert_eq!(result.agent_summary.region_count, 1, "region_count must be 1");
+        assert_eq!(
+            result.agent_summary.region_count, 1,
+            "region_count must be 1"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // U5: agentSummary.bySeverity — post-baseline, post-scope guarantee
+    // -----------------------------------------------------------------------
+
+    /// Manual count of severities directly from a serialized `issues[]` array,
+    /// used to cross-check `agentSummary.bySeverity` / `byType` against the
+    /// actual visible-issue list rather than trusting the summary alone.
+    fn manual_by_severity(issues: &[Issue]) -> BTreeMap<String, u64> {
+        let mut m: BTreeMap<String, u64> = BTreeMap::new();
+        for issue in issues {
+            *m.entry(issue.severity.as_str().to_string()).or_insert(0) += 1;
+        }
+        m
+    }
+
+    fn manual_by_type(issues: &[Issue]) -> BTreeMap<String, u32> {
+        let mut m: BTreeMap<String, u32> = BTreeMap::new();
+        for issue in issues {
+            *m.entry(issue.issue_type.as_str().to_string()).or_insert(0) += 1;
+        }
+        m
+    }
+
+    /// Happy path: 3 error-severity issues where 1 is baseline-suppressed and 1 is
+    /// out-of-scope. `bySeverity["error"]` must equal 1 (only the surviving error
+    /// issue), and it must equal a manual count over the serialized `issues[]`.
+    #[test]
+    fn test_by_severity_happy_path_baseline_and_scope() {
+        // issue A: error, in "main" landmark, in scope, not baselined → survives.
+        let issue_a = make_issue_typed(
+            "issue_a_survivor",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+        // issue B: error, baselined → suppressed.
+        let issue_b = make_issue_typed(
+            "issue_b_baselined",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+        // issue C: error, in "navigation" landmark → scoped out (scope = ["main"]).
+        let issue_c = make_issue_typed(
+            "issue_c_outofscope",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("navigation"),
+            None,
+        );
+
+        let baseline = Baseline::from_ids(vec!["issue_b_baselined".to_string()]);
+        let scope_opts = ScopeOptions {
+            scope: vec!["main".to_string()],
+        };
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![issue_a, issue_b, issue_c],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
+        };
+
+        let result = assemble_diff_result(
+            "run-u5-happy",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &baseline,
+            &scope_opts,
+            vec![],
+            None,
+        );
+
+        // Exactly the survivor remains in issues[].
+        assert_eq!(result.issues.len(), 1, "only the survivor issue is kept");
+        assert_eq!(result.issues[0].id, "issue_a_survivor");
+
+        assert_eq!(
+            result.agent_summary.by_severity.get("error").copied(),
+            Some(1),
+            "bySeverity[\"error\"] must equal 1 after suppression + scoping"
+        );
+
+        // Cross-check against a manual count over the serialized issues[] array.
+        let manual = manual_by_severity(&result.issues);
+        assert_eq!(
+            result.agent_summary.by_severity, manual,
+            "bySeverity must equal a manual count over the visible issues[] array"
+        );
+    }
+
+    /// Edge case: all issues suppressed (baselined) → `bySeverity` and `byType`
+    /// must both serialize as an EMPTY OBJECT (present, not absent) — gates rely
+    /// on this always-present guarantee.
+    #[test]
+    fn test_by_severity_all_suppressed_serializes_empty_object() {
+        let issue_a = make_issue_typed(
+            "issue_all_suppressed_a",
+            IssueType::ChangedText,
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+            None,
+        );
+        let issue_b = make_issue_typed(
+            "issue_all_suppressed_b",
+            IssueType::StyleChanged,
+            IssueCategory::Style,
+            IssueSeverity::Warning,
+            Some("main"),
+            Some("color"),
+        );
+
+        let baseline = Baseline::from_ids(vec![
+            "issue_all_suppressed_a".to_string(),
+            "issue_all_suppressed_b".to_string(),
+        ]);
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![issue_a, issue_b],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
+        };
+
+        let result = assemble_diff_result(
+            "run-u5-all-suppressed",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &baseline,
+            &ScopeOptions::default(),
+            vec![],
+            None,
+        );
+
+        assert!(result.issues.is_empty(), "all issues must be suppressed");
+        assert!(
+            result.agent_summary.by_severity.is_empty(),
+            "bySeverity must be an empty map when all issues are suppressed"
+        );
+        assert!(
+            result.agent_summary.by_type.is_empty(),
+            "byType must be an empty map when all issues are suppressed"
+        );
+
+        // Pin the wire-level guarantee: the field is present as `{}`, not omitted,
+        // in the serialized JSON — this is what gates depend on (no `?? {}`
+        // fallback needed on the consumer side).
+        let json = serde_json::to_value(&result.agent_summary).expect("serialize agentSummary");
+        assert_eq!(
+            json.get("bySeverity"),
+            Some(&serde_json::json!({})),
+            "bySeverity must serialize as an empty object, not be absent"
+        );
+        assert_eq!(
+            json.get("byType"),
+            Some(&serde_json::json!({})),
+            "byType must serialize as an empty object, not be absent"
+        );
+    }
+
+    /// Integration-shaped: `--scope` partitioning AND `--baseline` together.
+    /// `bySeverity` and `byType` must both equal counts derived from the
+    /// visible `issues[]` array exactly (same kept set for both).
+    #[test]
+    fn test_by_severity_and_by_type_match_visible_issues_with_scope_and_baseline() {
+        let issues: Vec<Issue> = vec![
+            // In-scope ("main"), not baselined → 2 errors, 1 warning survive.
+            make_issue_typed(
+                "main_err_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("main"),
+                None,
+            ),
+            make_issue_typed(
+                "main_err_0001",
+                IssueType::MissingText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("main"),
+                None,
+            ),
+            make_issue_typed(
+                "main_warn_0000",
+                IssueType::StyleChanged,
+                IssueCategory::Style,
+                IssueSeverity::Warning,
+                Some("main"),
+                Some("color"),
+            ),
+            // In-scope but baselined → suppressed, must not count.
+            make_issue_typed(
+                "main_baselined_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("main"),
+                None,
+            ),
+            // Out-of-scope ("navigation") → must not count, even though it's an error.
+            make_issue_typed(
+                "nav_err_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Error,
+                Some("navigation"),
+                None,
+            ),
+            // Out-of-scope AND baselined → double-excluded, must not count.
+            make_issue_typed(
+                "nav_baselined_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Critical,
+                Some("navigation"),
+                None,
+            ),
+            // Page-level (no landmark), not baselined → always in scope, must count.
+            make_issue_typed(
+                "page_info_0000",
+                IssueType::ChangedText,
+                IssueCategory::Content,
+                IssueSeverity::Info,
+                None,
+                None,
+            ),
+        ];
+
+        let baseline = Baseline::from_ids(vec![
+            "main_baselined_0000".to_string(),
+            "nav_baselined_0000".to_string(),
+        ]);
+        let scope_opts = ScopeOptions {
+            scope: vec!["main".to_string()],
+        };
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues,
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
+        };
+
+        let result = assemble_diff_result(
+            "run-u5-integration",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &baseline,
+            &scope_opts,
+            vec![],
+            None,
+        );
+
+        // Visible set: main_err_0000, main_err_0001, main_warn_0000, page_info_0000.
+        let visible_ids: BTreeSet<&str> = result.issues.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(visible_ids.len(), 4, "exactly four issues survive");
+        for expect_present in [
+            "main_err_0000",
+            "main_err_0001",
+            "main_warn_0000",
+            "page_info_0000",
+        ] {
+            assert!(
+                visible_ids.contains(expect_present),
+                "{} must be visible",
+                expect_present
+            );
+        }
+        for expect_absent in ["main_baselined_0000", "nav_err_0000", "nav_baselined_0000"] {
+            assert!(
+                !visible_ids.contains(expect_absent),
+                "{} must not be visible",
+                expect_absent
+            );
+        }
+
+        let manual_sev = manual_by_severity(&result.issues);
+        let manual_typ = manual_by_type(&result.issues);
+        assert_eq!(
+            result.agent_summary.by_severity, manual_sev,
+            "bySeverity must equal a manual count over the visible issues[] array"
+        );
+        assert_eq!(
+            result.agent_summary.by_type, manual_typ,
+            "byType must equal a manual count over the visible issues[] array"
+        );
+
+        // Spell out the expected counts explicitly too, not just cross-checked.
+        assert_eq!(
+            result.agent_summary.by_severity.get("error").copied(),
+            Some(2)
+        );
+        assert_eq!(
+            result.agent_summary.by_severity.get("warning").copied(),
+            Some(1)
+        );
+        assert_eq!(
+            result.agent_summary.by_severity.get("info").copied(),
+            Some(1)
+        );
+        assert_eq!(result.agent_summary.by_severity.get("critical"), None);
+    }
+
+    // -----------------------------------------------------------------------
+    // port-parity U7: capability_mismatch dedupe + --scope exclusion of a
+    // clickable_area_regressed issue.
+    // -----------------------------------------------------------------------
+
+    /// `dedupe_capability_warnings` merges per-viewport capability_mismatch
+    /// warnings into at most one per channel, in fixed channel order, with the
+    /// first viewport (caller order) winning when more than one reports the
+    /// same channel.
+    #[test]
+    fn test_dedupe_capability_warnings_across_viewports() {
+        use crate::contract::RunWarning;
+
+        fn cap_warning(channel: &str, missing_on: &str) -> RunWarning {
+            RunWarning {
+                code: "capability_mismatch".to_string(),
+                message: format!("channel '{}' unavailable", channel),
+                context: Some(serde_json::json!({
+                    "channel": channel,
+                    "missingOn": missing_on
+                })),
+            }
+        }
+
+        let vp_desktop = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![
+                cap_warning("settle", "old"),
+                cap_warning("hitTests", "both"),
+            ],
+        };
+        // Mobile independently reports pseudoElements AND a *different*
+        // hitTests missingOn value — desktop (processed first) must win for
+        // hitTests, and pseudoElements (absent from desktop) must still surface.
+        let vp_mobile = ViewportAnalysis {
+            name: "mobile".to_string(),
+            issues: vec![],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![
+                cap_warning("hitTests", "new"),
+                cap_warning("pseudoElements", "old"),
+            ],
+        };
+
+        let result = assemble_diff_result(
+            "run-test",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp_desktop, vp_mobile],
+            &Baseline::default(),
+            &ScopeOptions::default(),
+            vec![],
+            None,
+        );
+
+        let cap_warnings: Vec<&crate::contract::RunWarning> = result
+            .warnings
+            .iter()
+            .filter(|w| w.code == "capability_mismatch")
+            .collect();
+        assert_eq!(cap_warnings.len(), 3, "one warning per channel, deduped");
+
+        let channels: Vec<&str> = cap_warnings
+            .iter()
+            .map(|w| w.context.as_ref().unwrap()["channel"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            channels,
+            vec!["hitTests", "pseudoElements", "settle"],
+            "fixed channel order regardless of viewport order"
+        );
+
+        // First-viewport-wins: desktop's hitTests (missingOn=both) beats mobile's.
+        let hit_tests_w = cap_warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "hitTests")
+            .unwrap();
+        assert_eq!(hit_tests_w.context.as_ref().unwrap()["missingOn"], "both");
+    }
+
+    /// `--scope main` excludes a footer-landmark `clickable_area_regressed`
+    /// regression from both `issues[]` and the summary counts, surfacing it
+    /// only via `out_of_scope`.
+    #[test]
+    fn test_scope_excludes_footer_landmark_clickable_area_regression() {
+        let scope_opts = ScopeOptions {
+            scope: vec!["main".to_string()],
+        };
+
+        let mut footer_issue = make_issue(
+            "issue_footer_cta0001",
+            IssueCategory::Visual,
+            IssueSeverity::Error,
+            Some("contentinfo"),
+        );
+        footer_issue.issue_type = IssueType::ClickableAreaRegressed;
+
+        let main_issue = make_issue(
+            "issue_main_cta00001",
+            IssueCategory::Content,
+            IssueSeverity::Error,
+            Some("main"),
+        );
+
+        let vp = ViewportAnalysis {
+            name: "desktop".to_string(),
+            issues: vec![footer_issue, main_issue],
+            scores: crate::contract::Scores::all_pass(),
+            artifacts: empty_artifacts(),
+            old_det: det_all_ran(),
+            new_det: det_all_ran(),
+            old_landmark_node_counts: std::collections::BTreeMap::new(),
+            capability_warnings: vec![],
+        };
+
+        let result = assemble_diff_result(
+            "run-test",
+            "http://old.com/",
+            "http://new.com/",
+            &crate::scoring::ParityProfile::ContentStructure,
+            vec![vp],
+            &Baseline::default(),
+            &scope_opts,
+            vec![],
+            None,
+        );
+
+        assert_eq!(result.out_of_scope.count, 1);
+        assert!(result
+            .out_of_scope
+            .ids
+            .contains(&"issue_footer_cta0001".to_string()));
+
+        let kept_ids: Vec<&str> = result.issues.iter().map(|i| i.id.as_str()).collect();
+        assert!(!kept_ids.contains(&"issue_footer_cta0001"));
+        assert!(kept_ids.contains(&"issue_main_cta00001"));
+
+        // Summary counts (byType) must reflect only the kept set, per the
+        // documented post-baseline + post-scope guarantee.
+        assert_eq!(
+            result
+                .agent_summary
+                .by_type
+                .get("clickable_area_regressed")
+                .copied(),
+            None,
+            "the out-of-scope clickable_area_regressed must not appear in byType"
+        );
     }
 }

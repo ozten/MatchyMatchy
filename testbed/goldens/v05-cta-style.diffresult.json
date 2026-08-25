@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-07-48Z",
+  "runId": "2026-08-25T18-28-30Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47005/",
   "parityProfile": "content-structure",
@@ -10,6 +10,9 @@
     "fixableNow": 15,
     "byType": {
       "style_changed": 15
+    },
+    "bySeverity": {
+      "warning": 15
     },
     "clusterCount": 3,
     "regionCount": 0,
@@ -43,21 +46,21 @@
       "name": "desktop",
       "status": "warn",
       "issues": [
-        "issue_e2df782ac189",
-        "issue_b7e0226b0dec",
-        "issue_5755c713d587",
-        "issue_b8d8c3430662",
-        "issue_cf49d21e71aa",
-        "issue_8d3e098810a8",
-        "issue_ac1565058303",
-        "issue_b486361e5f35",
-        "issue_31183bc76cc7",
-        "issue_4f53b68ad0b0",
-        "issue_13d7abe3f281",
-        "issue_38b968e4283a",
-        "issue_c07fdc2db56b",
-        "issue_1c1150bbae7f",
-        "issue_d9ac55d571e6"
+        "issue_0b39d312bfce",
+        "issue_9c2e1eee953e",
+        "issue_62d8f6a8d041",
+        "issue_0b39d312bfce-2",
+        "issue_9c2e1eee953e-2",
+        "issue_87e835cc4aa1",
+        "issue_3b15afaae631",
+        "issue_3f83c7b09ef0",
+        "issue_705989e837bd",
+        "issue_8f945e71cda5",
+        "issue_87e835cc4aa1-2",
+        "issue_3b15afaae631-2",
+        "issue_8677d15ef23f",
+        "issue_5d569dbc9da3",
+        "issue_a7b45e873d4f"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -68,973 +71,7 @@
   ],
   "issues": [
     {
-      "id": "issue_13d7abe3f281",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-right changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
-      "locator": {
-        "anchors": {
-          "text": "Get a Demo",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
-          "landmark": "main",
-          "ordinalInLandmark": 69
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "bboxOld": [
-          947,
-          1226,
-          135,
-          40
-        ],
-        "bboxNew": [
-          923,
-          1226,
-          111,
-          40
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9786,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.9286,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-right": "12px"
-        },
-        "old": {
-          "padding-right": "24px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Get a Demo"
-          ],
-          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
-        },
-        "from": "12px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-right",
-        "to": "24px"
-      }
-    },
-    {
-      "id": "issue_1c1150bbae7f",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-right changed from 32px to 16px near \"Secure Branding: Your Brand, Only on Verified Calls\"",
-      "locator": {
-        "anchors": {
-          "text": "Talk to sales",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Secure Branding: Your Brand, Only on Verified Calls",
-          "landmark": "main",
-          "ordinalInLandmark": 152
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          739,
-          3506,
-          155,
-          48
-        ],
-        "bboxNew": [
-          739,
-          3506,
-          123,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-right": "16px"
-        },
-        "old": {
-          "padding-right": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Talk to sales"
-          ],
-          "near": "Secure Branding: Your Brand, Only on Verified Calls"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-right",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_31183bc76cc7",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-right changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
-      "locator": {
-        "anchors": {
-          "text": "Free Call Inspection",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
-          "landmark": "main",
-          "ordinalInLandmark": 68
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          739,
-          1226,
-          192,
-          40
-        ],
-        "bboxNew": [
-          739,
-          1226,
-          168,
-          40
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-right": "12px"
-        },
-        "old": {
-          "padding-right": "24px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Free Call Inspection"
-          ],
-          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
-        },
-        "from": "12px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-right",
-        "to": "24px"
-      }
-    },
-    {
-      "id": "issue_38b968e4283a",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-left changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
-      "locator": {
-        "anchors": {
-          "text": "Get a Demo",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
-          "landmark": "main",
-          "ordinalInLandmark": 69
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "bboxOld": [
-          947,
-          1226,
-          135,
-          40
-        ],
-        "bboxNew": [
-          923,
-          1226,
-          111,
-          40
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9786,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.9286,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-left": "12px"
-        },
-        "old": {
-          "padding-left": "24px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Get a Demo"
-          ],
-          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
-        },
-        "from": "12px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-left",
-        "to": "24px"
-      }
-    },
-    {
-      "id": "issue_4f53b68ad0b0",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-left changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
-      "locator": {
-        "anchors": {
-          "text": "Free Call Inspection",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
-          "landmark": "main",
-          "ordinalInLandmark": 68
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          739,
-          1226,
-          192,
-          40
-        ],
-        "bboxNew": [
-          739,
-          1226,
-          168,
-          40
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-left": "12px"
-        },
-        "old": {
-          "padding-left": "24px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Free Call Inspection"
-          ],
-          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
-        },
-        "from": "12px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-left",
-        "to": "24px"
-      }
-    },
-    {
-      "id": "issue_5755c713d587",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "background-color changed from rgb(106, 68, 185) to rgb(217, 119, 6) near \"Reach more customers with Hiya's Branded Call\"",
-      "locator": {
-        "anchors": {
-          "text": "See pricing and sign up",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 22
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          583,
-          230,
-          48
-        ],
-        "bboxNew": [
-          120,
-          583,
-          198,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "background-color": "rgb(217, 119, 6)"
-        },
-        "old": {
-          "background-color": "rgb(106, 68, 185)"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "See pricing and sign up"
-          ],
-          "near": "Reach more customers with Hiya's Branded Call"
-        },
-        "from": "rgb(217, 119, 6)",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "background-color",
-        "to": "rgb(106, 68, 185)"
-      }
-    },
-    {
-      "id": "issue_8d3e098810a8",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-right changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
-      "locator": {
-        "anchors": {
-          "text": "Get a Demo",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 23
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "bboxOld": [
-          366,
-          583,
-          151,
-          48
-        ],
-        "bboxNew": [
-          334,
-          583,
-          119,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9786,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.9286,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-right": "16px"
-        },
-        "old": {
-          "padding-right": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Get a Demo"
-          ],
-          "near": "Reach more customers with Hiya's Branded Call"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-right",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_ac1565058303",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-left changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
-      "locator": {
-        "anchors": {
-          "text": "Get a Demo",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 23
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
-        "bboxOld": [
-          366,
-          583,
-          151,
-          48
-        ],
-        "bboxNew": [
-          334,
-          583,
-          119,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9786,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.9286,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-left": "16px"
-        },
-        "old": {
-          "padding-left": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Get a Demo"
-          ],
-          "near": "Reach more customers with Hiya's Branded Call"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-left",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_b486361e5f35",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "background-color changed from rgb(106, 68, 185) to rgb(217, 119, 6) near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
-      "locator": {
-        "anchors": {
-          "text": "Free Call Inspection",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
-          "landmark": "main",
-          "ordinalInLandmark": 68
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          739,
-          1226,
-          192,
-          40
-        ],
-        "bboxNew": [
-          739,
-          1226,
-          168,
-          40
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "background-color": "rgb(217, 119, 6)"
-        },
-        "old": {
-          "background-color": "rgb(106, 68, 185)"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Free Call Inspection"
-          ],
-          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
-        },
-        "from": "rgb(217, 119, 6)",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "background-color",
-        "to": "rgb(106, 68, 185)"
-      }
-    },
-    {
-      "id": "issue_b7e0226b0dec",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-left changed from 32px to 16px near \"Your customers are waiting to hear from you\"",
-      "locator": {
-        "anchors": {
-          "text": "See pricing and sign up",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Your customers are waiting to hear from you",
-          "landmark": "main",
-          "ordinalInLandmark": 245
-        },
-        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          605,
-          6204,
-          230,
-          48
-        ],
-        "bboxNew": [
-          621,
-          6204,
-          198,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9786,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.9286,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-left": "16px"
-        },
-        "old": {
-          "padding-left": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "See pricing and sign up"
-          ],
-          "near": "Your customers are waiting to hear from you"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-left",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_b8d8c3430662",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-right changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
-      "locator": {
-        "anchors": {
-          "text": "See pricing and sign up",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 22
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          583,
-          230,
-          48
-        ],
-        "bboxNew": [
-          120,
-          583,
-          198,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-right": "16px"
-        },
-        "old": {
-          "padding-right": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "See pricing and sign up"
-          ],
-          "near": "Reach more customers with Hiya's Branded Call"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-right",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_c07fdc2db56b",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "background-color changed from rgb(106, 68, 185) to rgb(217, 119, 6) near \"Secure Branding: Your Brand, Only on Verified Calls\"",
-      "locator": {
-        "anchors": {
-          "text": "Talk to sales",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Secure Branding: Your Brand, Only on Verified Calls",
-          "landmark": "main",
-          "ordinalInLandmark": 152
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          739,
-          3506,
-          155,
-          48
-        ],
-        "bboxNew": [
-          739,
-          3506,
-          123,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "background-color": "rgb(217, 119, 6)"
-        },
-        "old": {
-          "background-color": "rgb(106, 68, 185)"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Talk to sales"
-          ],
-          "near": "Secure Branding: Your Brand, Only on Verified Calls"
-        },
-        "from": "rgb(217, 119, 6)",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "background-color",
-        "to": "rgb(106, 68, 185)"
-      }
-    },
-    {
-      "id": "issue_cf49d21e71aa",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-left changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
-      "locator": {
-        "anchors": {
-          "text": "See pricing and sign up",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Reach more customers with Hiya's Branded Call",
-          "landmark": "main",
-          "ordinalInLandmark": 22
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          583,
-          230,
-          48
-        ],
-        "bboxNew": [
-          120,
-          583,
-          198,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-left": "16px"
-        },
-        "old": {
-          "padding-left": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "See pricing and sign up"
-          ],
-          "near": "Reach more customers with Hiya's Branded Call"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-left",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_d9ac55d571e6",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "padding-left changed from 32px to 16px near \"Secure Branding: Your Brand, Only on Verified Calls\"",
-      "locator": {
-        "anchors": {
-          "text": "Talk to sales",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Secure Branding: Your Brand, Only on Verified Calls",
-          "landmark": "main",
-          "ordinalInLandmark": 152
-        },
-        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          739,
-          3506,
-          155,
-          48
-        ],
-        "bboxNew": [
-          739,
-          3506,
-          123,
-          48
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9429,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.8929,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "padding-left": "16px"
-        },
-        "old": {
-          "padding-left": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "Talk to sales"
-          ],
-          "near": "Secure Branding: Your Brand, Only on Verified Calls"
-        },
-        "from": "16px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "padding-left",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_e2df782ac189",
+      "id": "issue_0b39d312bfce",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -1073,10 +110,10 @@
       },
       "evidence": {
         "match": {
-          "score": 0.9786,
+          "score": 0.9875,
           "signals": {
             "descendantSet": 1.0,
-            "styleSim": 0.9286,
+            "styleSim": 0.9375,
             "tagBonus": 0.05
           },
           "stage": "ancestor"
@@ -1101,18 +138,984 @@
         "property": "padding-right",
         "to": "32px"
       }
+    },
+    {
+      "id": "issue_0b39d312bfce-2",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-right changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
+      "locator": {
+        "anchors": {
+          "text": "See pricing and sign up",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 22
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          583,
+          230,
+          48
+        ],
+        "bboxNew": [
+          120,
+          583,
+          198,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-right": "16px"
+        },
+        "old": {
+          "padding-right": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "See pricing and sign up"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-right",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_3b15afaae631",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-left changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
+      "locator": {
+        "anchors": {
+          "text": "Get a Demo",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 23
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "bboxOld": [
+          366,
+          583,
+          151,
+          48
+        ],
+        "bboxNew": [
+          334,
+          583,
+          119,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9875,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9375,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-left": "16px"
+        },
+        "old": {
+          "padding-left": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Get a Demo"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-left",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_3b15afaae631-2",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-left changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
+      "locator": {
+        "anchors": {
+          "text": "Get a Demo",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 69
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "bboxOld": [
+          947,
+          1226,
+          135,
+          40
+        ],
+        "bboxNew": [
+          923,
+          1226,
+          111,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9875,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9375,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-left": "12px"
+        },
+        "old": {
+          "padding-left": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Get a Demo"
+          ],
+          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
+        },
+        "from": "12px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-left",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_3f83c7b09ef0",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "background-color changed from rgb(106, 68, 185) to rgb(217, 119, 6) near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 68
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "bboxNew": [
+          739,
+          1226,
+          168,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "background-color": "rgb(217, 119, 6)"
+        },
+        "old": {
+          "background-color": "rgb(106, 68, 185)"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Free Call Inspection"
+          ],
+          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
+        },
+        "from": "rgb(217, 119, 6)",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "background-color",
+        "to": "rgb(106, 68, 185)"
+      }
+    },
+    {
+      "id": "issue_5d569dbc9da3",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-right changed from 32px to 16px near \"Secure Branding: Your Brand, Only on Verified Calls\"",
+      "locator": {
+        "anchors": {
+          "text": "Talk to sales",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Secure Branding: Your Brand, Only on Verified Calls",
+          "landmark": "main",
+          "ordinalInLandmark": 152
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          3506,
+          155,
+          48
+        ],
+        "bboxNew": [
+          739,
+          3506,
+          123,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-right": "16px"
+        },
+        "old": {
+          "padding-right": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Talk to sales"
+          ],
+          "near": "Secure Branding: Your Brand, Only on Verified Calls"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-right",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_62d8f6a8d041",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "background-color changed from rgb(106, 68, 185) to rgb(217, 119, 6) near \"Reach more customers with Hiya's Branded Call\"",
+      "locator": {
+        "anchors": {
+          "text": "See pricing and sign up",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 22
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          583,
+          230,
+          48
+        ],
+        "bboxNew": [
+          120,
+          583,
+          198,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "background-color": "rgb(217, 119, 6)"
+        },
+        "old": {
+          "background-color": "rgb(106, 68, 185)"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "See pricing and sign up"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": "rgb(217, 119, 6)",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "background-color",
+        "to": "rgb(106, 68, 185)"
+      }
+    },
+    {
+      "id": "issue_705989e837bd",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-right changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 68
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "bboxNew": [
+          739,
+          1226,
+          168,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-right": "12px"
+        },
+        "old": {
+          "padding-right": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Free Call Inspection"
+          ],
+          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
+        },
+        "from": "12px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-right",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_8677d15ef23f",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "background-color changed from rgb(106, 68, 185) to rgb(217, 119, 6) near \"Secure Branding: Your Brand, Only on Verified Calls\"",
+      "locator": {
+        "anchors": {
+          "text": "Talk to sales",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Secure Branding: Your Brand, Only on Verified Calls",
+          "landmark": "main",
+          "ordinalInLandmark": 152
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          3506,
+          155,
+          48
+        ],
+        "bboxNew": [
+          739,
+          3506,
+          123,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "background-color": "rgb(217, 119, 6)"
+        },
+        "old": {
+          "background-color": "rgb(106, 68, 185)"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Talk to sales"
+          ],
+          "near": "Secure Branding: Your Brand, Only on Verified Calls"
+        },
+        "from": "rgb(217, 119, 6)",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "background-color",
+        "to": "rgb(106, 68, 185)"
+      }
+    },
+    {
+      "id": "issue_87e835cc4aa1",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-right changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
+      "locator": {
+        "anchors": {
+          "text": "Get a Demo",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 23
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "bboxOld": [
+          366,
+          583,
+          151,
+          48
+        ],
+        "bboxNew": [
+          334,
+          583,
+          119,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9875,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9375,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-right": "16px"
+        },
+        "old": {
+          "padding-right": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Get a Demo"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-right",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_87e835cc4aa1-2",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-right changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
+      "locator": {
+        "anchors": {
+          "text": "Get a Demo",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 69
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1)",
+        "bboxOld": [
+          947,
+          1226,
+          135,
+          40
+        ],
+        "bboxNew": [
+          923,
+          1226,
+          111,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9875,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9375,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-right": "12px"
+        },
+        "old": {
+          "padding-right": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Get a Demo"
+          ],
+          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
+        },
+        "from": "12px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-right",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_8f945e71cda5",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-left changed from 24px to 12px near \"When prospects and customers don’t know who’s calling, they don’t pick up.\"",
+      "locator": {
+        "anchors": {
+          "text": "Free Call Inspection",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "When prospects and customers don’t know who’s calling, they don’t pick up.",
+          "landmark": "main",
+          "ordinalInLandmark": 68
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          1226,
+          192,
+          40
+        ],
+        "bboxNew": [
+          739,
+          1226,
+          168,
+          40
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-left": "12px"
+        },
+        "old": {
+          "padding-left": "24px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Free Call Inspection"
+          ],
+          "near": "When prospects and customers don’t know who’s calling, they don’t pick up."
+        },
+        "from": "12px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-left",
+        "to": "24px"
+      }
+    },
+    {
+      "id": "issue_9c2e1eee953e",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-left changed from 32px to 16px near \"Your customers are waiting to hear from you\"",
+      "locator": {
+        "anchors": {
+          "text": "See pricing and sign up",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "main",
+          "ordinalInLandmark": 245
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          605,
+          6204,
+          230,
+          48
+        ],
+        "bboxNew": [
+          621,
+          6204,
+          198,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9875,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9375,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-left": "16px"
+        },
+        "old": {
+          "padding-left": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "See pricing and sign up"
+          ],
+          "near": "Your customers are waiting to hear from you"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-left",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_9c2e1eee953e-2",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-left changed from 32px to 16px near \"Reach more customers with Hiya's Branded Call\"",
+      "locator": {
+        "anchors": {
+          "text": "See pricing and sign up",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Reach more customers with Hiya's Branded Call",
+          "landmark": "main",
+          "ordinalInLandmark": 22
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          583,
+          230,
+          48
+        ],
+        "bboxNew": [
+          120,
+          583,
+          198,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-left": "16px"
+        },
+        "old": {
+          "padding-left": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "See pricing and sign up"
+          ],
+          "near": "Reach more customers with Hiya's Branded Call"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-left",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_a7b45e873d4f",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "padding-left changed from 32px to 16px near \"Secure Branding: Your Brand, Only on Verified Calls\"",
+      "locator": {
+        "anchors": {
+          "text": "Talk to sales",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Secure Branding: Your Brand, Only on Verified Calls",
+          "landmark": "main",
+          "ordinalInLandmark": 152
+        },
+        "cssSelectorOld": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          739,
+          3506,
+          155,
+          48
+        ],
+        "bboxNew": [
+          739,
+          3506,
+          123,
+          48
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9563,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9063,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "padding-left": "16px"
+        },
+        "old": {
+          "padding-left": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "Talk to sales"
+          ],
+          "near": "Secure Branding: Your Brand, Only on Verified Calls"
+        },
+        "from": "16px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "padding-left",
+        "to": "32px"
+      }
     }
   ],
   "clusters": [
     {
       "id": "cluster_986daf748f33",
       "issueIds": [
-        "issue_38b968e4283a",
-        "issue_4f53b68ad0b0",
-        "issue_ac1565058303",
-        "issue_b7e0226b0dec",
-        "issue_cf49d21e71aa",
-        "issue_d9ac55d571e6"
+        "issue_3b15afaae631",
+        "issue_3b15afaae631-2",
+        "issue_8f945e71cda5",
+        "issue_9c2e1eee953e",
+        "issue_9c2e1eee953e-2",
+        "issue_a7b45e873d4f"
       ],
       "sharedProperty": "padding-left",
       "sharedLandmark": null,
@@ -1121,12 +1124,12 @@
     {
       "id": "cluster_d91e361ac932",
       "issueIds": [
-        "issue_13d7abe3f281",
-        "issue_1c1150bbae7f",
-        "issue_31183bc76cc7",
-        "issue_8d3e098810a8",
-        "issue_b8d8c3430662",
-        "issue_e2df782ac189"
+        "issue_0b39d312bfce",
+        "issue_0b39d312bfce-2",
+        "issue_5d569dbc9da3",
+        "issue_705989e837bd",
+        "issue_87e835cc4aa1",
+        "issue_87e835cc4aa1-2"
       ],
       "sharedProperty": "padding-right",
       "sharedLandmark": null,
@@ -1135,9 +1138,9 @@
     {
       "id": "cluster_5d1089cefb78",
       "issueIds": [
-        "issue_5755c713d587",
-        "issue_b486361e5f35",
-        "issue_c07fdc2db56b"
+        "issue_3f83c7b09ef0",
+        "issue_62d8f6a8d041",
+        "issue_8677d15ef23f"
       ],
       "sharedProperty": "background-color",
       "sharedLandmark": null,
@@ -1163,8 +1166,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -1189,8 +1195,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],

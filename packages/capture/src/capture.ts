@@ -13,6 +13,8 @@ import type { CaptureBundle, NetworkRequest, ConsoleMessage } from "./schema.js"
 import { launchBrowser, createContext } from "./browser-runner.js";
 import { stabilize } from "./stabilizer.js";
 import { extractPageModel } from "./extract/page-model.js";
+import { isProbeEligible, runHitTestProbe } from "./extract/hit-test.js";
+import type { HitTestProbeInput } from "./extract/hit-test.js";
 import { redactUrl, normalizeText } from "./normalize.js";
 import { probeLinks } from "./probe.js";
 import axeCore from "axe-core";
@@ -292,6 +294,38 @@ async function runCapture(configRaw: unknown): Promise<void> {
     // Allow any in-flight response listeners a beat to record statuses
     await new Promise<void>((r) => setTimeout(r, 100));
 
+    // Port-parity U6: capture-time clickable-area hit-test probe. Runs after
+    // both screenshots (so scrolling for the probe can never pollute captured
+    // visual state) and before the clock-resume/axe step. No config off-switch:
+    // this stage always runs. A thrown error is recorded as "failed" and the
+    // capture CONTINUES — the probe is never allowed to abort a capture.
+    //
+    // Deviation from the retry-without-freeze machinery (stabilizer.ts
+    // shouldRetryWithoutFreeze / the capture.ts retry path): that machinery is
+    // strictly scoped to stabilize()'s own pipeline, which has already
+    // returned (and the page has already been used for extraction and both
+    // screenshots) by the time this stage runs. Retrying here would require
+    // re-navigating and redoing extraction/screenshots, which is out of scope
+    // for this unit — a probe failure is recorded as "failed" without
+    // triggering a retry.
+    let hitTests: CaptureBundle["hitTests"];
+    try {
+      const eligibleNodes: HitTestProbeInput[] = pageModelRaw.nodes
+        .filter((n) => isProbeEligible(n.kind, n.hasOnclick))
+        .map((n) => ({ id: n.id, cssSelector: n.cssSelector, bbox: n.bbox }));
+
+      if (eligibleNodes.length > 0) {
+        const probeResult = await page.evaluate(runHitTestProbe, eligibleNodes);
+        if (Object.keys(probeResult).length > 0) {
+          hitTests = probeResult as CaptureBundle["hitTests"];
+        }
+      }
+      determinism.hitTestProbe = "ran";
+    } catch (hitTestErr) {
+      determinism.hitTestProbe = "failed";
+      log(`[capture] hit-test probe failed (non-fatal): ${hitTestErr}`);
+    }
+
     // Run axe-core after screenshots + page-model extraction (determinism: axe runs last
     // so resuming the frozen clock cannot affect already-captured screenshots/styles/model).
     let violations: unknown[] = [];
@@ -328,7 +362,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
 
     // Build the bundle
     const bundle: CaptureBundle = {
-      schemaVersion: "1.0",
+      schemaVersion: "1.1",
       capturedAt: new Date().toISOString(),
       viewport: { name: viewport.name, width: viewport.width, height: viewport.height, dsf: viewport.dsf },
       environment: { os: process.platform, chromiumBuild, playwright: pwVersion, dsf: viewport.dsf },
@@ -361,6 +395,7 @@ async function runCapture(configRaw: unknown): Promise<void> {
           naturalHeight: n.naturalHeight,
           loaded: n.loaded,
           headingLevel: n.headingLevel,
+          hasOnclick: n.hasOnclick,
         })),
         landmarks: pageModelRaw.landmarks,
         landmarkRects: pageModelRaw.landmarkRects,
@@ -375,6 +410,12 @@ async function runCapture(configRaw: unknown): Promise<void> {
         fullPage: `${viewport.name}/${prefix}.png`,
         viewport: `${viewport.name}/${prefix}-vp.png`,
       },
+      hitTests,
+      // Port-parity U9: pseudoElements is omitted (not an empty object) when
+      // the scan found no painted ::before/::after entries.
+      pseudoElements:
+        Object.keys(pageModelRaw.pseudoElements).length > 0 ? pageModelRaw.pseudoElements : undefined,
+      pseudoTruncated: pageModelRaw.pseudoTruncated,
     };
 
     // Zod validation before writing

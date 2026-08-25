@@ -48,14 +48,20 @@ fn style_property(issue: &crate::contract::Issue) -> Option<String> {
 /// from both Pass 1 and Pass 2 so saturated-region members never enter a cluster (AE3).
 ///
 /// Returns clusters ordered by (member_count DESC, id ASC).
-pub fn cluster_issues(kept: &[crate::contract::Issue], cluster_min: usize, pre_claimed: &std::collections::BTreeSet<String>) -> Vec<Cluster> {
+pub fn cluster_issues(
+    kept: &[crate::contract::Issue],
+    cluster_min: usize,
+    pre_claimed: &std::collections::BTreeSet<String>,
+) -> Vec<Cluster> {
     // -----------------------------------------------------------------------
     // Pass 1: Property clustering
     // -----------------------------------------------------------------------
     // Group issues with a style property by (IssueType, property).
     let mut prop_groups: BTreeMap<(IssueType, String), Vec<String>> = BTreeMap::new();
     for issue in kept {
-        if pre_claimed.contains(&issue.id) { continue; }
+        if pre_claimed.contains(&issue.id) {
+            continue;
+        }
         if let Some(p) = style_property(issue) {
             prop_groups
                 .entry((issue.issue_type.clone(), p))

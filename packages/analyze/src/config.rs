@@ -1,6 +1,8 @@
 //! Constants for the analyze layer (M1.md §5.6).
 //! A config-file layer is deferred; these are the defaults.
 
+use crate::contract::{IssueSeverity, SettleMode};
+
 /// Pixel-level change threshold for YIQ perceptual delta (0–1).
 /// Delta > pixelThreshold => pixel is "changed".
 pub const PIXEL_THRESHOLD: f64 = 0.1;
@@ -67,6 +69,16 @@ pub mod base_confidence {
     /// A11y rule set diff (axe-core violations). M7-introduced; not under the M6 freeze;
     /// calibratable at real-pair use.
     pub const A11Y: f64 = 0.95;
+    /// `clickable_area_regressed` (port-parity U7): per-point hit-test parity check.
+    /// The detector already gates on a hard occlusion threshold before ever emitting
+    /// (see `CLICKABLE_OLD_FLOOR` / `CLICKABLE_DELTA`), so a surviving true positive
+    /// starts at high base confidence, same tier as `STYLE_CHANGED`.
+    pub const CLICKABLE_AREA_REGRESSED: f64 = 0.9;
+    /// `pseudo_element_missing` (port-parity U10): an aligned owner painted a
+    /// pseudo on old and paints nothing on new. Same tier as `STYLE_CHANGED` /
+    /// `CLICKABLE_AREA_REGRESSED` — a confirmed owner alignment with a clean
+    /// presence/absence signal.
+    pub const PSEUDO_ELEMENT_MISSING: f64 = 0.9;
 }
 
 /// Minimum group size to emit a cluster (spec §7.4 clusterMin default).
@@ -78,6 +90,12 @@ pub const ANCESTOR_MIN_SIMILARITY: f64 = 0.6;
 /// Diff property list: curated set MINUS the `background` shorthand (M4.md §3.1).
 /// The `background` shorthand is excluded to avoid double-reporting with
 /// `background-color` and `background-image`.
+///
+/// 32 properties total (33 captured minus `background`). Issue #4 / R4b added
+/// `text-decoration-line` (NOT the `text-decoration` shorthand, which embeds
+/// color and would be noise), `z-index`, `max-width`, `pointer-events` — same
+/// fixed slice-order position as the newcomers in
+/// `packages/capture/src/extract/page-model.ts` / `computed-style.ts`.
 pub const STYLE_DIFF_PROPERTIES: &[&str] = &[
     "color",
     "background-color",
@@ -107,6 +125,10 @@ pub const STYLE_DIFF_PROPERTIES: &[&str] = &[
     "align-items",
     "gap",
     "grid-template-columns",
+    "text-decoration-line",
+    "z-index",
+    "max-width",
+    "pointer-events",
 ];
 
 // ---------------------------------------------------------------------------
@@ -161,6 +183,63 @@ pub const TIEBREAK_SIZE: f64 = 0.3;
 
 /// Tiebreak sub-weight: nearby context (nearestHeading + landmark). M3.md §3.5.
 pub const TIEBREAK_NEARBY: f64 = 0.2;
+
+// ---------------------------------------------------------------------------
+// Severity mapping: built-in overrides (port-parity U3, design brief §"Severity
+// resolution design").
+//
+// Resolution order (most-general first), implemented by `scoring::SeverityResolver`:
+//   1. `ParityProfile::severity_for` category default (incl. its 4 pre-existing
+//      hard per-type overrides: accessibility_improved, console_error,
+//      load_error/status_code_mismatch, missing_form — those stay embedded
+//      there, unchanged).
+//   2. The two tables below (property beats type within this layer).
+//   3. An optional user `--severity-map` file (property beats type within this
+//      layer; overrides both 1 and 2).
+//   4. HARD_CRITICAL_TYPES deny-list, enforced at `SeverityResolver`
+//      construction (a user-map demotion below Critical is stripped before
+//      the resolver is built, never reaches resolution).
+// ---------------------------------------------------------------------------
+
+/// Built-in per-type severity overrides. Keys are `IssueType::as_str()` wire
+/// names. Applied after the profile default, before any user map entry.
+///
+/// `clickable_area_regressed` carries `category: Visual` (spec §9's profile
+/// table would otherwise map that to Info under content-structure) — but the
+/// detector (U7's `hit_test_diff.rs`) already gates on a hard occlusion
+/// threshold (old fraction >= 0.9 AND old-new delta > 0.1) before ever
+/// emitting the issue, so a surviving true positive must never be silently
+/// demoted to Info by the profile. Forced to Error regardless of profile.
+pub const BUILTIN_TYPE_SEVERITY: &[(&str, IssueSeverity)] =
+    &[("clickable_area_regressed", IssueSeverity::Error)];
+
+/// Built-in per-property severity overrides, applied to property-carrying
+/// style-channel issues (`style_changed` + the gradient types, on the leaf,
+/// ancestor, and future pseudo channels), keyed on the issue's CSS property
+/// (`remediation.property`). More specific than `BUILTIN_TYPE_SEVERITY`
+/// (property beats type within this layer) and than the profile default.
+///
+/// `letter-spacing` and `line-height` are cascade-tail properties that fire at
+/// high volume with low defect signal — the dominant contributors to issue
+/// #4's 2,500-issue `style_changed` flood (docs/calibration-note.md). Demoted
+/// to Info by default so a port-parity gate isn't drowned by sub-pixel
+/// kerning/leading noise; `color`, `font-size`, `text-align`, and
+/// `background-color` are deliberately NOT in this table and stay at profile
+/// severity.
+pub const BUILTIN_PROPERTY_SEVERITY: &[(&str, IssueSeverity)] = &[
+    ("letter-spacing", IssueSeverity::Info),
+    ("line-height", IssueSeverity::Info),
+];
+
+/// Hard-Critical issue types (wire names) that a user `--severity-map` can
+/// never demote below Critical (gate-integrity deny-list; port-parity U3).
+/// An attempted demotion is stripped from the accepted map at
+/// `SeverityResolver` construction and surfaced as a `severity_map_denied`
+/// run warning — never silently honored, never silently dropped without a
+/// trace. Mirrors the existing hard overrides embedded in
+/// `ParityProfile::severity_for` (layer 1), which already keep these types at
+/// Critical with no user map present at all.
+pub const HARD_CRITICAL_TYPES: &[&str] = &["load_error", "status_code_mismatch", "missing_form"];
 
 /// Minimum per-axis intrinsic dimension ratio to suppress changed_image_dimensions. M3.md §5.3.
 pub const IMAGE_DIM_RATIO_FLOOR: f64 = 0.9;
@@ -292,6 +371,89 @@ pub const DISCLOSURE_SECTION_CEILING: usize = 1500;
 pub const MIN_PAIRING_SCORE_FOR_STYLE: f64 = 0.75;
 
 // ---------------------------------------------------------------------------
+// Clickable-area hit-test thresholds (port-parity U7, design brief "Detector").
+//
+// Issue #4's suggested thresholds, frozen here (recalibration requires a
+// golden-changelog entry, same discipline as the M3 matcher constants above).
+// ---------------------------------------------------------------------------
+
+/// Minimum surviving denominator (after excluding clipped/offViewport points on
+/// either side and both-side misses) required to evaluate the clickable-area
+/// parity ratio. Below this, the sample is too small to trust — guards
+/// degenerate geometry (tiny/odd-shaped interactive elements) per plan U7.
+/// The grid is 25 points (5x5); 9 is roughly a third of the grid.
+pub const MIN_HIT_DENOMINATOR: usize = 9;
+
+/// Minimum adjusted old-side hit fraction required before a clickable-area
+/// regression can fire. Below this, the old side was already partly occluded
+/// and a further drop isn't a clean "it used to work, now it doesn't" signal.
+pub const CLICKABLE_OLD_FLOOR: f64 = 0.9;
+
+/// Minimum (adjusted old − adjusted new) hit-fraction drop required to fire
+/// `clickable_area_regressed`.
+pub const CLICKABLE_DELTA: f64 = 0.1;
+
+/// Confidence multiplier applied to `clickable_area_regressed` when either
+/// bundle's determinism shows the settle stage did not cleanly reach
+/// quiescence (`quiescence == timeout`) or the settle step itself
+/// failed/was skipped. Absent settle fields (pre-settle bundles) mean NO
+/// demotion — settle simply never ran, which is not itself a red flag.
+pub const CLICKABLE_SETTLE_DEMOTION: f64 = 0.7;
+
+// ---------------------------------------------------------------------------
+// Pseudo-element diff (port-parity U10, design brief "Detector").
+// ---------------------------------------------------------------------------
+
+/// Curated pseudo-element style diff property list (port-parity U10), mirroring
+/// `contract::PseudoStyles`'s field set — `content` plus the same properties
+/// U9's capture-side `PSEUDO_STYLE_PROPS` records
+/// (packages/capture/src/extract/page-model.ts; keep both lists in sync).
+/// Diffed through the SAME canonicalization ladder `STYLE_DIFF_PROPERTIES`
+/// uses (`style_diff::normalize_value_with_page_url` /
+/// `style_diff::canonicalize_for_compare` / C2/C3) — never a second
+/// implementation.
+pub const PSEUDO_DIFF_PROPERTIES: &[&str] = &[
+    "content",
+    "position",
+    "width",
+    "height",
+    "background-color",
+    "background-image",
+    "border",
+    "border-radius",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "z-index",
+    "display",
+    "opacity",
+];
+
+/// Confidence multiplier for a tier-"selector" pseudo owner with no key-matched
+/// counterpart on the new side (design brief U10 step 3 — the "attribute-dropped
+/// port" case: the id/data-* attribute the owner key depends on vanished along
+/// with the painting rule, so the owner alignment itself is a best-effort key
+/// match rather than a confirmed pairing). Chosen equal to the existing
+/// `UNCERTAIN_MULTIPLIER` (0.6) used for uncertain-band node pairings elsewhere —
+/// same semantic (an alignment guess, not a confirmed identity) — kept as its own
+/// named constant since it gates a distinct code path and may calibrate
+/// independently later.
+pub const PSEUDO_SELECTOR_UNMATCHED_DEMOTION: f64 = 0.6;
+
+// ---------------------------------------------------------------------------
+// Settle stage (port-parity U12, design brief "CLI + orchestration").
+// ---------------------------------------------------------------------------
+
+/// Default `StabilizationConfig.settleMode` that `orchestrate::build_capture_config`
+/// sends when `--no-settle` is NOT passed. Landed at `Legacy` in U12 and
+/// flipped to `Full` in the dedicated default-flip commit (settle on by
+/// default per issue #4; plan §"Settle ships on by default", staged
+/// inert-then-flipped with its own drift triage). `--no-settle` always
+/// forces `Legacy` regardless of this constant's value.
+pub const DEFAULT_SETTLE_MODE: SettleMode = SettleMode::Full;
+
+// ---------------------------------------------------------------------------
 // Unit tests
 // ---------------------------------------------------------------------------
 
@@ -328,5 +490,58 @@ mod tests {
         assert_eq!(ImageDimensionsMode::parse("unknown"), None);
         assert_eq!(ImageDimensionsMode::parse(""), None);
         assert_eq!(ImageDimensionsMode::parse("Strict"), None);
+    }
+
+    /// port-parity U3: the deny-list is exactly the three hard-Critical types
+    /// named in the design brief — pins it against accidental drift.
+    #[test]
+    fn test_hard_critical_types_frozen_set() {
+        assert_eq!(
+            HARD_CRITICAL_TYPES,
+            &["load_error", "status_code_mismatch", "missing_form"]
+        );
+    }
+
+    /// port-parity U3: built-in per-type override table pins `clickable_area_regressed`
+    /// -> Error and nothing else (adding entries here is a deliberate, evidence-backed
+    /// change, not an accident).
+    #[test]
+    fn test_builtin_type_severity_frozen() {
+        assert_eq!(BUILTIN_TYPE_SEVERITY.len(), 1);
+        assert_eq!(BUILTIN_TYPE_SEVERITY[0].0, "clickable_area_regressed");
+        assert_eq!(BUILTIN_TYPE_SEVERITY[0].1, IssueSeverity::Error);
+    }
+
+    /// port-parity U3: built-in per-property table pins the two cascade-tail
+    /// demotions and nothing else.
+    #[test]
+    fn test_builtin_property_severity_frozen() {
+        assert_eq!(BUILTIN_PROPERTY_SEVERITY.len(), 2);
+        let map: std::collections::BTreeMap<&str, IssueSeverity> =
+            BUILTIN_PROPERTY_SEVERITY.iter().cloned().collect();
+        assert_eq!(map.get("letter-spacing"), Some(&IssueSeverity::Info));
+        assert_eq!(map.get("line-height"), Some(&IssueSeverity::Info));
+    }
+
+    /// port-parity U7: hit-test/clickable-area thresholds are frozen at the
+    /// design-brief values (issue #4's suggested thresholds).
+    #[test]
+    fn test_clickable_area_thresholds_frozen() {
+        assert_eq!(MIN_HIT_DENOMINATOR, 9);
+        assert_eq!(CLICKABLE_OLD_FLOOR, 0.9);
+        assert_eq!(CLICKABLE_DELTA, 0.1);
+        assert_eq!(CLICKABLE_SETTLE_DEMOTION, 0.7);
+        assert_eq!(base_confidence::CLICKABLE_AREA_REGRESSED, 0.9);
+    }
+
+    /// port-parity U10: pseudo-element diff constants are frozen at the
+    /// design-brief values.
+    #[test]
+    fn test_pseudo_constants_frozen() {
+        assert_eq!(base_confidence::PSEUDO_ELEMENT_MISSING, 0.9);
+        assert_eq!(PSEUDO_SELECTOR_UNMATCHED_DEMOTION, 0.6);
+        assert_eq!(PSEUDO_SELECTOR_UNMATCHED_DEMOTION, UNCERTAIN_MULTIPLIER);
+        assert_eq!(PSEUDO_DIFF_PROPERTIES[0], "content");
+        assert_eq!(PSEUDO_DIFF_PROPERTIES.len(), 15);
     }
 }

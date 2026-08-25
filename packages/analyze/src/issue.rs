@@ -37,18 +37,33 @@ fn id_stable_url(href: &str) -> String {
     }
 }
 
-/// Compute the content-addressed issue id per M1.md §3.2.
+/// Compute the content-addressed issue id per spec §7.1 (amended, U2).
 ///
 /// Canonical = fields joined by U+001F (unit separator) in exact order:
-///   type, viewport, anchors.text, anchors.role, anchors.href, anchors.alt,
-///   anchors.ariaLabel, anchors.nearestHeading, anchors.landmark,
-///   str(anchors.ordinalInLandmark), styleProperty
+///   type, viewport, anchors.text, anchors.role, anchors.href (normalized), anchors.alt,
+///   anchors.ariaLabel, anchors.landmark, [nearestHeading — see below], styleProperty
 /// None -> empty string.
 ///
 /// URL anchors are normalized to scheme+host+path before hashing because query strings
 /// carry volatile session/tracking data (see docs/bugs/p0-02); two links that differ
-/// only by query/fragment intentionally share an id (the existing bbox-ordered collision
-/// suffix disambiguates if both occur).
+/// only by query/fragment intentionally share an id (the document-order collision suffix
+/// disambiguates if both occur — see `resolve_id_collisions`).
+///
+/// **Unconditionally excluded:** `ordinalInLandmark`. It shifts whenever a sibling is
+/// inserted or removed near an unrelated defect, so it never contributes to the hash —
+/// this was one of the two documented co-causes of the p01 2/129 id-survival failure
+/// (docs/bugs/p0-02; only a last-resort collision disambiguator, see
+/// `resolve_id_collisions`, ever uses document position, and even there it is
+/// `seqIndex`, not `ordinalInLandmark`).
+///
+/// **Conditionally excluded:** `nearestHeading`. On live pages it is computed from
+/// "first visible heading", which itself shifts with load/visibility state between
+/// re-captures — the other documented co-cause of the same p01 failure. It is identity-
+/// grade (included in the hash) **only** when `text`, `href`, `alt`, and `ariaLabel` are
+/// ALL absent/empty for this issue: a bare decorative element has no other identity
+/// signal, so without `nearestHeading` its hash would be nearly empty and every such
+/// element would collide. Whenever any of those four strong/medium anchors is present,
+/// `nearestHeading` contributes NOTHING to the hash, even if it changes.
 pub fn compute_issue_id(
     issue_type: &IssueType,
     viewport: &str,
@@ -56,10 +71,6 @@ pub fn compute_issue_id(
     style_property: Option<&str>,
 ) -> String {
     let sep = '\x1f';
-    let ordinal_str = anchors
-        .ordinal_in_landmark
-        .map(|n| n.to_string())
-        .unwrap_or_default();
 
     let href_stable = anchors
         .href
@@ -67,8 +78,33 @@ pub fn compute_issue_id(
         .map(id_stable_url)
         .unwrap_or_default();
 
+    let has_strong_or_medium_anchor = anchors
+        .text
+        .as_deref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+        || !href_stable.is_empty()
+        || anchors
+            .alt
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        || anchors
+            .aria_label
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
+    let nearest_heading_slot = if has_strong_or_medium_anchor {
+        ""
+    } else {
+        anchors.nearest_heading.as_deref().unwrap_or("")
+    };
+
+    // styleProperty slot: the CSS property name for style-category issues. U10 will also
+    // route which-pseudo through this same slot ("::before" / "::before.background-color")
+    // — the slot is shared with which-pseudo, nothing more.
     let canonical = format!(
-        "{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}",
+        "{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}{sep}{}",
         issue_type.as_str(),
         viewport,
         anchors.text.as_deref().unwrap_or(""),
@@ -76,9 +112,8 @@ pub fn compute_issue_id(
         href_stable,
         anchors.alt.as_deref().unwrap_or(""),
         anchors.aria_label.as_deref().unwrap_or(""),
-        anchors.nearest_heading.as_deref().unwrap_or(""),
         anchors.landmark.as_deref().unwrap_or(""),
-        ordinal_str,
+        nearest_heading_slot,
         style_property.unwrap_or(""),
         sep = sep,
     );
@@ -92,10 +127,16 @@ pub fn compute_issue_id(
 
 /// Resolve collisions after all issues are constructed.
 ///
-/// Issues that hash identically get collision suffixes: the first (by bbox sort order)
-/// keeps the base id; subsequent get "-2", "-3", etc.
+/// Issues that hash identically get collision suffixes: the first (by document order —
+/// see `collision_sort_key`) keeps the base id; subsequent get "-2", "-3", etc.
 ///
-/// Sort order: (bboxNew.y, bboxNew.x, bboxOld.y, bboxOld.x), with None bbox sorting last.
+/// Sort order: (seqIndexOld ascending, None sorts last), then (seqIndexNew ascending,
+/// None sorts last), then the existing final tie-break on the pre-suffix id — which,
+/// because every issue in a colliding group shares that same pre-suffix id, is a no-op
+/// that falls through to Rust's stable `sort_by` preserving insertion order. Never bbox
+/// pixels: bbox jitters between re-captures of a live page (viewport reflow, ad-block
+/// noise) while seqIndex is stable for a defect that still exists in the same document
+/// position — this was the instability source the collision suffix used to inherit.
 pub fn resolve_id_collisions(issues: &mut [Issue]) {
     use std::collections::BTreeMap;
 
@@ -109,8 +150,8 @@ pub fn resolve_id_collisions(issues: &mut [Issue]) {
         if indices.len() <= 1 {
             continue;
         }
-        // Sort colliders by (bboxNew.y, bboxNew.x, bboxOld.y, bboxOld.x), None sorts last.
-        // Tie-break by issue id for total order.
+        // Sort colliders by document order: (seqIndexOld, seqIndexNew), None sorts last.
+        // Tie-break by issue id for total order. Never bbox pixels (U2 stability fix).
         indices.sort_by(|&a, &b| {
             let ia = &issues[a];
             let ib = &issues[b];
@@ -141,30 +182,21 @@ fn strip_collision_suffix(id: &str) -> &str {
     }
 }
 
-/// Returns a sortable key for collision resolution.
-/// (new_y, new_x, old_y, old_x) with None values as i64::MAX.
-fn collision_sort_key(issue: &Issue) -> (i64, i64, i64, i64) {
-    let new_y = issue
-        .locator
-        .bbox_new
-        .map(|b| b[1] as i64)
-        .unwrap_or(i64::MAX);
-    let new_x = issue
-        .locator
-        .bbox_new
-        .map(|b| b[0] as i64)
-        .unwrap_or(i64::MAX);
-    let old_y = issue
-        .locator
-        .bbox_old
-        .map(|b| b[1] as i64)
-        .unwrap_or(i64::MAX);
-    let old_x = issue
-        .locator
-        .bbox_old
-        .map(|b| b[0] as i64)
-        .unwrap_or(i64::MAX);
-    (new_y, new_x, old_y, old_x)
+/// Returns a sortable key for collision resolution: document order within the colliding
+/// set, never bbox pixels. `(seqIndexOld, seqIndexNew)`, each ascending with `None`
+/// sorting last (encoded as `(1, 0)` vs. `(0, n)` so `Some` always precedes `None`).
+fn collision_sort_key(issue: &Issue) -> ((u8, u32), (u8, u32)) {
+    (
+        seq_sort_key(issue.locator.seq_index_old),
+        seq_sort_key(issue.locator.seq_index_new),
+    )
+}
+
+fn seq_sort_key(v: Option<u32>) -> (u8, u32) {
+    match v {
+        Some(n) => (0, n),
+        None => (1, 0),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +228,23 @@ mod tests {
         bbox_new: Option<[i32; 4]>,
         bbox_old: Option<[i32; 4]>,
     ) -> Issue {
+        make_issue_with_seq(
+            issue_type, viewport, anchors, None, None, bbox_old, bbox_new,
+        )
+    }
+
+    /// Full-control helper: same shape as `make_issue_with_bbox` but also sets
+    /// `seq_index_old`/`seq_index_new` on the locator, needed to exercise the
+    /// document-order collision suffixing (U2).
+    fn make_issue_with_seq(
+        issue_type: IssueType,
+        viewport: &str,
+        anchors: Anchors,
+        seq_index_old: Option<u32>,
+        seq_index_new: Option<u32>,
+        bbox_old: Option<[i32; 4]>,
+        bbox_new: Option<[i32; 4]>,
+    ) -> Issue {
         let id = compute_issue_id(&issue_type, viewport, &anchors, None);
         Issue {
             id,
@@ -213,8 +262,8 @@ mod tests {
                 css_selector_new: None,
                 bbox_old,
                 bbox_new,
-                seq_index_old: None,
-                seq_index_new: None,
+                seq_index_old,
+                seq_index_new,
             },
             evidence: serde_json::json!({}),
             remediation: None,
@@ -253,42 +302,278 @@ mod tests {
     }
 
     #[test]
-    fn test_collision_suffix_determinism() {
-        // Two issues with identical hash inputs (no text anchor)
+    fn test_collision_suffix_ignores_bbox_uses_document_order() {
+        // Two issues with identical hash inputs (no text anchor) and no seq_index on
+        // either side: collision resolution must NOT depend on bbox pixels — insertion
+        // (document) order wins, bbox is irrelevant to suffix assignment.
         let anchors = make_anchors(None);
         let mut issues = vec![
             make_issue_with_bbox(
                 IssueType::VisualRegionChanged,
                 "desktop",
                 anchors.clone(),
-                Some([100, 200, 50, 50]), // bbox_new y=200
+                Some([100, 200, 50, 50]), // bbox_new y=200 — would have sorted 2nd, pre-fix
                 Some([100, 200, 50, 50]),
             ),
             make_issue_with_bbox(
                 IssueType::VisualRegionChanged,
                 "desktop",
                 anchors.clone(),
-                Some([100, 50, 50, 50]), // bbox_new y=50 (sorts first)
+                Some([100, 50, 50, 50]), // bbox_new y=50 — would have sorted 1st, pre-fix
                 Some([100, 50, 50, 50]),
             ),
         ];
 
-        // They should have the same base id
+        // They should have the same base id.
+        let base_id = issues[0].id.clone();
         assert_eq!(issues[0].id, issues[1].id);
 
         resolve_id_collisions(&mut issues);
 
-        // After resolution, ids must be distinct
+        // After resolution, ids must be distinct.
         assert_ne!(issues[0].id, issues[1].id);
-        // The one with lower y (index 1: y=50) should NOT get a suffix (it's first).
-        // The one with higher y (index 0: y=200) should get "-2".
-        let base_id: String = issues[0].id.clone();
-        let base_id2: String = issues[1].id.clone();
-        // One of them ends with "-2", the other doesn't
-        let has_suffix = base_id.ends_with("-2") || base_id2.ends_with("-2");
-        assert!(has_suffix, "at least one issue should have '-2' suffix");
-        let no_suffix = !base_id.ends_with("-2") || !base_id2.ends_with("-2");
-        assert!(no_suffix, "at least one issue should NOT have a suffix");
+        // Neither side carries a seq_index, so insertion order (index 0 first) wins the
+        // document-order tie-break, regardless of which one has the lower bbox y.
+        assert_eq!(
+            issues[0].id, base_id,
+            "insertion-first issue keeps the base id even though its bbox.y is larger"
+        );
+        assert_eq!(issues[1].id, format!("{}-2", base_id));
+    }
+
+    // -----------------------------------------------------------------------
+    // U2: ordinalInLandmark / nearestHeading identity-boundary tests
+    // -----------------------------------------------------------------------
+
+    /// (a) Ordinal-shift survival: sibling removal/insertion shifts `ordinalInLandmark`
+    /// for every surviving issue (the p01 disease). The id must not move.
+    #[test]
+    fn test_ordinal_in_landmark_never_affects_id() {
+        let mut a1 = make_anchors(Some("Get started"));
+        a1.href = Some("/signup".to_string());
+        a1.landmark = Some("main".to_string());
+        a1.ordinal_in_landmark = Some(3);
+
+        let mut a2 = a1.clone();
+        a2.ordinal_in_landmark = Some(97); // simulates every prior sibling removed
+
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a1, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a2, None);
+        assert_eq!(id1, id2, "ordinalInLandmark shift must never affect the id");
+
+        // Also true when ordinal disappears entirely.
+        let mut a3 = a1.clone();
+        a3.ordinal_in_landmark = None;
+        let id3 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a3, None);
+        assert_eq!(
+            id1, id3,
+            "ordinalInLandmark presence vs. absence must not affect the id"
+        );
+    }
+
+    /// (b) nearestHeading-shift survival: when a strong anchor (text, here) is present,
+    /// rewriting nearestHeading (simulating a re-capture visibility shift) must not move
+    /// the id.
+    #[test]
+    fn test_nearest_heading_excluded_when_strong_anchor_present() {
+        let mut a1 = make_anchors(Some("Get started"));
+        a1.landmark = Some("main".to_string());
+        a1.nearest_heading = Some("Build faster".to_string());
+
+        let mut a2 = a1.clone();
+        a2.nearest_heading = Some("Totally different heading".to_string());
+
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a1, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a2, None);
+        assert_eq!(
+            id1, id2,
+            "nearestHeading must not affect id when text/href/alt/ariaLabel is present"
+        );
+    }
+
+    /// (b, converse) A bare decorative element carrying none of text/href/alt/ariaLabel
+    /// has no other identity signal, so nearestHeading DOES change its id — it is the
+    /// documented last-resort disambiguator, not fully excluded.
+    #[test]
+    fn test_nearest_heading_is_last_resort_disambiguator_when_bare() {
+        let mut a1 = make_anchors(None); // text/role/href/alt/aria_label all None
+        a1.landmark = Some("main".to_string());
+        a1.nearest_heading = Some("Build faster".to_string());
+
+        let mut a2 = a1.clone();
+        a2.nearest_heading = Some("Totally different heading".to_string());
+
+        let id1 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a1, None);
+        let id2 = compute_issue_id(&IssueType::VisualRegionChanged, "desktop", &a2, None);
+        assert_ne!(
+            id1, id2,
+            "bare decorative anchors have no other identity signal; nearestHeading must matter"
+        );
+    }
+
+    /// (c) Identical-twin collisions: three same-type issues with identical identity
+    /// anchors but distinct seq_index_old get three distinct suffixed ids, stable when
+    /// bboxes are jittered arbitrarily (never bbox-sorted).
+    #[test]
+    fn test_identical_twins_suffix_by_document_order_stable_under_bbox_jitter() {
+        let anchors = make_anchors(Some("Read more"));
+
+        let build = |bbox: [i32; 4]| {
+            vec![
+                make_issue_with_seq(
+                    IssueType::VisualRegionChanged,
+                    "desktop",
+                    anchors.clone(),
+                    Some(10),
+                    Some(10),
+                    Some(bbox),
+                    Some(bbox),
+                ),
+                make_issue_with_seq(
+                    IssueType::VisualRegionChanged,
+                    "desktop",
+                    anchors.clone(),
+                    Some(20),
+                    Some(20),
+                    Some([bbox[0], bbox[1] - 500, bbox[2], bbox[3]]), // hostile: lower y
+                    Some([bbox[0], bbox[1] - 500, bbox[2], bbox[3]]),
+                ),
+                make_issue_with_seq(
+                    IssueType::VisualRegionChanged,
+                    "desktop",
+                    anchors.clone(),
+                    Some(30),
+                    Some(30),
+                    Some([bbox[0], bbox[1] + 9000, bbox[2], bbox[3]]), // hostile: huge y
+                    Some([bbox[0], bbox[1] + 9000, bbox[2], bbox[3]]),
+                ),
+            ]
+        };
+
+        let mut run1 = build([1, 1000, 10, 10]);
+        let base_id = run1[0].id.clone();
+        assert_eq!(run1[1].id, base_id);
+        assert_eq!(run1[2].id, base_id);
+
+        resolve_id_collisions(&mut run1);
+        assert_eq!(run1[0].id, base_id, "seq_index_old=10 keeps the base id");
+        assert_eq!(run1[1].id, format!("{}-2", base_id));
+        assert_eq!(run1[2].id, format!("{}-3", base_id));
+
+        // Re-derive from scratch with completely different (arbitrarily jittered) bboxes:
+        // the suffix assignment must be identical, because it is driven by seq_index_old,
+        // never by bbox pixels.
+        let mut run2 = build([500, 42, 10, 10]);
+        resolve_id_collisions(&mut run2);
+        assert_eq!(run2[0].id, base_id);
+        assert_eq!(run2[1].id, format!("{}-2", base_id));
+        assert_eq!(run2[2].id, format!("{}-3", base_id));
+    }
+
+    /// (c) Removing the middle twin keeps the FIRST twin's id unchanged (document-order
+    /// suffixing means only the removed/added twin's slot shifts).
+    #[test]
+    fn test_removing_middle_twin_keeps_first_twins_id_unchanged() {
+        let anchors = make_anchors(Some("Read more"));
+
+        let mut all_three = vec![
+            make_issue_with_seq(
+                IssueType::VisualRegionChanged,
+                "desktop",
+                anchors.clone(),
+                Some(10),
+                Some(10),
+                None,
+                None,
+            ),
+            make_issue_with_seq(
+                IssueType::VisualRegionChanged,
+                "desktop",
+                anchors.clone(),
+                Some(20),
+                Some(20),
+                None,
+                None,
+            ),
+            make_issue_with_seq(
+                IssueType::VisualRegionChanged,
+                "desktop",
+                anchors.clone(),
+                Some(30),
+                Some(30),
+                None,
+                None,
+            ),
+        ];
+        resolve_id_collisions(&mut all_three);
+        let first_id_before = all_three[0].id.clone();
+        assert!(
+            !first_id_before.contains('-') || first_id_before.rsplit('-').next() != Some("2"),
+            "sanity: first twin should hold the unsuffixed base id"
+        );
+
+        // Remove the middle twin (seq_index_old = 20) and re-resolve from scratch.
+        let mut without_middle = vec![
+            make_issue_with_seq(
+                IssueType::VisualRegionChanged,
+                "desktop",
+                anchors.clone(),
+                Some(10),
+                Some(10),
+                None,
+                None,
+            ),
+            make_issue_with_seq(
+                IssueType::VisualRegionChanged,
+                "desktop",
+                anchors.clone(),
+                Some(30),
+                Some(30),
+                None,
+                None,
+            ),
+        ];
+        resolve_id_collisions(&mut without_middle);
+
+        assert_eq!(
+            without_middle[0].id, first_id_before,
+            "the first (lowest seq_index_old) twin's id must be unaffected by removing a sibling twin"
+        );
+    }
+
+    /// (e) Pseudo-slot distinctness: same anchors, distinct styleProperty slot values
+    /// (which-pseudo prefixes, per U10) must produce three distinct ids.
+    #[test]
+    fn test_pseudo_style_property_slot_distinguishes_which_pseudo() {
+        let anchors = make_anchors(Some("corner tick"));
+        let id_before = compute_issue_id(
+            &IssueType::StyleChanged,
+            "desktop",
+            &anchors,
+            Some("::before"),
+        );
+        let id_after = compute_issue_id(
+            &IssueType::StyleChanged,
+            "desktop",
+            &anchors,
+            Some("::after"),
+        );
+        let id_before_bg = compute_issue_id(
+            &IssueType::StyleChanged,
+            "desktop",
+            &anchors,
+            Some("::before.background-image"),
+        );
+
+        assert_ne!(id_before, id_after, "::before vs ::after must differ");
+        assert_ne!(
+            id_before, id_before_bg,
+            "::before vs ::before.background-image must differ"
+        );
+        assert_ne!(
+            id_after, id_before_bg,
+            "::after vs ::before.background-image must differ"
+        );
     }
 
     // -----------------------------------------------------------------------

@@ -16,7 +16,8 @@ use std::thread;
 use anyhow::{bail, Context};
 
 use crate::contract::{
-    CaptureBundle, CaptureConfig, CaptureResponse, StabilizationConfig, ViewportConfig,
+    CaptureBundle, CaptureConfig, CaptureResponse, RunWarning, StabilizationConfig, StepStatus,
+    ViewportConfig,
 };
 
 // ---------------------------------------------------------------------------
@@ -390,6 +391,92 @@ pub fn env_mismatch(old_bundle: &CaptureBundle, new_bundle: &CaptureBundle) -> b
         || old_bundle.environment.dsf != new_bundle.environment.dsf
 }
 
+// ---------------------------------------------------------------------------
+// capability_mismatch run warnings (port-parity U7/U9/U12)
+// ---------------------------------------------------------------------------
+
+/// Emit a `capability_mismatch` `RunWarning` per channel (`hitTests`,
+/// `pseudoElements`, `settle`) whenever that channel cannot be compared
+/// between the two bundles — mirrors `env_mismatch`: a pure function of the
+/// two bundles, called once per bundle pair.
+///
+/// - `hitTests` / `pseudoElements`: warn when the field is absent or empty on
+///   either or both sides. `missingOn` names which side(s) lack it:
+///   "old" | "new" | "both".
+/// - `settle`: warn ONLY on asymmetry — one side's `determinism.settle ==
+///   ran` while the other's is anything else (failed/skipped/absent). Both
+///   ran or both not-ran is a symmetric capture condition (no detector is
+///   silently disabled); asymmetric settle is the false-diff risk the design
+///   brief calls out.
+///
+/// Deterministic emission order: by channel name (`hitTests`,
+/// `pseudoElements`, `settle` — already alphabetical).
+pub fn capability_mismatch_warnings(
+    old_bundle: &CaptureBundle,
+    new_bundle: &CaptureBundle,
+) -> Vec<RunWarning> {
+    let mut warnings = Vec::new();
+
+    let hit_tests_old = old_bundle.hit_tests.as_ref().is_some_and(|m| !m.is_empty());
+    let hit_tests_new = new_bundle.hit_tests.as_ref().is_some_and(|m| !m.is_empty());
+    if let Some(missing_on) = missing_side(hit_tests_old, hit_tests_new) {
+        warnings.push(capability_mismatch_warning("hitTests", missing_on));
+    }
+
+    let pseudo_old = old_bundle
+        .pseudo_elements
+        .as_ref()
+        .is_some_and(|m| !m.is_empty());
+    let pseudo_new = new_bundle
+        .pseudo_elements
+        .as_ref()
+        .is_some_and(|m| !m.is_empty());
+    if let Some(missing_on) = missing_side(pseudo_old, pseudo_new) {
+        warnings.push(capability_mismatch_warning("pseudoElements", missing_on));
+    }
+
+    let settle_old_ran = old_bundle.determinism.settle == Some(StepStatus::Ran);
+    let settle_new_ran = new_bundle.determinism.settle == Some(StepStatus::Ran);
+    if settle_old_ran != settle_new_ran {
+        let missing_on = if settle_old_ran { "new" } else { "old" };
+        warnings.push(capability_mismatch_warning("settle", missing_on));
+    }
+
+    warnings
+}
+
+/// Which side(s) lack a channel, given each side's presence. `None` when both
+/// sides agree (both present or both absent — no mismatch to report for the
+/// absent/absent, hitTests/pseudoElements case; the caller for `settle`
+/// handles its own asymmetry-only rule separately).
+fn missing_side(old_present: bool, new_present: bool) -> Option<&'static str> {
+    match (old_present, new_present) {
+        (true, true) => None,
+        (true, false) => Some("new"),
+        (false, true) => Some("old"),
+        (false, false) => Some("both"),
+    }
+}
+
+fn capability_mismatch_warning(channel: &str, missing_on: &str) -> RunWarning {
+    let side_desc = if missing_on == "both" {
+        "both captures".to_string()
+    } else {
+        format!("the {} capture", missing_on)
+    };
+    RunWarning {
+        code: "capability_mismatch".to_string(),
+        message: format!(
+            "channel '{}' is unavailable on {}; detector(s) relying on it are silently disabled for this run",
+            channel, side_desc
+        ),
+        context: Some(serde_json::json!({
+            "channel": channel,
+            "missingOn": missing_on
+        })),
+    }
+}
+
 /// Parameters for building a capture config.
 pub struct CaptureConfigParams<'a> {
     pub url: &'a str,
@@ -401,6 +488,10 @@ pub struct CaptureConfigParams<'a> {
     pub hide_selectors: &'a [String],
     pub mask_selectors: &'a [String],
     pub click_selectors: &'a [String],
+    /// Port-parity U12: `--no-settle` forces `settleMode = Legacy` regardless
+    /// of `config::DEFAULT_SETTLE_MODE`. `false` sends the default explicitly
+    /// (see `build_capture_config`).
+    pub no_settle: bool,
 }
 
 /// Build the default capture config for a given URL, prefix, out_dir, and viewport.
@@ -415,6 +506,7 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
         hide_selectors,
         mask_selectors,
         click_selectors,
+        no_settle,
     } = params;
     CaptureConfig {
         mode: "capture".to_string(),
@@ -425,6 +517,14 @@ pub fn build_capture_config(params: &CaptureConfigParams<'_>) -> CaptureConfig {
         stabilization: StabilizationConfig {
             freeze_time: *freeze_time,
             stub_random: *stub_random,
+            // Port-parity U12: `--no-settle` always forces Legacy; otherwise
+            // send the current default explicitly (see
+            // config::DEFAULT_SETTLE_MODE's doc comment for the flip plan).
+            settle_mode: if *no_settle {
+                crate::contract::SettleMode::Legacy
+            } else {
+                crate::config::DEFAULT_SETTLE_MODE
+            },
             ..Default::default()
         },
         hide_selectors: hide_selectors.to_vec(),
@@ -615,5 +715,320 @@ mod tests {
 
         assert!(msg.contains("Chromium build 1217 not found at:"));
         assert!(msg.contains("<repo-root>"));
+    }
+
+    // -----------------------------------------------------------------------
+    // capability_mismatch_warnings (port-parity U7/U9/U12)
+    // -----------------------------------------------------------------------
+
+    use crate::contract::{
+        A11yInfo, CaptureDeterminism, Environment, HitTestEntry, HitTestStatus, NetworkInfo,
+        PageModel, PseudoElementEntry, PseudoOwnerTier, Screenshots, StyleCandidates,
+        ViewportConfig,
+    };
+    use std::collections::BTreeMap;
+
+    fn cap_det(settle: Option<StepStatus>) -> CaptureDeterminism {
+        CaptureDeterminism {
+            animations_disabled: StepStatus::Ran,
+            reduced_motion: StepStatus::Ran,
+            time_frozen: StepStatus::Ran,
+            random_stubbed: StepStatus::Ran,
+            fonts_ready: StepStatus::Ran,
+            images_decoded: StepStatus::Ran,
+            lazy_load_pass: StepStatus::Ran,
+            settled: StepStatus::Ran,
+            settle,
+            hit_test_probe: None,
+            quiescence: None,
+            settle_scroll_ineffective: None,
+            settle_growth_capped: None,
+            clicked: vec![],
+            hidden: vec![],
+            masked: vec![],
+            retried_without_time_freeze: false,
+            integrity: None,
+        }
+    }
+
+    fn cap_bundle(
+        hit_tests: Option<BTreeMap<String, HitTestEntry>>,
+        pseudo_elements: Option<BTreeMap<String, PseudoElementEntry>>,
+        settle: Option<StepStatus>,
+    ) -> CaptureBundle {
+        CaptureBundle {
+            schema_version: "1.1".to_string(),
+            captured_at: "2026-01-01T00:00:00Z".to_string(),
+            viewport: ViewportConfig {
+                name: "desktop".to_string(),
+                width: 1440,
+                height: 900,
+                dsf: 1.0,
+            },
+            environment: Environment {
+                os: "linux".to_string(),
+                chromium_build: "1234".to_string(),
+                playwright: "1.60.0".to_string(),
+                dsf: 1.0,
+            },
+            determinism: cap_det(settle),
+            page: PageModel {
+                url: "http://example.com/".to_string(),
+                final_url: "http://example.com/".to_string(),
+                redirect_chain: vec![],
+                status_code: 200,
+                title: None,
+                meta_description: None,
+                canonical: None,
+                lang: Some("en".to_string()),
+                page_height: 2000,
+                nodes: vec![],
+                landmarks: vec![],
+                landmark_rects: None,
+                network: NetworkInfo { requests: vec![] },
+                console: vec![],
+                a11y: A11yInfo { violations: vec![] },
+                link_probes: vec![],
+            },
+            computed_styles: BTreeMap::new(),
+            screenshots: Screenshots {
+                full_page: "desktop/old.png".to_string(),
+                viewport: "desktop/old-vp.png".to_string(),
+            },
+            style_candidates: StyleCandidates::default(),
+            hit_tests,
+            pseudo_elements,
+            pseudo_truncated: None,
+        }
+    }
+
+    fn some_hit_tests() -> BTreeMap<String, HitTestEntry> {
+        let mut m = BTreeMap::new();
+        m.insert(
+            "n1".to_string(),
+            HitTestEntry {
+                status: HitTestStatus::Sampled,
+                skip_reason: None,
+                grid_size: Some(5),
+                points: Some(vec![]),
+            },
+        );
+        m
+    }
+
+    fn some_pseudo_elements() -> BTreeMap<String, PseudoElementEntry> {
+        let mut m = BTreeMap::new();
+        m.insert(
+            "n1".to_string(),
+            PseudoElementEntry {
+                owner_tier: PseudoOwnerTier::Node,
+                owner_node_id: Some("n1".to_string()),
+                owner_selector: None,
+                landmark: None,
+                before: None,
+                after: None,
+            },
+        );
+        m
+    }
+
+    #[test]
+    fn test_capability_mismatch_both_sides_present_no_warning() {
+        let old = cap_bundle(Some(some_hit_tests()), Some(some_pseudo_elements()), None);
+        let new = cap_bundle(Some(some_hit_tests()), Some(some_pseudo_elements()), None);
+        assert!(capability_mismatch_warnings(&old, &new).is_empty());
+    }
+
+    #[test]
+    fn test_capability_mismatch_hit_tests_missing_on_old() {
+        let old = cap_bundle(None, None, None);
+        let new = cap_bundle(Some(some_hit_tests()), None, None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let hit_tests_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "hitTests")
+            .expect("hitTests warning present");
+        assert_eq!(hit_tests_w.code, "capability_mismatch");
+        assert_eq!(hit_tests_w.context.as_ref().unwrap()["missingOn"], "old");
+    }
+
+    #[test]
+    fn test_capability_mismatch_hit_tests_missing_on_new() {
+        let old = cap_bundle(Some(some_hit_tests()), None, None);
+        let new = cap_bundle(None, None, None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let hit_tests_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "hitTests")
+            .expect("hitTests warning present");
+        assert_eq!(hit_tests_w.context.as_ref().unwrap()["missingOn"], "new");
+    }
+
+    /// Every existing frozen pair replays matched-vintage with hitTests/pseudoElements
+    /// absent on BOTH sides — this must warn too, not silently pass.
+    #[test]
+    fn test_capability_mismatch_hit_tests_missing_on_both() {
+        let old = cap_bundle(None, None, None);
+        let new = cap_bundle(None, None, None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let hit_tests_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "hitTests")
+            .expect("hitTests warning present");
+        assert_eq!(hit_tests_w.context.as_ref().unwrap()["missingOn"], "both");
+    }
+
+    /// An empty (but present) hitTests map is treated the same as absent.
+    #[test]
+    fn test_capability_mismatch_empty_hit_tests_map_counts_as_missing() {
+        let old = cap_bundle(Some(BTreeMap::new()), None, None);
+        let new = cap_bundle(Some(some_hit_tests()), None, None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let hit_tests_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "hitTests")
+            .expect("hitTests warning present");
+        assert_eq!(hit_tests_w.context.as_ref().unwrap()["missingOn"], "old");
+    }
+
+    #[test]
+    fn test_capability_mismatch_pseudo_elements_same_rule_as_hit_tests() {
+        let old = cap_bundle(None, None, None);
+        let new = cap_bundle(None, Some(some_pseudo_elements()), None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let pseudo_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "pseudoElements")
+            .expect("pseudoElements warning present");
+        assert_eq!(pseudo_w.context.as_ref().unwrap()["missingOn"], "old");
+    }
+
+    /// settle: both sides ran -> symmetric, no warning.
+    #[test]
+    fn test_capability_mismatch_settle_both_ran_no_warning() {
+        let old = cap_bundle(None, None, Some(StepStatus::Ran));
+        let new = cap_bundle(None, None, Some(StepStatus::Ran));
+        let warnings = capability_mismatch_warnings(&old, &new);
+        assert!(!warnings
+            .iter()
+            .any(|w| w.context.as_ref().unwrap()["channel"] == "settle"));
+    }
+
+    /// settle: both sides absent -> symmetric, no warning.
+    #[test]
+    fn test_capability_mismatch_settle_both_absent_no_warning() {
+        let old = cap_bundle(None, None, None);
+        let new = cap_bundle(None, None, None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        assert!(!warnings
+            .iter()
+            .any(|w| w.context.as_ref().unwrap()["channel"] == "settle"));
+    }
+
+    /// settle: old ran, new did not -> asymmetric, warns with missingOn=new.
+    #[test]
+    fn test_capability_mismatch_settle_asymmetric_warns() {
+        let old = cap_bundle(None, None, Some(StepStatus::Ran));
+        let new = cap_bundle(None, None, Some(StepStatus::Skipped));
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let settle_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "settle")
+            .expect("settle warning present");
+        assert_eq!(settle_w.context.as_ref().unwrap()["missingOn"], "new");
+    }
+
+    /// settle: new ran, old absent -> asymmetric, warns with missingOn=old.
+    #[test]
+    fn test_capability_mismatch_settle_asymmetric_other_direction() {
+        let old = cap_bundle(None, None, None);
+        let new = cap_bundle(None, None, Some(StepStatus::Ran));
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let settle_w = warnings
+            .iter()
+            .find(|w| w.context.as_ref().unwrap()["channel"] == "settle")
+            .expect("settle warning present");
+        assert_eq!(settle_w.context.as_ref().unwrap()["missingOn"], "old");
+    }
+
+    /// Deterministic emission order: hitTests, then pseudoElements, then settle.
+    #[test]
+    fn test_capability_mismatch_deterministic_channel_order() {
+        let old = cap_bundle(None, None, Some(StepStatus::Ran));
+        let new = cap_bundle(None, None, None);
+        let warnings = capability_mismatch_warnings(&old, &new);
+        let channels: Vec<&str> = warnings
+            .iter()
+            .map(|w| w.context.as_ref().unwrap()["channel"].as_str().unwrap())
+            .collect();
+        assert_eq!(channels, vec!["hitTests", "pseudoElements", "settle"]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Port-parity U12: build_capture_config settleMode mapping
+    // -----------------------------------------------------------------------
+
+    fn default_vp() -> ViewportConfig {
+        ViewportConfig {
+            name: "desktop".to_string(),
+            width: 1440,
+            height: 1000,
+            dsf: 1.0,
+        }
+    }
+
+    /// `no_settle: false` sends the current default constant explicitly
+    /// (`config::DEFAULT_SETTLE_MODE`, flipped to `Full` in the dedicated
+    /// default-flip commit).
+    #[test]
+    fn test_build_capture_config_default_settle_mode_matches_constant() {
+        let vp = default_vp();
+        let params = CaptureConfigParams {
+            url: "http://example.com/",
+            prefix: "old",
+            out_dir: Path::new("/tmp/out"),
+            viewport: &vp,
+            freeze_time: true,
+            stub_random: true,
+            hide_selectors: &[],
+            mask_selectors: &[],
+            click_selectors: &[],
+            no_settle: false,
+        };
+        let config = build_capture_config(&params);
+        assert_eq!(
+            config.stabilization.settle_mode,
+            crate::config::DEFAULT_SETTLE_MODE
+        );
+        // The dedicated flip commit moved the shipped default to Full
+        // (settle on by default per issue #4 / plan U12 staging).
+        assert_eq!(
+            config.stabilization.settle_mode,
+            crate::contract::SettleMode::Full
+        );
+    }
+
+    /// `no_settle: true` (`--no-settle`) forces Legacy regardless of the default
+    /// constant's current value.
+    #[test]
+    fn test_build_capture_config_no_settle_forces_legacy() {
+        let vp = default_vp();
+        let params = CaptureConfigParams {
+            url: "http://example.com/",
+            prefix: "old",
+            out_dir: Path::new("/tmp/out"),
+            viewport: &vp,
+            freeze_time: true,
+            stub_random: true,
+            hide_selectors: &[],
+            mask_selectors: &[],
+            click_selectors: &[],
+            no_settle: true,
+        };
+        let config = build_capture_config(&params);
+        assert_eq!(
+            config.stabilization.settle_mode,
+            crate::contract::SettleMode::Legacy
+        );
     }
 }

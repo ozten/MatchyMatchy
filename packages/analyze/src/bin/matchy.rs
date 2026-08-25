@@ -78,6 +78,17 @@ struct Cli {
     #[arg(long, global = false, default_value_t = false)]
     no_stub_random: bool,
 
+    /// Force the legacy settle stage (scroll-steps + clock dwell +
+    /// image-await lazyLoadPass — no quiescence wait, growth cap, or new
+    /// determinism statuses) regardless of the built-in default. Port-parity
+    /// U12: the built-in default is now "full" (flipped in a dedicated commit
+    /// after this unit landed), so `--no-settle` reverts to the pre-flip
+    /// behavior described above — it is the flag to reach for when the full
+    /// settle stage handles a specific page badly. Full stage-skip
+    /// (`settleMode: "off"`) is config-file only; no CLI flag maps to it.
+    #[arg(long, global = false, default_value_t = false)]
+    no_settle: bool,
+
     /// Fail on issues at or above this severity (info|warning|error|critical|never)
     #[arg(long, default_value = "error", global = true)]
     fail_on: String,
@@ -102,6 +113,17 @@ struct Cli {
     /// Path to baseline accept-list JSON (array of {"id": "..."}).
     #[arg(long, global = true)]
     baseline: Option<String>,
+
+    /// Path to a severity-override JSON file:
+    /// {"types": {"<issue type>": "info|warning|error|critical"},
+    ///  "properties": {"<css property>": "info|warning|error|critical"}}.
+    /// Overrides the built-in defaults and the profile's category mapping
+    /// (property beats type). Cannot demote load_error, status_code_mismatch,
+    /// or missing_form below critical — an attempted demotion is ignored and
+    /// reported as a `severity_map_denied` warning. Unknown type/property
+    /// keys or malformed JSON exit 2.
+    #[arg(long, global = true)]
+    severity_map: Option<String>,
 
     /// Restrict issues, scores and status to these landmark roles; out-of-scope issue ids are
     /// recorded in outOfScope. Page-level issues (no landmark) stay in scope.
@@ -261,6 +283,7 @@ fn main() {
                 &args.out,
                 &cli.profile,
                 cli.baseline.as_deref(),
+                cli.severity_map.as_deref(),
                 &cli.scope,
                 cli.html,
                 cli.markdown,
@@ -275,15 +298,13 @@ fn main() {
                 }
             }
         }
-        Some(CliCommand::Explain(args)) => {
-            match run_explain(args) {
-                Ok(code) => code,
-                Err(e) => {
-                    eprintln!("error: {:#}", e);
-                    2
-                }
+        Some(CliCommand::Explain(args)) => match run_explain(args) {
+            Ok(code) => code,
+            Err(e) => {
+                eprintln!("error: {:#}", e);
+                2
             }
-        }
+        },
         Some(CliCommand::Show(args)) => match run_show(args) {
             Ok(code) => code,
             Err(e) => {
@@ -317,11 +338,13 @@ fn main() {
                         !cli.no_stub_random,
                         &cli.fail_on,
                         cli.baseline.as_deref(),
+                        cli.severity_map.as_deref(),
                         &cli.scope,
                         cli.html,
                         cli.markdown,
                         image_dims_mode,
                         cli.self_check,
+                        cli.no_settle,
                         mode,
                     ) {
                         Ok(code) => code,
@@ -337,18 +360,12 @@ fn main() {
                     eprintln!(
                         "       matchy analyze --old-bundle PATH --new-bundle PATH --out DIR"
                     );
-                    eprintln!(
-                        "       matchy show --region LANDMARK --out DIR"
-                    );
+                    eprintln!("       matchy show --region LANDMARK --out DIR");
                     eprintln!(
                         "       matchy show --section LANDMARK [--heading HEADING] --out DIR"
                     );
-                    eprintln!(
-                        "       matchy show --cluster ID --out DIR"
-                    );
-                    eprintln!(
-                        "       matchy show --issue ID --out DIR"
-                    );
+                    eprintln!("       matchy show --cluster ID --out DIR");
+                    eprintln!("       matchy show --issue ID --out DIR");
                     2
                 }
             }
@@ -376,11 +393,13 @@ fn run_full(
     stub_random: bool,
     fail_on: &str,
     baseline_arg: Option<&str>,
+    severity_map_arg: Option<&str>,
     scope_args: &[String],
     html: bool,
     markdown: bool,
     image_dims_mode: ImageDimensionsMode,
     self_check: bool,
+    no_settle: bool,
     mode: matchy_analyze::report::DisclosureMode,
 ) -> anyhow::Result<i32> {
     let run_id = make_run_id();
@@ -389,6 +408,9 @@ fn run_full(
         resolve_capture_script().context("capture.cjs not found — run `matchy doctor`")?;
 
     let profile = ParityProfile::parse(profile_str).unwrap_or(ParityProfile::ContentStructure);
+    let (severity_resolver, severity_map_echo, severity_map_warnings) =
+        build_severity_resolver(profile.clone(), severity_map_arg)
+            .context("failed to load --severity-map")?;
 
     let viewports = parse_viewports(viewport_args);
 
@@ -428,6 +450,7 @@ fn run_full(
             hide_selectors: hide,
             mask_selectors: mask,
             click_selectors: click,
+            no_settle,
         });
         let old_bundle_path_result = run_capture(&capture_script, &old_config);
 
@@ -442,6 +465,7 @@ fn run_full(
             hide_selectors: hide,
             mask_selectors: mask,
             click_selectors: click,
+            no_settle,
         });
         let new_bundle_path_result = run_capture(&capture_script, &new_config);
 
@@ -458,15 +482,23 @@ fn run_full(
                 // this viewport so run_self_check (which probes the OLD url) skips
                 // it rather than diffing against a stale old.bundle.json.
                 old_capture_failed.insert(vp.name.clone());
-                let vp_analysis =
-                    make_load_error_analysis(&vp.name, &old_err.to_string(), &vp_dir, &profile);
+                let vp_analysis = make_load_error_analysis(
+                    &vp.name,
+                    &old_err.to_string(),
+                    &vp_dir,
+                    &severity_resolver,
+                );
                 viewport_analyses.push(vp_analysis);
             }
             (Ok(_), Err(new_err)) => {
                 // NEW side failed only: the OLD capture this run is fine, so the
                 // self-check probe (old-vs-old) is still valid for this viewport.
-                let vp_analysis =
-                    make_load_error_analysis(&vp.name, &new_err.to_string(), &vp_dir, &profile);
+                let vp_analysis = make_load_error_analysis(
+                    &vp.name,
+                    &new_err.to_string(),
+                    &vp_dir,
+                    &severity_resolver,
+                );
                 viewport_analyses.push(vp_analysis);
             }
             (Ok(old_bundle_path), Ok(new_bundle_path)) => {
@@ -475,7 +507,7 @@ fn run_full(
                     &new_bundle_path,
                     &vp_dir,
                     &vp.name,
-                    &profile,
+                    &severity_resolver,
                     image_dims_mode,
                 )?;
                 viewport_analyses.push(vp_analysis);
@@ -497,7 +529,8 @@ fn run_full(
             hide,
             mask,
             click,
-            &profile,
+            no_settle,
+            &severity_resolver,
             image_dims_mode,
             &run_id,
             &old_capture_failed,
@@ -505,6 +538,12 @@ fn run_full(
     } else {
         vec![]
     };
+    // severity_map_denied (if any) is CLI-input-driven and independent of
+    // capture, so it goes first, ahead of self-check's capture-derived warnings.
+    let mut extra_warnings = extra_warnings;
+    let mut all_extra_warnings = severity_map_warnings;
+    all_extra_warnings.append(&mut extra_warnings);
+    let extra_warnings = all_extra_warnings;
 
     let result = assemble_diff_result(
         &run_id,
@@ -515,6 +554,7 @@ fn run_full(
         &baseline,
         &scope_opts,
         extra_warnings,
+        severity_map_echo,
     );
     write_diff_result(&result, &out_path)?;
     if html {
@@ -549,7 +589,8 @@ fn run_self_check(
     hide: &[String],
     mask: &[String],
     click: &[String],
-    profile: &ParityProfile,
+    no_settle: bool,
+    severity_resolver: &matchy_analyze::scoring::SeverityResolver,
     image_dims_mode: ImageDimensionsMode,
     run_id: &str,
     old_capture_failed: &std::collections::BTreeSet<String>,
@@ -619,6 +660,7 @@ fn run_self_check(
             hide_selectors: hide,
             mask_selectors: mask,
             click_selectors: click,
+            no_settle,
         });
         let sc_bundle_path = match run_capture(capture_script, &sc_config) {
             Ok(p) => p,
@@ -671,7 +713,7 @@ fn run_self_check(
             &sc_bundle_path,
             &sc_artifact_dir,
             &vp.name,
-            profile,
+            severity_resolver,
             image_dims_mode,
         ) {
             Ok(vp_analysis) => sc_viewport_analyses.push(vp_analysis),
@@ -688,20 +730,25 @@ fn run_self_check(
     if sc_viewport_analyses.is_empty() {
         // Every viewport failed: no self-check.json can be assembled/written.
         // Report a warning instead of the previous silent Ok(vec![]).
-        return Ok(build_self_check_failed_warning(&failed, false, viewports.len())
-            .into_iter()
-            .collect());
+        return Ok(
+            build_self_check_failed_warning(&failed, false, viewports.len())
+                .into_iter()
+                .collect(),
+        );
     }
 
     let sc_result = assemble_diff_result(
         run_id,
         old_url,
         old_url,
-        profile,
+        severity_resolver.profile(),
         sc_viewport_analyses,
         &matchy_analyze::baseline::Baseline::default(),
         &ScopeOptions::default(),
         vec![],
+        // self-check.json is an internal probe artifact, not the primary
+        // contract deliverable — it never echoes the severity map.
+        None,
     );
 
     // Degrade `to_json()?` — serialization failure must not escape.
@@ -730,7 +777,30 @@ fn run_self_check(
 
     let mut warnings: Vec<RunWarning> = Vec::new();
 
-    if let Some(w) = build_volatile_capture_warning(&sc_result.issues) {
+    // Port-parity U12: exclude the new clickable-area and pseudo-element
+    // channels from `volatile_capture`'s issue list — and therefore from
+    // testbed/pair-add.py's `knownDrift` seeding, which reads this warning's
+    // `message` verbatim. These are brand-new volatility channels with no
+    // calibration history yet; letting self-check noise from them seed
+    // knownDrift would risk baking in an under-calibrated exclusion before
+    // the detectors have been observed on real re-captures. Revisit after
+    // calibration (design brief "Hit-test/pseudo confidence couples to
+    // settle outcome"). self-check.json itself (written above) still
+    // carries the FULL, unfiltered issue list — only the seeding-facing
+    // warning is narrowed.
+    let known_drift_seed_issues: Vec<matchy_analyze::contract::Issue> = sc_result
+        .issues
+        .iter()
+        .filter(|i| {
+            !matches!(
+                i.issue_type,
+                matchy_analyze::contract::IssueType::ClickableAreaRegressed
+                    | matchy_analyze::contract::IssueType::PseudoElementMissing
+            )
+        })
+        .cloned()
+        .collect();
+    if let Some(w) = build_volatile_capture_warning(&known_drift_seed_issues) {
         warnings.push(w);
     }
 
@@ -833,16 +903,34 @@ fn build_self_check_failed_warning(
 // ---------------------------------------------------------------------------
 
 fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
-    use matchy_analyze::explain::{explain, format_report, Locator, ResolutionStatus};
+    use matchy_analyze::explain::{
+        explain, explain_pseudo, format_report, parse_pseudo_selector, Locator, ResolutionStatus,
+    };
+
+    /// Which of the three `--anchor`/`--node`/`--selector` locator forms was
+    /// given, resolved to either the ordinary node `Locator` or (port-parity
+    /// U10) a pseudo-element `(owner_part, slot)` pair when `--selector`
+    /// carries a trailing `::before`/`::after` suffix.
+    enum Resolved {
+        Node(Locator),
+        Pseudo(String, matchy_analyze::pseudo_diff::PseudoSlot),
+    }
 
     // Parse the locator from the exactly-one required flag group.
-    let (locator, locator_str) = if let Some(anchor) = &args.locator.anchor {
+    let (resolved, locator_str) = if let Some(anchor) = &args.locator.anchor {
         let loc = Locator::parse_anchor(anchor).map_err(|e| anyhow::anyhow!("{}", e))?;
-        (loc, format!("--anchor \"{}\"", anchor))
+        (Resolved::Node(loc), format!("--anchor \"{}\"", anchor))
     } else if let Some(node_id) = &args.locator.node {
-        (Locator::NodeId(node_id.clone()), format!("--node {}", node_id))
+        (
+            Resolved::Node(Locator::NodeId(node_id.clone())),
+            format!("--node {}", node_id),
+        )
     } else if let Some(sel) = &args.locator.selector {
-        (Locator::Selector(sel.clone()), format!("--selector \"{}\"", sel))
+        let resolved = match parse_pseudo_selector(sel) {
+            Some((owner_part, slot)) => Resolved::Pseudo(owner_part, slot),
+            None => Resolved::Node(Locator::Selector(sel.clone())),
+        };
+        (resolved, format!("--selector \"{}\"", sel))
     } else {
         // Clap enforces the required group, so this branch is unreachable.
         eprintln!("error: exactly one of --anchor, --node, or --selector is required");
@@ -867,7 +955,12 @@ fn run_explain(args: &ExplainArgs) -> anyhow::Result<i32> {
     let props_slice = props_vec.as_deref();
 
     // Run the pure explain function.
-    let report = explain(&old_bundle, &new_bundle, &locator, props_slice);
+    let report = match &resolved {
+        Resolved::Node(locator) => explain(&old_bundle, &new_bundle, locator, props_slice),
+        Resolved::Pseudo(owner_part, slot) => {
+            explain_pseudo(&old_bundle, &new_bundle, owner_part, *slot, props_slice)
+        }
+    };
 
     // Check resolution status.
     let both_not_found = report.old.status == ResolutionStatus::NotFound
@@ -900,7 +993,9 @@ fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
     // 1. Build the handle from the exactly-one required flag.
     let (handle, handle_str) = if let Some(lm) = &args.handle.region {
         (
-            BranchHandle::Region { landmark: lm.clone() },
+            BranchHandle::Region {
+                landmark: lm.clone(),
+            },
             format!("--region {}", lm),
         )
     } else if let Some(lm) = &args.handle.section {
@@ -931,13 +1026,21 @@ fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
 
     // 2. Locate + read diff-result.json (dir or direct file path).
     let p = PathBuf::from(&args.out);
-    let result_path = if p.is_file() { p } else { p.join("diff-result.json") };
+    let result_path = if p.is_file() {
+        p
+    } else {
+        p.join("diff-result.json")
+    };
     let raw = std::fs::read_to_string(&result_path)
         .with_context(|| format!("failed to read {}", result_path.display()))?;
 
     // 3. Parse.
-    let result = DiffResult::from_json(&raw)
-        .with_context(|| format!("failed to parse {} (is it a diff-result.json?)", result_path.display()))?;
+    let result = DiffResult::from_json(&raw).with_context(|| {
+        format!(
+            "failed to parse {} (is it a diff-result.json?)",
+            result_path.display()
+        )
+    })?;
 
     // 4. schemaVersion guard — refuse a newer major than this binary understands.
     const SUPPORTED_SCHEMA_MAJOR: u32 = 1;
@@ -982,12 +1085,14 @@ fn run_show(args: &ShowArgs) -> anyhow::Result<i32> {
 // Run from existing bundles (matchy analyze subcommand)
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn run_analyze(
     old_bundle_arg: &str,
     new_bundle_arg: &str,
     out_dir: &str,
     profile_str: &str,
     baseline_arg: Option<&str>,
+    severity_map_arg: Option<&str>,
     scope_args: &[String],
     html: bool,
     markdown: bool,
@@ -1001,6 +1106,9 @@ fn run_analyze(
     let new_bundle_path = PathBuf::from(new_bundle_arg);
 
     let profile = ParityProfile::parse(profile_str).unwrap_or(ParityProfile::ContentStructure);
+    let (severity_resolver, severity_map_echo, severity_map_warnings) =
+        build_severity_resolver(profile.clone(), severity_map_arg)
+            .context("failed to load --severity-map")?;
 
     let baseline = match baseline_arg {
         Some(p) => matchy_analyze::baseline::load(std::path::Path::new(p))
@@ -1040,7 +1148,7 @@ fn run_analyze(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores, old_landmark_node_counts) =
+    let (issues, detector_warnings, scores, old_landmark_node_counts) =
         matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
@@ -1049,11 +1157,17 @@ fn run_analyze(
             diff_img_path: &diff_img_path,
             issues_dir: &issues_dir,
             viewport_name: &viewport_name,
-            profile: &profile,
+            profile: &severity_resolver,
             image_dims_mode,
         })?;
 
     let artifacts = make_artifacts(&viewport_name, &old_bundle, &new_bundle);
+    let mut capability_warnings =
+        matchy_analyze::orchestrate::capability_mismatch_warnings(&old_bundle, &new_bundle);
+    // Port-parity U10: detector-level warnings (e.g. `pseudo_budget_truncated`)
+    // discovered during analysis, merged into the same per-viewport bucket
+    // `dedupe_capability_warnings` (report/json.rs) folds into the run.
+    capability_warnings.extend(detector_warnings);
 
     let old_url = old_bundle.page.url.clone();
     let new_url = new_bundle.page.url.clone();
@@ -1066,6 +1180,7 @@ fn run_analyze(
         old_det: old_bundle.determinism,
         new_det: new_bundle.determinism,
         old_landmark_node_counts,
+        capability_warnings,
     };
 
     let result = assemble_diff_result(
@@ -1076,7 +1191,8 @@ fn run_analyze(
         vec![vp_analysis],
         &baseline,
         &scope_opts,
-        vec![],
+        severity_map_warnings,
+        severity_map_echo,
     );
     write_diff_result(&result, &out_path)?;
     if html {
@@ -1093,12 +1209,77 @@ fn run_analyze(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// Build the severity resolver for a run from the parsed `--profile` plus an
+/// optional `--severity-map PATH` (port-parity U3).
+///
+/// Returns `(resolver, severity_map_echo, extra_warnings)`:
+///   - `resolver`: threaded to every differ in place of the bare `ParityProfile`.
+///   - `severity_map_echo`: `Some(..)` iff `--severity-map` was supplied (even
+///     if its overrides ended up empty or fully denied) — populates
+///     `DiffResult.severity_map` so two runs with different maps are never
+///     silently incomparable.
+///   - `extra_warnings`: a single `severity_map_denied` warning when the map
+///     attempted to demote a hard-Critical type below critical; empty
+///     otherwise. Deterministic (BTreeMap-keyed context).
+///
+/// Malformed JSON / unknown type-or-property keys surface as an `Err` here —
+/// the caller wraps it with `.context("failed to load --severity-map")?`,
+/// which the top-level `Err(e) => { eprintln!(...); 2 }` arms turn into exit 2.
+fn build_severity_resolver(
+    profile: ParityProfile,
+    severity_map_arg: Option<&str>,
+) -> anyhow::Result<(
+    matchy_analyze::scoring::SeverityResolver,
+    Option<matchy_analyze::contract::SeverityMapEcho>,
+    Vec<matchy_analyze::contract::RunWarning>,
+)> {
+    use matchy_analyze::contract::{RunWarning, SeverityMapEcho, SeverityOverrides};
+    use matchy_analyze::scoring::SeverityResolver;
+
+    let severity_map_path = match severity_map_arg {
+        None => return Ok((SeverityResolver::from_profile(profile), None, vec![])),
+        Some(p) => p,
+    };
+
+    let (user_types, user_properties) =
+        matchy_analyze::scoring::load_user_severity_map(Path::new(severity_map_path))?;
+    let (resolver, denied) = SeverityResolver::with_user_map(profile, user_types, user_properties);
+
+    let mut warnings = Vec::new();
+    if !denied.is_empty() {
+        // BTreeMap<String, IssueSeverity> context, deterministic; wire severity
+        // values as strings for a stable, human-readable warning payload.
+        let denied_context: std::collections::BTreeMap<String, String> = denied
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().to_string()))
+            .collect();
+        warnings.push(RunWarning {
+            code: "severity_map_denied".to_string(),
+            message: format!(
+                "--severity-map attempted to demote {} hard-Critical type(s) below critical; ignored (load_error, status_code_mismatch, missing_form can never be demoted below critical)",
+                denied.len()
+            ),
+            context: Some(serde_json::json!({ "denied": denied_context })),
+        });
+    }
+
+    let echo = Some(SeverityMapEcho {
+        source: "file".to_string(),
+        overrides: SeverityOverrides {
+            types: resolver.accepted_types().clone(),
+            properties: resolver.accepted_properties().clone(),
+        },
+    });
+
+    Ok((resolver, echo, warnings))
+}
+
 fn analyze_bundle_pair(
     old_bundle_path: &Path,
     new_bundle_path: &Path,
     vp_dir: &Path,
     viewport_name: &str,
-    profile: &ParityProfile,
+    profile: &matchy_analyze::scoring::SeverityResolver,
     image_dims_mode: ImageDimensionsMode,
 ) -> anyhow::Result<ViewportAnalysis> {
     let old_bundle = load_bundle(old_bundle_path)?;
@@ -1123,7 +1304,7 @@ fn analyze_bundle_pair(
     let issues_dir = vp_dir.join("issues");
     std::fs::create_dir_all(&issues_dir)?;
 
-    let (issues, scores, old_landmark_node_counts) =
+    let (issues, detector_warnings, scores, old_landmark_node_counts) =
         matchy_analyze::analyze_viewport(&matchy_analyze::ViewportAnalysisParams {
             old_bundle: &old_bundle,
             new_bundle: &new_bundle,
@@ -1137,6 +1318,10 @@ fn analyze_bundle_pair(
         })?;
 
     let artifacts = make_artifacts(viewport_name, &old_bundle, &new_bundle);
+    let mut capability_warnings =
+        matchy_analyze::orchestrate::capability_mismatch_warnings(&old_bundle, &new_bundle);
+    // Port-parity U10: detector-level warnings (e.g. `pseudo_budget_truncated`).
+    capability_warnings.extend(detector_warnings);
 
     Ok(ViewportAnalysis {
         name: viewport_name.to_string(),
@@ -1146,6 +1331,7 @@ fn analyze_bundle_pair(
         old_det: old_bundle.determinism,
         new_det: new_bundle.determinism,
         old_landmark_node_counts,
+        capability_warnings,
     })
 }
 
@@ -1165,7 +1351,7 @@ fn make_load_error_analysis(
     viewport_name: &str,
     error_message: &str,
     _vp_dir: &Path,
-    profile: &ParityProfile,
+    profile: &matchy_analyze::scoring::SeverityResolver,
 ) -> ViewportAnalysis {
     use matchy_analyze::contract::{Anchors, IssueCategory, IssueType, Locator};
     use matchy_analyze::issue::compute_issue_id;
@@ -1210,6 +1396,8 @@ fn make_load_error_analysis(
         old_det: make_default_determinism(),
         new_det: make_default_determinism(),
         old_landmark_node_counts: std::collections::BTreeMap::new(),
+        // No bundle pair was loaded (load_error placeholder) — nothing to compare.
+        capability_warnings: vec![],
     }
 }
 
@@ -1224,6 +1412,11 @@ fn make_default_determinism() -> matchy_analyze::contract::CaptureDeterminism {
         images_decoded: StepStatus::Skipped,
         lazy_load_pass: StepStatus::Skipped,
         settled: StepStatus::Skipped,
+        settle: None,
+        hit_test_probe: None,
+        quiescence: None,
+        settle_scroll_ineffective: None,
+        settle_growth_capped: None,
         clicked: vec![],
         hidden: vec![],
         masked: vec![],
@@ -1337,7 +1530,10 @@ mod tests {
             "--full",
         ])
         .expect("parse with --full on analyze");
-        assert!(cli_analyze.full, "--full must be true when passed on analyze");
+        assert!(
+            cli_analyze.full,
+            "--full must be true when passed on analyze"
+        );
     }
 
     // -------------------------------------------------------------------

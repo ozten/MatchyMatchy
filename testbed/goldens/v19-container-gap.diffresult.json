@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "toolVersion": "0.1.0",
-  "runId": "2026-06-11T22-09-09Z",
+  "runId": "2026-08-25T18-40-01Z",
   "oldUrl": "http://localhost:47000/",
   "newUrl": "http://localhost:47019/",
   "parityProfile": "content-structure",
@@ -13,14 +13,18 @@
       "style_changed": 2,
       "visual_region_changed": 18
     },
+    "bySeverity": {
+      "info": 19,
+      "warning": 2
+    },
     "clusterCount": 2,
     "regionCount": 0,
     "topFixes": [
-      "issue_c87bcfed7f0a",
-      "issue_d51a43667f07",
+      "issue_0d477212e0b0",
+      "issue_0e8dbe71346b",
       "cluster_0bbbfc17db16",
       "cluster_ebe4318e14cf",
-      "issue_2c8595b75643"
+      "issue_0047159333f2"
     ]
   },
   "scores": {
@@ -63,27 +67,27 @@
       "name": "desktop",
       "status": "warn",
       "issues": [
-        "issue_c0ace9ed85bd",
-        "issue_608b23b19271",
-        "issue_2fa4a03ac962",
-        "issue_3f7dbfd55fa9",
-        "issue_5c72faffcc21",
-        "issue_9d99c1bdfb79",
-        "issue_a609a79ce17b",
-        "issue_a609a79ce17b-2",
-        "issue_f8e533e1ae08",
-        "issue_0cd97ed74003",
-        "issue_a609a79ce17b-3",
-        "issue_77fb14aa331f",
-        "issue_a609a79ce17b-4",
-        "issue_2c9867de75c6",
-        "issue_8c1393568931",
-        "issue_1f138e296ba5",
-        "issue_b7cd2312dd48",
-        "issue_b0f78d9544e4",
-        "issue_2c8595b75643",
-        "issue_c87bcfed7f0a",
-        "issue_d51a43667f07"
+        "issue_5b9503c1415b",
+        "issue_92f24b8a19b1",
+        "issue_645c0c0044f3",
+        "issue_9bc51b833e49",
+        "issue_a3f5a82d9224",
+        "issue_7798114f0b8b",
+        "issue_06602ef43981",
+        "issue_06602ef43981-2",
+        "issue_14e1bf0158d1",
+        "issue_05d3d7e04ca4",
+        "issue_06602ef43981-3",
+        "issue_8ac8572dc326",
+        "issue_06602ef43981-4",
+        "issue_3509935cbd40",
+        "issue_c045fb066f59",
+        "issue_5118351a52fa",
+        "issue_6ba31f97e722",
+        "issue_797abc4a8026",
+        "issue_0047159333f2",
+        "issue_0e8dbe71346b",
+        "issue_0d477212e0b0"
       ],
       "artifacts": {
         "old": "desktop/old.png",
@@ -94,76 +98,7 @@
   ],
   "issues": [
     {
-      "id": "issue_c87bcfed7f0a",
-      "type": "style_changed",
-      "category": "style",
-      "severity": "warning",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": "G1",
-      "message": "gap changed from 32px to 32px 8px near \"TRUSTED BY 1,000+ BUSINESSES GLOBALLY\"",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 191
-        },
-        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
-        "bboxOld": [
-          240,
-          4516,
-          960,
-          127
-        ],
-        "bboxNew": [
-          240,
-          4516,
-          960,
-          151
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": null
-      },
-      "evidence": {
-        "match": {
-          "score": 0.9786,
-          "signals": {
-            "descendantSet": 1.0,
-            "styleSim": 0.9286,
-            "tagBonus": 0.05
-          },
-          "stage": "ancestor"
-        },
-        "new": {
-          "gap": "32px 8px"
-        },
-        "old": {
-          "gap": "32px"
-        }
-      },
-      "remediation": {
-        "action": "restore_css_property",
-        "findBy": {
-          "grep": [
-            "TRUSTED BY 1,000+ BUSINESSES GLOBALLY"
-          ],
-          "near": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY"
-        },
-        "from": "32px 8px",
-        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
-        "property": "gap",
-        "to": "32px"
-      }
-    },
-    {
-      "id": "issue_d51a43667f07",
+      "id": "issue_0d477212e0b0",
       "type": "style_changed",
       "category": "style",
       "severity": "warning",
@@ -202,10 +137,10 @@
       },
       "evidence": {
         "match": {
-          "score": 0.9786,
+          "score": 0.9875,
           "signals": {
             "descendantSet": 1.0,
-            "styleSim": 0.9286,
+            "styleSim": 0.9375,
             "tagBonus": 0.05
           },
           "stage": "ancestor"
@@ -232,7 +167,76 @@
       }
     },
     {
-      "id": "issue_0cd97ed74003",
+      "id": "issue_0e8dbe71346b",
+      "type": "style_changed",
+      "category": "style",
+      "severity": "warning",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": "G1",
+      "message": "gap changed from 32px to 32px 8px near \"TRUSTED BY 1,000+ BUSINESSES GLOBALLY\"",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 191
+        },
+        "cssSelectorOld": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+        "bboxOld": [
+          240,
+          4516,
+          960,
+          127
+        ],
+        "bboxNew": [
+          240,
+          4516,
+          960,
+          151
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": null
+      },
+      "evidence": {
+        "match": {
+          "score": 0.9875,
+          "signals": {
+            "descendantSet": 1.0,
+            "styleSim": 0.9375,
+            "tagBonus": 0.05
+          },
+          "stage": "ancestor"
+        },
+        "new": {
+          "gap": "32px 8px"
+        },
+        "old": {
+          "gap": "32px"
+        }
+      },
+      "remediation": {
+        "action": "restore_css_property",
+        "findBy": {
+          "grep": [
+            "TRUSTED BY 1,000+ BUSINESSES GLOBALLY"
+          ],
+          "near": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY"
+        },
+        "from": "32px 8px",
+        "note": "The tool does not name the component. Use the grep targets to locate it in source or CMS.",
+        "property": "gap",
+        "to": "32px"
+      }
+    },
+    {
+      "id": "issue_05d3d7e04ca4",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -271,9 +275,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_0cd97ed74003_diff.png",
-          "newCrop": "desktop/issues/issue_0cd97ed74003_new.png",
-          "oldCrop": "desktop/issues/issue_0cd97ed74003_old.png"
+          "diffCrop": "desktop/issues/issue_05d3d7e04ca4_diff.png",
+          "newCrop": "desktop/issues/issue_05d3d7e04ca4_new.png",
+          "oldCrop": "desktop/issues/issue_05d3d7e04ca4_old.png"
         },
         "visual": {
           "changedPixels": 5254,
@@ -290,703 +294,7 @@
       "remediation": null
     },
     {
-      "id": "issue_1f138e296ba5",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (1080, 6833) 240x63",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "img",
-          "href": null,
-          "alt": "ISO 27001",
-          "ariaLabel": null,
-          "nearestHeading": "RESOURCES",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 5
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > img:nth-of-type(2)",
-        "bboxOld": [
-          1080,
-          6833,
-          240,
-          63
-        ],
-        "bboxNew": [
-          1080,
-          6833,
-          240,
-          63
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 192
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_1f138e296ba5_diff.png",
-          "newCrop": "desktop/issues/issue_1f138e296ba5_new.png",
-          "oldCrop": "desktop/issues/issue_1f138e296ba5_old.png"
-        },
-        "visual": {
-          "changedPixels": 6251,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            1080,
-            6833,
-            240,
-            63
-          ],
-          "regionChangedRatio": 0.0006221832051343302
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_2c9867de75c6",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (307, 6498) 1013x353",
-      "locator": {
-        "anchors": {
-          "text": "PRODUCTS",
-          "role": "heading",
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "PRODUCTS",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > h6:nth-of-type(1)",
-        "bboxOld": [
-          307,
-          6498,
-          1013,
-          353
-        ],
-        "bboxNew": [
-          307,
-          6498,
-          1013,
-          353
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 154
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_2c9867de75c6_diff.png",
-          "newCrop": "desktop/issues/issue_2c9867de75c6_new.png",
-          "oldCrop": "desktop/issues/issue_2c9867de75c6_old.png"
-        },
-        "visual": {
-          "changedPixels": 32130,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            307,
-            6498,
-            1013,
-            353
-          ],
-          "regionChangedRatio": 0.0031980077397162103
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_2fa4a03ac962",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (232, 4818) 180x88",
-      "locator": {
-        "anchors": {
-          "text": "Connor M.",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          232,
-          4818,
-          180,
-          88
-        ],
-        "bboxNew": [
-          232,
-          4818,
-          180,
-          88
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 105
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_2fa4a03ac962_diff.png",
-          "newCrop": "desktop/issues/issue_2fa4a03ac962_new.png",
-          "oldCrop": "desktop/issues/issue_2fa4a03ac962_old.png"
-        },
-        "visual": {
-          "changedPixels": 4098,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            232,
-            4818,
-            180,
-            88
-          ],
-          "regionChangedRatio": 0.0004078878218909751
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_3f7dbfd55fa9",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (232, 4933) 410x230",
-      "locator": {
-        "anchors": {
-          "text": "Connor M. Salesforce Administrator Mid-market (51-1000 emp.) Consistent and efficient Our sales team does not cold call prospects and only reaches out after receiveing applications for our products. Hiya has played a key part in branding our members successfully so prospects know who is reaching out to them. G2 Marketing Solutions",
-          "role": "link",
-          "href": "https://www.g2.com/products/hiya-connect-branded-caller-id/reviews",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": [
-          232,
-          4933,
-          410,
-          230
-        ],
-        "bboxNew": [
-          232,
-          4933,
-          410,
-          230
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 104
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_3f7dbfd55fa9_diff.png",
-          "newCrop": "desktop/issues/issue_3f7dbfd55fa9_new.png",
-          "oldCrop": "desktop/issues/issue_3f7dbfd55fa9_old.png"
-        },
-        "visual": {
-          "changedPixels": 17830,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            232,
-            4933,
-            410,
-            230
-          ],
-          "regionChangedRatio": 0.001774680298759416
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_5c72faffcc21",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (782, 4933) 391x130",
-      "locator": {
-        "anchors": {
-          "text": "Call branding drives outcomes",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          782,
-          4933,
-          391,
-          130
-        ],
-        "bboxNew": [
-          782,
-          4933,
-          391,
-          130
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 118
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_5c72faffcc21_diff.png",
-          "newCrop": "desktop/issues/issue_5c72faffcc21_new.png",
-          "oldCrop": "desktop/issues/issue_5c72faffcc21_old.png"
-        },
-        "visual": {
-          "changedPixels": 10037,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            782,
-            4933,
-            391,
-            130
-          ],
-          "regionChangedRatio": 0.0009990166101317027
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_608b23b19271",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (782, 4817) 270x89",
-      "locator": {
-        "anchors": {
-          "text": "Holden O.",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          782,
-          4817,
-          270,
-          89
-        ],
-        "bboxNew": [
-          782,
-          4817,
-          270,
-          89
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 114
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_608b23b19271_diff.png",
-          "newCrop": "desktop/issues/issue_608b23b19271_new.png",
-          "oldCrop": "desktop/issues/issue_608b23b19271_old.png"
-        },
-        "visual": {
-          "changedPixels": 4838,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            782,
-            4817,
-            270,
-            89
-          ],
-          "regionChangedRatio": 0.00048154252862580226
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_77fb14aa331f",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (401, 6025) 636x251",
-      "locator": {
-        "anchors": {
-          "text": "Your customers are waiting to hear from you",
-          "role": "heading",
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Your customers are waiting to hear from you",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1)",
-        "bboxOld": [
-          401,
-          6025,
-          636,
-          251
-        ],
-        "bboxNew": [
-          401,
-          6025,
-          636,
-          251
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 145
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_77fb14aa331f_diff.png",
-          "newCrop": "desktop/issues/issue_77fb14aa331f_new.png",
-          "oldCrop": "desktop/issues/issue_77fb14aa331f_old.png"
-        },
-        "visual": {
-          "changedPixels": 44580,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            401,
-            6025,
-            636,
-            251
-          ],
-          "regionChangedRatio": 0.004437198413835937
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_8c1393568931",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (120, 6533) 64x51",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "link",
-          "href": "https://www.linkedin.com/company/hiyainc",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "Your customers are waiting to hear from you",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          6533,
-          64,
-          51
-        ],
-        "bboxNew": [
-          120,
-          6533,
-          64,
-          51
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 150
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_8c1393568931_diff.png",
-          "newCrop": "desktop/issues/issue_8c1393568931_new.png",
-          "oldCrop": "desktop/issues/issue_8c1393568931_old.png"
-        },
-        "visual": {
-          "changedPixels": 2326,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            120,
-            6533,
-            64,
-            51
-          ],
-          "regionChangedRatio": 0.00023151465927730798
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_9d99c1bdfb79",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (782, 5104) 176x59",
-      "locator": {
-        "anchors": {
-          "text": "G2 Marketing Solutions",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 2
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)",
-        "bboxOld": [
-          782,
-          5104,
-          176,
-          59
-        ],
-        "bboxNew": [
-          782,
-          5104,
-          176,
-          59
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 121
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_9d99c1bdfb79_diff.png",
-          "newCrop": "desktop/issues/issue_9d99c1bdfb79_new.png",
-          "oldCrop": "desktop/issues/issue_9d99c1bdfb79_old.png"
-        },
-        "visual": {
-          "changedPixels": 2509,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            782,
-            5104,
-            176,
-            59
-          ],
-          "regionChangedRatio": 0.0002497292691860558
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_b0f78d9544e4",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (120, 6934) 588x37",
-      "locator": {
-        "anchors": {
-          "text": "Copyright Hiya 2026.",
-          "role": null,
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "RESOURCES",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
-        "bboxOld": [
-          120,
-          6934,
-          588,
-          37
-        ],
-        "bboxNew": [
-          120,
-          6934,
-          588,
-          37
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 195
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_b0f78d9544e4_diff.png",
-          "newCrop": "desktop/issues/issue_b0f78d9544e4_new.png",
-          "oldCrop": "desktop/issues/issue_b0f78d9544e4_old.png"
-        },
-        "visual": {
-          "changedPixels": 4404,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            120,
-            6934,
-            588,
-            37
-          ],
-          "regionChangedRatio": 0.0004383450384597009
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_b7cd2312dd48",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (1206, 6928) 114x49",
-      "locator": {
-        "anchors": {
-          "text": "ENGLISH",
-          "role": "button",
-          "href": null,
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "RESOURCES",
-          "landmark": "contentinfo",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1)",
-        "bboxOld": [
-          1206,
-          6928,
-          114,
-          49
-        ],
-        "bboxNew": [
-          1206,
-          6928,
-          114,
-          49
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 200
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_b7cd2312dd48_diff.png",
-          "newCrop": "desktop/issues/issue_b7cd2312dd48_new.png",
-          "oldCrop": "desktop/issues/issue_b7cd2312dd48_old.png"
-        },
-        "visual": {
-          "changedPixels": 3724,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            1206,
-            6928,
-            114,
-            49
-          ],
-          "regionChangedRatio": 0.00037066233497364356
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_c0ace9ed85bd",
-      "type": "visual_region_changed",
-      "category": "visual",
-      "severity": "info",
-      "confidence": 0.9,
-      "viewport": "desktop",
-      "locale": "en-US",
-      "goal": null,
-      "message": "Visual region changed at (240, 4517) 960x150",
-      "locator": {
-        "anchors": {
-          "text": null,
-          "role": "listitem",
-          "href": "https://www.g2.com/products/hiya-connect-branded-caller-id/reviews",
-          "alt": null,
-          "ariaLabel": null,
-          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
-          "landmark": "main",
-          "ordinalInLandmark": 1
-        },
-        "cssSelectorOld": null,
-        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
-        "bboxOld": [
-          240,
-          4517,
-          960,
-          150
-        ],
-        "bboxNew": [
-          240,
-          4517,
-          960,
-          150
-        ],
-        "seqIndexOld": null,
-        "seqIndexNew": 90
-      },
-      "evidence": {
-        "artifacts": {
-          "diffCrop": "desktop/issues/issue_c0ace9ed85bd_diff.png",
-          "newCrop": "desktop/issues/issue_c0ace9ed85bd_new.png",
-          "oldCrop": "desktop/issues/issue_c0ace9ed85bd_old.png"
-        },
-        "visual": {
-          "changedPixels": 49285,
-          "pageChangedRatio": 0.03932922459509818,
-          "regionBbox": [
-            240,
-            4517,
-            960,
-            150
-          ],
-          "regionChangedRatio": 0.004905503001926967
-        }
-      },
-      "remediation": null
-    },
-    {
-      "id": "issue_f8e533e1ae08",
+      "id": "issue_14e1bf0158d1",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1025,9 +333,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_f8e533e1ae08_diff.png",
-          "newCrop": "desktop/issues/issue_f8e533e1ae08_new.png",
-          "oldCrop": "desktop/issues/issue_f8e533e1ae08_old.png"
+          "diffCrop": "desktop/issues/issue_14e1bf0158d1_diff.png",
+          "newCrop": "desktop/issues/issue_14e1bf0158d1_new.png",
+          "oldCrop": "desktop/issues/issue_14e1bf0158d1_old.png"
         },
         "visual": {
           "changedPixels": 36501,
@@ -1044,7 +352,703 @@
       "remediation": null
     },
     {
-      "id": "issue_2c8595b75643",
+      "id": "issue_3509935cbd40",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (307, 6498) 1013x353",
+      "locator": {
+        "anchors": {
+          "text": "PRODUCTS",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "PRODUCTS",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > h6:nth-of-type(1)",
+        "bboxOld": [
+          307,
+          6498,
+          1013,
+          353
+        ],
+        "bboxNew": [
+          307,
+          6498,
+          1013,
+          353
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 154
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_3509935cbd40_diff.png",
+          "newCrop": "desktop/issues/issue_3509935cbd40_new.png",
+          "oldCrop": "desktop/issues/issue_3509935cbd40_old.png"
+        },
+        "visual": {
+          "changedPixels": 32130,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            307,
+            6498,
+            1013,
+            353
+          ],
+          "regionChangedRatio": 0.0031980077397162103
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_5118351a52fa",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (1080, 6833) 240x63",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "img",
+          "href": null,
+          "alt": "ISO 27001",
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 5
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > img:nth-of-type(2)",
+        "bboxOld": [
+          1080,
+          6833,
+          240,
+          63
+        ],
+        "bboxNew": [
+          1080,
+          6833,
+          240,
+          63
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 192
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_5118351a52fa_diff.png",
+          "newCrop": "desktop/issues/issue_5118351a52fa_new.png",
+          "oldCrop": "desktop/issues/issue_5118351a52fa_old.png"
+        },
+        "visual": {
+          "changedPixels": 6251,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            1080,
+            6833,
+            240,
+            63
+          ],
+          "regionChangedRatio": 0.0006221832051343302
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_5b9503c1415b",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (240, 4517) 960x150",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "listitem",
+          "href": "https://www.g2.com/products/hiya-connect-branded-caller-id/reviews",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          240,
+          4517,
+          960,
+          150
+        ],
+        "bboxNew": [
+          240,
+          4517,
+          960,
+          150
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 90
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_5b9503c1415b_diff.png",
+          "newCrop": "desktop/issues/issue_5b9503c1415b_new.png",
+          "oldCrop": "desktop/issues/issue_5b9503c1415b_old.png"
+        },
+        "visual": {
+          "changedPixels": 49285,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            240,
+            4517,
+            960,
+            150
+          ],
+          "regionChangedRatio": 0.004905503001926967
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_645c0c0044f3",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (232, 4818) 180x88",
+      "locator": {
+        "anchors": {
+          "text": "Connor M.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          232,
+          4818,
+          180,
+          88
+        ],
+        "bboxNew": [
+          232,
+          4818,
+          180,
+          88
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 105
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_645c0c0044f3_diff.png",
+          "newCrop": "desktop/issues/issue_645c0c0044f3_new.png",
+          "oldCrop": "desktop/issues/issue_645c0c0044f3_old.png"
+        },
+        "visual": {
+          "changedPixels": 4098,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            232,
+            4818,
+            180,
+            88
+          ],
+          "regionChangedRatio": 0.0004078878218909751
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_6ba31f97e722",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (1206, 6928) 114x49",
+      "locator": {
+        "anchors": {
+          "text": "ENGLISH",
+          "role": "button",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          1206,
+          6928,
+          114,
+          49
+        ],
+        "bboxNew": [
+          1206,
+          6928,
+          114,
+          49
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 200
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_6ba31f97e722_diff.png",
+          "newCrop": "desktop/issues/issue_6ba31f97e722_new.png",
+          "oldCrop": "desktop/issues/issue_6ba31f97e722_old.png"
+        },
+        "visual": {
+          "changedPixels": 3724,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            1206,
+            6928,
+            114,
+            49
+          ],
+          "regionChangedRatio": 0.00037066233497364356
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_7798114f0b8b",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (782, 5104) 176x59",
+      "locator": {
+        "anchors": {
+          "text": "G2 Marketing Solutions",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 2
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)",
+        "bboxOld": [
+          782,
+          5104,
+          176,
+          59
+        ],
+        "bboxNew": [
+          782,
+          5104,
+          176,
+          59
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 121
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_7798114f0b8b_diff.png",
+          "newCrop": "desktop/issues/issue_7798114f0b8b_new.png",
+          "oldCrop": "desktop/issues/issue_7798114f0b8b_old.png"
+        },
+        "visual": {
+          "changedPixels": 2509,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            782,
+            5104,
+            176,
+            59
+          ],
+          "regionChangedRatio": 0.0002497292691860558
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_797abc4a8026",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (120, 6934) 588x37",
+      "locator": {
+        "anchors": {
+          "text": "Copyright Hiya 2026.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "RESOURCES",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          6934,
+          588,
+          37
+        ],
+        "bboxNew": [
+          120,
+          6934,
+          588,
+          37
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 195
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_797abc4a8026_diff.png",
+          "newCrop": "desktop/issues/issue_797abc4a8026_new.png",
+          "oldCrop": "desktop/issues/issue_797abc4a8026_old.png"
+        },
+        "visual": {
+          "changedPixels": 4404,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            120,
+            6934,
+            588,
+            37
+          ],
+          "regionChangedRatio": 0.0004383450384597009
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_8ac8572dc326",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (401, 6025) 636x251",
+      "locator": {
+        "anchors": {
+          "text": "Your customers are waiting to hear from you",
+          "role": "heading",
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1)",
+        "bboxOld": [
+          401,
+          6025,
+          636,
+          251
+        ],
+        "bboxNew": [
+          401,
+          6025,
+          636,
+          251
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 145
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_8ac8572dc326_diff.png",
+          "newCrop": "desktop/issues/issue_8ac8572dc326_new.png",
+          "oldCrop": "desktop/issues/issue_8ac8572dc326_old.png"
+        },
+        "visual": {
+          "changedPixels": 44580,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            401,
+            6025,
+            636,
+            251
+          ],
+          "regionChangedRatio": 0.004437198413835937
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_92f24b8a19b1",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (782, 4817) 270x89",
+      "locator": {
+        "anchors": {
+          "text": "Holden O.",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          782,
+          4817,
+          270,
+          89
+        ],
+        "bboxNew": [
+          782,
+          4817,
+          270,
+          89
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 114
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_92f24b8a19b1_diff.png",
+          "newCrop": "desktop/issues/issue_92f24b8a19b1_new.png",
+          "oldCrop": "desktop/issues/issue_92f24b8a19b1_old.png"
+        },
+        "visual": {
+          "changedPixels": 4838,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            782,
+            4817,
+            270,
+            89
+          ],
+          "regionChangedRatio": 0.00048154252862580226
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_9bc51b833e49",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (232, 4933) 410x230",
+      "locator": {
+        "anchors": {
+          "text": "Connor M. Salesforce Administrator Mid-market (51-1000 emp.) Consistent and efficient Our sales team does not cold call prospects and only reaches out after receiveing applications for our products. Hiya has played a key part in branding our members successfully so prospects know who is reaching out to them. G2 Marketing Solutions",
+          "role": "link",
+          "href": "https://www.g2.com/products/hiya-connect-branded-caller-id/reviews",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          232,
+          4933,
+          410,
+          230
+        ],
+        "bboxNew": [
+          232,
+          4933,
+          410,
+          230
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 104
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_9bc51b833e49_diff.png",
+          "newCrop": "desktop/issues/issue_9bc51b833e49_new.png",
+          "oldCrop": "desktop/issues/issue_9bc51b833e49_old.png"
+        },
+        "visual": {
+          "changedPixels": 17830,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            232,
+            4933,
+            410,
+            230
+          ],
+          "regionChangedRatio": 0.001774680298759416
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_a3f5a82d9224",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (782, 4933) 391x130",
+      "locator": {
+        "anchors": {
+          "text": "Call branding drives outcomes",
+          "role": null,
+          "href": null,
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "TRUSTED BY 1,000+ BUSINESSES GLOBALLY",
+          "landmark": "main",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1)",
+        "bboxOld": [
+          782,
+          4933,
+          391,
+          130
+        ],
+        "bboxNew": [
+          782,
+          4933,
+          391,
+          130
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 118
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_a3f5a82d9224_diff.png",
+          "newCrop": "desktop/issues/issue_a3f5a82d9224_new.png",
+          "oldCrop": "desktop/issues/issue_a3f5a82d9224_old.png"
+        },
+        "visual": {
+          "changedPixels": 10037,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            782,
+            4933,
+            391,
+            130
+          ],
+          "regionChangedRatio": 0.0009990166101317027
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_c045fb066f59",
+      "type": "visual_region_changed",
+      "category": "visual",
+      "severity": "info",
+      "confidence": 0.9,
+      "viewport": "desktop",
+      "locale": "en-US",
+      "goal": null,
+      "message": "Visual region changed at (120, 6533) 64x51",
+      "locator": {
+        "anchors": {
+          "text": null,
+          "role": "link",
+          "href": "https://www.linkedin.com/company/hiyainc",
+          "alt": null,
+          "ariaLabel": null,
+          "nearestHeading": "Your customers are waiting to hear from you",
+          "landmark": "contentinfo",
+          "ordinalInLandmark": 1
+        },
+        "cssSelectorOld": null,
+        "cssSelectorNew": "div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > a:nth-of-type(1)",
+        "bboxOld": [
+          120,
+          6533,
+          64,
+          51
+        ],
+        "bboxNew": [
+          120,
+          6533,
+          64,
+          51
+        ],
+        "seqIndexOld": null,
+        "seqIndexNew": 150
+      },
+      "evidence": {
+        "artifacts": {
+          "diffCrop": "desktop/issues/issue_c045fb066f59_diff.png",
+          "newCrop": "desktop/issues/issue_c045fb066f59_new.png",
+          "oldCrop": "desktop/issues/issue_c045fb066f59_old.png"
+        },
+        "visual": {
+          "changedPixels": 2326,
+          "pageChangedRatio": 0.03932922459509818,
+          "regionBbox": [
+            120,
+            6533,
+            64,
+            51
+          ],
+          "regionChangedRatio": 0.00023151465927730798
+        }
+      },
+      "remediation": null
+    },
+    {
+      "id": "issue_0047159333f2",
       "type": "page_height_changed",
       "category": "visual",
       "severity": "info",
@@ -1103,7 +1107,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b",
+      "id": "issue_06602ef43981",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1142,9 +1146,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b_old.png"
+          "diffCrop": "desktop/issues/issue_06602ef43981_diff.png",
+          "newCrop": "desktop/issues/issue_06602ef43981_new.png",
+          "oldCrop": "desktop/issues/issue_06602ef43981_old.png"
         },
         "visual": {
           "changedPixels": 110816,
@@ -1161,7 +1165,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b-2",
+      "id": "issue_06602ef43981-2",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1200,9 +1204,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b-2_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b-2_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b-2_old.png"
+          "diffCrop": "desktop/issues/issue_06602ef43981-2_diff.png",
+          "newCrop": "desktop/issues/issue_06602ef43981-2_new.png",
+          "oldCrop": "desktop/issues/issue_06602ef43981-2_old.png"
         },
         "visual": {
           "changedPixels": 3516,
@@ -1219,7 +1223,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b-3",
+      "id": "issue_06602ef43981-3",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1258,9 +1262,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b-3_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b-3_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b-3_old.png"
+          "diffCrop": "desktop/issues/issue_06602ef43981-3_diff.png",
+          "newCrop": "desktop/issues/issue_06602ef43981-3_new.png",
+          "oldCrop": "desktop/issues/issue_06602ef43981-3_old.png"
         },
         "visual": {
           "changedPixels": 28830,
@@ -1277,7 +1281,7 @@
       "remediation": null
     },
     {
-      "id": "issue_a609a79ce17b-4",
+      "id": "issue_06602ef43981-4",
       "type": "visual_region_changed",
       "category": "visual",
       "severity": "info",
@@ -1316,9 +1320,9 @@
       },
       "evidence": {
         "artifacts": {
-          "diffCrop": "desktop/issues/issue_a609a79ce17b-4_diff.png",
-          "newCrop": "desktop/issues/issue_a609a79ce17b-4_new.png",
-          "oldCrop": "desktop/issues/issue_a609a79ce17b-4_old.png"
+          "diffCrop": "desktop/issues/issue_06602ef43981-4_diff.png",
+          "newCrop": "desktop/issues/issue_06602ef43981-4_new.png",
+          "oldCrop": "desktop/issues/issue_06602ef43981-4_old.png"
         },
         "visual": {
           "changedPixels": 27627,
@@ -1339,15 +1343,15 @@
     {
       "id": "cluster_ebe4318e14cf",
       "issueIds": [
-        "issue_0cd97ed74003",
-        "issue_2fa4a03ac962",
-        "issue_3f7dbfd55fa9",
-        "issue_5c72faffcc21",
-        "issue_608b23b19271",
-        "issue_77fb14aa331f",
-        "issue_9d99c1bdfb79",
-        "issue_c0ace9ed85bd",
-        "issue_f8e533e1ae08"
+        "issue_05d3d7e04ca4",
+        "issue_14e1bf0158d1",
+        "issue_5b9503c1415b",
+        "issue_645c0c0044f3",
+        "issue_7798114f0b8b",
+        "issue_8ac8572dc326",
+        "issue_92f24b8a19b1",
+        "issue_9bc51b833e49",
+        "issue_a3f5a82d9224"
       ],
       "sharedProperty": null,
       "sharedLandmark": "main",
@@ -1356,11 +1360,11 @@
     {
       "id": "cluster_0bbbfc17db16",
       "issueIds": [
-        "issue_1f138e296ba5",
-        "issue_2c9867de75c6",
-        "issue_8c1393568931",
-        "issue_b0f78d9544e4",
-        "issue_b7cd2312dd48"
+        "issue_3509935cbd40",
+        "issue_5118351a52fa",
+        "issue_6ba31f97e722",
+        "issue_797abc4a8026",
+        "issue_c045fb066f59"
       ],
       "sharedProperty": null,
       "sharedLandmark": "contentinfo",
@@ -1386,8 +1390,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
@@ -1412,8 +1419,11 @@
       "randomStubbed": "ran",
       "fontsReady": "ran",
       "imagesDecoded": "ran",
-      "lazyLoadPass": "ran",
+      "lazyLoadPass": "skipped",
       "settled": "ran",
+      "settle": "ran",
+      "hitTestProbe": "ran",
+      "quiescence": "reached",
       "clicked": [],
       "hidden": [],
       "masked": [],
