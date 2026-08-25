@@ -1,7 +1,7 @@
 ---
 title: "feat: Port-parity feature set — clickable-area diff, pseudo-element capture, settle pass, gating ergonomics"
 type: feat
-status: active
+status: completed
 date: 2026-08-20
 ---
 
