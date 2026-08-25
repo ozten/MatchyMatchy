@@ -1,0 +1,92 @@
+{
+  "status": ["pass", "warn"],
+  "required": [
+    {
+      "type": "page_height_changed",
+      "note": "DESERVED knock-on, PINNED FROM OBSERVATION (not speculated): the new section adds real layout height (441px observed: page height 6977 -> 7418), so a page_height_changed issue is the correct, expected signal -- mirrors v02-banner-added's manifest-declared page-height knock-on, elevated here to required because it is the clearest positive evidence the tool detected the section's structural footprint at all (the new section gets no anchor of its own -- see notes)."
+    },
+    {
+      "type": "visual_region_changed",
+      "anchors": { "textContains": "Secure Branding: Your Brand, Only on Verified Calls" },
+      "note": "DESERVED knock-on, PINNED FROM OBSERVATION: 'Secure Branding' is the section immediately BELOW the inserted carousel; adding 441px of height above it necessarily shifts its rendered position, which the pixel-region diff correctly reports as a changed region anchored to its heading (observed twice in the run: one region at the heading's old y-position, one at its new y-position -- both info severity, mirroring the same 'widespread visual_region_changed' reflow-cascade knock-on already accepted for v03-font-size/v04-font-family). This is the closest analogue to v02's 'required visual_region_changed anchored to the added content' -- see notes for why the carousel's OWN text has no such anchor here."
+    }
+  ],
+  "forbidden": [
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Reach more customers with" },
+      "note": "CORRUPTION SIGNATURE. Hero H1 (text node before the <strong> boundary, so the substring can't be split by a nested tag), several sections above the carousel insertion point. If the Swiper v11 init crashes under matchy's frozen clock (docs/bugs/p0-01-time-freeze-corrupts-baseline-capture.md) and takes out unrelated DOM/JS state, this must never go missing."
+    },
+    {
+      "type": "missing_link",
+      "anchors": { "textContains": "See pricing and sign up" },
+      "note": "CORRUPTION SIGNATURE. Hero CTA (href=pricing.html), far above the insertion point."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "When prospects and customers don’t know who’s calling" },
+      "note": "CORRUPTION SIGNATURE. Section 2 of 13, well above the insertion point (substring taken before the nested <span class=\"red\"> tag so it can't be split by it)."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Stand out, build trust" },
+      "note": "CORRUPTION SIGNATURE. Section 3 of 13, above the insertion point (substring taken before the nested <span class=\"text-gradient-primary\"> tag so it can't be split by it)."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Branded Call performance analytics" },
+      "note": "CORRUPTION SIGNATURE. Section 5 of 13, the section immediately two before the insertion point."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Easy to use" },
+      "note": "CORRUPTION SIGNATURE. Section 6 of 13 -- the section immediately ABOVE (adjacent sibling of) the inserted carousel section. Most sensitive to any DOM gutting caused by the Swiper init script that follows it in document order."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Secure Branding: Your Brand, Only on Verified Calls" },
+      "note": "CORRUPTION SIGNATURE. Section 7 of 13 -- the section immediately BELOW (adjacent sibling of) the inserted carousel section. Most sensitive to any DOM gutting caused by the Swiper init script."
+    },
+    {
+      "type": "missing_link",
+      "anchors": { "textContains": "Talk to sales" },
+      "note": "CORRUPTION SIGNATURE. CTA inside the 'Secure Branding' section, immediately below the insertion point."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Who we work for" },
+      "note": "CORRUPTION SIGNATURE. Section 9 of 13, below the insertion point."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "FAQs" },
+      "note": "CORRUPTION SIGNATURE. Section 13 of 13 (last section on the page), the farthest-below anchor -- if a crash during the carousel's init tears down page state broadly (not just adjacent siblings), this is the tripwire at the far end of the document."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "The AA reduced spoofed-call complaints" },
+      "note": "The carousel's own first slide must never be reported missing -- if Swiper's init throws before appending slide DOM/painting slide 1, this fires instead of silently vanishing."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "State Farm agents saw higher answer rates" },
+      "note": "The carousel's own second slide must never be reported missing."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Geico's contact center cut robocall confusion" },
+      "note": "The carousel's own third slide must never be reported missing. NOTE (observed): this slide's text is not extracted as a page.nodes entry at all in the current build (see notes) -- a missing_* issue for wholly-new content is impossible by construction anyway (nothing on the old side to be 'missing' relative to), so this matcher is a harmless belt-and-braces placeholder, not live teeth."
+    },
+    {
+      "type": "missing_*",
+      "anchors": { "textContains": "Protect Line customers now recognize legitimate calls" },
+      "note": "The carousel's own fourth slide must never be reported missing. NOTE (observed): same caveat as the third slide -- not extracted as a page.nodes entry in the current build; the matcher is a harmless placeholder."
+    },
+    {
+      "type": "changed_h1",
+      "note": "No h1 was touched anywhere on the page; the carousel is inserted well below the hero."
+    }
+  ],
+  "maxIssues": 30,
+  "notes": "PERMANENT REGRESSION TEST for the p0-01 crash mechanism (docs/bugs/p0-01-time-freeze-corrupts-baseline-capture.md): Swiper v11's init sequence calls clock.runFor internally, which under matchy's default frozen virtual clock previously fired a fake timer mid-init (re.slideTo before the carousel DOM was ready), throwing 'Cannot read properties of undefined (reading style)' and silently gutting sections from the baseline capture. v25 vendors Swiper v11.2.10 locally (site/assets/vendor/), adds one new <section class=\"v25-carousel-section\"> mid-page (between the 'Easy to use' and 'Secure Branding' sections, siblings #6/#7 of 13 top-level section-zero elements) containing a 4-slide carousel (autoplay off, loop off, pagination dots on, initialized on DOMContentLoaded) reusing 4 logo images already vendored in golden's assets/images/. The teeth of this fixture are the CORRUPTION-SIGNATURE forbidden matchers above: distinctive text/link anchors spread across sections from the very top of the page (hero H1, hero CTA) down through the sections immediately adjacent to the insertion point (the tightest-radius tripwire) to the very last section (FAQs) at the bottom of the page. If Swiper v11 crashes under the frozen clock and guts the DOM on either side, one or more of these forbidden matchers fires loudly as a FAIL -- this is a permanent, high-sensitivity smoke test for regression of the fixed capture-integrity bug, not a normal content-diff fixture.\n\nOBSERVED (full run, settle default-on, testbed/.runs/v25-swiper-carousel/diff-result.json, fresh build post-U14/e08418e): status=pass, 23 issues (22 visual_region_changed info + 1 page_height_changed info), 0 warnings. All 15 corruption-signature forbidden matchers PASS and the two required matchers (page_height_changed; visual_region_changed anchored to 'Secure Branding...') PASS. maxIssues set to 30 (observed 23 + margin for minor pixel/region-grid jitter) -- deliberately far below what genuine corruption would produce (the real p0-01 incident added 5 phantom image nodes on top of whatever missing_*/mismatch fallout followed) so a real regression would blow the cap AND trip the forbidden matchers.\n\nCRITICAL ASSERTION (a) -- capture survived the frozen clock cleanly on BOTH sides: old.bundle.json and new.bundle.json determinism blocks both read timeFrozen='ran', retriedWithoutTimeFreeze=false, settle='ran', quiescence='reached' (no timeout). Swiper v11.2.10's init did NOT crash under matchy's default frozen virtual clock -- the p0-01 mechanism does not recur with this Swiper version/config (autoplay off, loop off, DOMContentLoaded init). This is the fixture's core proof.\n\nCRITICAL ASSERTION (b) -- integrity inventory shows no content loss on either side: old (golden) integrity.pre==post (headingCount 10/10, imageCount 103/103, landmarkCount 25/25); new (v25) integrity.pre==post (headingCount 11/11 [+1 for the carousel's own h2], imageCount 107/107 [+4 for the 4 new <img> slide references], landmarkCount 25/25 [unchanged -- a bare <section> with no role/aria-label is not a distinct landmark]). No stabilization-phase loss on either side.\n\nCRITICAL ASSERTION (c) -- HONEST FINDING, not glossed over: only 2 of the 4 slides' texts ('The AA reduced spoofed-call complaints...', 'State Farm agents saw higher answer rates...') are present as page.nodes entries in the new bundle; the 3rd and 4th slides' text AND image nodes ('Geico's contact center...', 'Protect Line customers...') are NOT present as separate node entries. Root-caused by direct bbox inspection, NOT a crash/corruption: Swiper (loop:false, slide 1 active, wrapper untransformed) lays slides out left-to-right at x=120 (slide 1), x=1320 (slide 2), x=2520 (slide 3), x=3720 (slide 4) against a 1440px-wide viewport/page; matchy's node-extraction step appears to prune nodes whose bbox x meets/exceeds the page width (slides 3 & 4, x=2520/3720 >> 1440) while keeping ones under it (slide 2 at x=1320 < 1440, even though it too is visually clipped by the swiper's own overflow:hidden). This is DISTINCT from the p0-01 crash class (no exception, no retry, clean settle/quiescence, integrity pre==post on both sides all confirm nothing crashed) -- it is a separate, narrower capture-completeness nuance specific to how non-`virtual`-module Swiper lays out inactive slides via untransformed horizontal offsets. It does not threaten this fixture's stated purpose (proving the crash mechanism does not recur) and does not weaken the corruption-signature forbidden matchers (all of which anchor to EXISTING on-page content, well within page bounds). It DOES mean two of the four slide-text forbidden matchers above are inert placeholders in the current build (annotated inline) rather than live teeth, and it is flagged here as a candidate follow-up for the orchestrator: matchy's node-bbox-based pruning may silently under-capture legitimate off-screen-but-DOM-present carousel content (a capture-completeness question, not this fixture's to decide or fix).\n\nDESERVED REQUIRED-SIDE, PINNED FROM OBSERVATION per fixture-builder convention (never speculated): page_height_changed (441px delta, matches the added section's rendered height exactly) and visual_region_changed anchored to 'Secure Branding...' (the immediately-adjacent-below sibling, whose rendered position necessarily shifts). NOTE, mirroring v02-banner-added's pattern but with an honest divergence: v02 requires a visual_region_changed anchored to the banner's OWN text, because the banner's tiny footprint produces an isolated region diff. Here, no visual_region_changed anchors to the carousel's own text ('Trusted by teams who switched...' or any slide) -- the pixel-region diff mechanism keys region boundaries off matched-heading bbox positions on the old/new sides, and since the carousel has no old-side counterpart at all, its own footprint does not surface as a standalone anchored region; instead the 441px reflow cascades into ~22 region diffs anchored to EVERY existing heading/landmark from 'Secure Branding' down to the FAQs and footer (the same 'widespread visual_region_changed' knock-on class already accepted, per manifest note, for v03-font-size and v04-font-family). Required pins the nearest, most direct instance of that cascade ('Secure Branding') rather than an exhaustive or nonexistent self-anchor.\n\nDETERMINISM: two full matchy runs (fresh capture, not just re-analyze) produced diff-result.json files byte-identical after excluding runId/capturedAt -- see manifest.json / fixture-builder completion report for the exact command and result.\n\nAccepted knock-ons per manifest: page height +441px; ~22 info-severity visual_region_changed issues cascading below the insertion point (reflow, not corruption)."
+}

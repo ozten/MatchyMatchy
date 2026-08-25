@@ -1308,3 +1308,72 @@ notes, above).
 > EXPECTATION(S): testbed/goldens/{v22-cta-occluded,v23-pseudo-rule-removed,v24-scroll-reveal}.diffresult.json (first recordings); their committed expected-issues.json intent files
 > REASONING: First recordings after intent-first authoring (intent files committed in be0d3c4/6a93891/6a4824e before the uncommitted goldens were recorded), so nothing pre-existing is superseded. I verified golden-intent coherence directly: v22 has exactly one clickable_area_regressed (error, 0.9) anchored to "See pricing and sign up"/pricing.html with evidence.new containing the required img:nth-of-type(1) miss-winner; v23 has exactly three pseudo_element_missing (warning, 0.9) anchored to the three non-last li texts with "content" present in evidence.old, honoring maxIssues:3 and the last-li forbidden trap; v24 is status pass with 0 issues and 0 warnings, locked by ten forbidden assertions plus maxIssues:0 that make any settle failure detectable. The intent files are non-vacuous and adversarially constructed (spared-CTA forbidden entry, dead-CSS/Webflow-fallback selection trail, documented working --no-settle negative control), and confidences are the correct base 0.9, not the pre-fix 0.72.
 > CONDITIONS: None.
+
+---
+
+## 2026-08-25 — first-time golden v25-swiper-carousel
+
+**Status: recorded, PENDING golden-auditor review.** `v25-swiper-carousel` has no prior golden —
+this is a new recording, not a re-record, so no prior expectation is being superseded.
+
+**What.** A permanent regression fixture for the p0-01 time-freeze capture-corruption mechanism
+(`docs/bugs/p0-01-time-freeze-corrupts-baseline-capture.md`): Swiper.js v11's init sequence calls
+`clock.runFor` internally, which under matchy's default frozen virtual clock previously fired a
+fake timer mid-init (`re.slideTo` before the carousel DOM was ready), throwing and silently
+gutting sections from the baseline capture. v25 vendors Swiper **11.2.10** locally
+(`testbed/variants/v25-swiper-carousel/site/assets/vendor/`, fetched once from
+`https://cdn.jsdelivr.net/npm/swiper@11.2.10/`, no CDN reference in the served page) and inserts
+one new `<section class="v25-carousel-section">` mid-page — between the "Easy to use — no
+integration required" and "Secure Branding: Your Brand, Only on Verified Calls" sections (siblings
+#6/#7 of golden's 13 top-level `section-zero` elements) — containing a 4-slide carousel (autoplay
+off, loop off, pagination dots on, initialized on `DOMContentLoaded`), reusing 4 logo images
+already vendored in golden's `assets/images/`. `expected-issues.json` was authored intent-first:
+15 CORRUPTION-SIGNATURE forbidden matchers (`missing_*`/`missing_link`/`changed_h1`) anchored to
+distinctive text/link content spread from the hero H1 down through the sections immediately
+adjacent to the insertion point to the page's last section (FAQs) — written and committed before
+any matchy run, per the fixture-builder brief — plus two required matchers (`page_height_changed`;
+`visual_region_changed` anchored to "Secure Branding...") pinned only *after* observing a run,
+never speculated.
+
+**What the recorded golden shows.** `status: pass`, 23 issues (22 `visual_region_changed` info +
+1 `page_height_changed` info, confidence 0.9/0.95), 0 warnings. All 15 forbidden matchers pass (no
+corruption signature fired); both required matchers pass. Both sides' bundles record
+`timeFrozen: "ran"`, `retriedWithoutTimeFreeze: false`, `settle: "ran"`, `quiescence: "reached"` —
+Swiper v11.2.10 did not crash under the frozen clock; the p0-01 mechanism does not recur with this
+Swiper version/config. Capture-integrity `pre`/`post` counts are equal on both sides (old
+10/103/25 heading/image/landmark; new 11/107/25), confirming no stabilization-phase content loss.
+Two full independent `matchy` runs (fresh capture, not bundle replay) produced byte-identical
+`diff-result.json` (excl. `runId`/`capturedAt`); `determinism-check.py` (analyze-only,
+bundle-replay) also passed.
+
+**Honest deviation from the brief's assumption, disclosed rather than hidden.** Direct bbox
+inspection of the new-side bundle shows only 2 of the 4 carousel slides' text ("The AA reduced
+spoofed-call complaints...", "State Farm agents saw higher answer rates...") are present as
+`page.nodes` entries; the 3rd/4th slides ("Geico's contact center...", "Protect Line
+customers...") are absent from the node list entirely (both their `<img>` and `<p>`). Root cause,
+confirmed by bbox coordinates, is NOT a crash: with `loop:false` and slide 1 active, Swiper lays
+slides out untransformed at x=120/1320/2520/3720 against a 1440px page; slides with bbox x under
+the page width are kept (slide 1, slide 2) and slides at/beyond it are pruned (slide 3, slide 4) —
+a capture-completeness nuance in matchy's node-extraction bbox filter, distinct from the p0-01
+crash class (no exception, no retry, clean settle/quiescence, integrity pre==post on both sides).
+Filed as a tracked follow-up: the §4.3 bounds test keys on bbox origin — slide 2 (x=1320, equally
+visually clipped by the swiper's overflow:hidden) is kept while slide 3 (x=2520) is pruned — a
+boundary worth an explicit post-v1 decision alongside the deferred carousel capability probes
+(spec §2). It does not weaken the fixture's corruption-signature teeth (the 10 corruption-signature
+matchers all anchor to pre-existing golden content, well within page bounds). Auditor correction
+applied: ALL FOUR slide-text `missing_*` matchers are inert-by-construction — `missing_*` requires
+old-side presence and the slide text exists only on the new side — with the two beyond-bounds
+slides doubly inert. They are kept as documentation; the fixture's live teeth are the 10 anchored
+corruption tripwires + `changed_h1` + the `maxIssues` cap + the byte golden.
+
+**Spec justification.** `docs/prds/page-pair-diff-spec.md` §7.3 (missing_*/visual_region_changed/
+page_height_changed taxonomy), §11 (visual-region emission, info severity for non-overlapping
+region diffs), §3.3/§15 (byte-determinism, confirmed by the two-full-run + analyze-only checks
+above). CLAUDE.md testbed conventions (variant = golden + one deliberate change; intent-first
+`expected-issues.json`; required side pinned from observation, never speculation).
+
+**golden-auditor verdict:**
+> APPROVE — First-time recording, purely additive (only the changelog and a Makefile verify-line touch tracked files; nothing pre-existing weakened). Verified independently: all 10 corruption-signature anchors exist verbatim in golden's HTML and would fire via the shared matcher DSL on any p0-01-style DOM gutting; the golden (pass, 23 issues, 0 warnings, zero missing_*/changed_h1), both required matchers, the determinism blocks (timeFrozen=ran, retried=false), integrity pre==post (10/103/25 old, 11/107/25 new), and slide bboxes (x=120/1320/2520/3720 vs 1440px) all match the entry's claims, and pruning the beyond-bounds slides is conformant with spec §4.3's visibility rule with carousel probing deferred per §2. One correction required before commit: all four slide-text missing_* matchers are inert-by-construction (missing_* requires old-side presence; slide text exists only on the new side — verified against the old bundle), so the live teeth number 11 (10 anchored tripwires + changed_h1), and the parenthetical "all 15 forbidden matchers anchor to existing, well-within-bounds content" must be corrected to name only the 10 corruption-signature matchers.
+
+*Conditions satisfied above: the parenthetical is corrected, the inert-by-construction status of
+all four slide-text matchers is stated, and the bbox-pruning boundary follow-up is filed.*
